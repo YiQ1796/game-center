@@ -1,27 +1,28 @@
-# 猴三毛遊戲中心 / Game Center
+# 猴三毛遊戲中心 V0.7.0｜遊戲圖示整合版
 
-正式公開網址：**https://yiq1796.github.io/game-center/**
+正式網站：https://yiq1796.github.io/game-center/
 
-- 專案：`YiQ1796/game-center`；`main`；版本 `V0.6.0`
-- 首頁：猴三毛原創角色與已選定的可愛遊戲村莊風格，純 HTML、CSS、JavaScript，手機與電腦響應式
-- 《財富帝國》新版：<https://yiq1796.github.io/Wealth_Empire/v20/>
-- 《大老二》測試版：<https://yiq1796.github.io/BigTwo_Web/>
-- 《大老二》P2P 連線跨網路真人驗收尚未完成；本專案只提供遊戲入口，不自建多人連線伺服器。
+本輪只新增網站圖示與可安裝網站資訊。沿用 V0.6.0 首頁主視覺和遊戲入口，並未修改《財富帝國》或《大老二》的程式碼。
 
-## 使用方式
+## 圖示來源與用途
+- `assets/icons/source-monkey-gaming.png`：使用者已選定的猴三毛打電動圖示原圖，保留作美術來源（本機備份，不加入 GitHub 公開站以避免額外下載負擔）。
+- `favicon.ico`：多尺寸 16/32/48，Windows／瀏覽器舊式圖示。
+- `assets/icons/favicon-32-v070.png`：瀏覽器分頁與書籤。
+- `assets/icons/apple-touch-icon-v070.png`：iPhone/iPad 加入主畫面。
+- `assets/icons/app-icon-192-v070.png`：瀏覽器網頁應用安裝。
+- `assets/icons/app-icon-512-v070.png`：高解析度安裝圖示。
+- `assets/icons/app-maskable-512-v070.png`：支援 maskable 的 Android 圖示，主角保留安全邊界。
+- `site.webmanifest`：PWA 安裝描述、起始網址、語言與圖示。
 
-直接開啟 `index.html` 可本機預覽。正式站使用 GitHub Actions 部署 Pages，檔案存放於倉庫根目錄。
+## 使用方法
+1. iPhone Safari 開啟網站，使用「分享 → 加入主畫面」；若原有舊圖示，先刪除舊捷徑再加入。
+2. Windows Edge/Chrome 開啟網站，在瀏覽器選單中「應用程式 → 將此網站安裝為應用程式」或同義選項。普通 .url 捷徑是否採用網站 favicon 取決於瀏覽器/Windows，不能保證已建立的舊捷徑會自動換圖。
+3. 圖示檔名帶 v070 以避開快取，新舊安裝圖示仍可能需重新建立捷徑。
 
-`node scripts/verify-site.mjs` 可檢查遊戲入口、圖片與基本版本標記。
+## Code Review 需追蹤的三項改善
+1. 減小圖示的 PNG 大小，並以清晰度比較結果調整色階；避免為了壓縮讓猴子線條失真。
+2. 為各平台捷徑／圖示建立實機截圖驗收：iOS Safari、Android Chrome、Windows Edge/Chrome。
+3. 下一版將圖示轉換流程寫成可重現 CLI 和 CI QA，並增加 manifest 路徑／來源版本自動驗證。
 
-## 安全與回退
-
-這個專案**不修改**《財富帝國》和《大老二》來源碼。上線後以獨立 commit 回退，不覆寫兩款遊戲的 `main`。
-
-最初版本由《大老二》儲存庫 `docs/sanmao/index.html` V0.5.1 遷移；前一公開入口 `https://yiq1796.github.io/BigTwo_Web/sanmao/` 作為過渡版留存，不自動刪除。
-
-## Code Review 的 3 個後續改善
-
-1. 定期 HTTP 檢查兩款遊戲的正式頁面版本，不僅檢查連結字串存在。
-2. 為圖像尺寸和 CSS 手機斷點建立視覺回歸測試，避免裁切、溢出。
-3. 日後增加遊戲採取 JSON Schema 及自動校驗，避免卡片、狀態和連結資料不同步。
+## 發布與驗證
+執行 `node scripts/verify-icons.mjs` 與 `node scripts/verify-site.mjs`；完成 GitHub Actions 部署後查核 commit / Pages run / 公開網址。

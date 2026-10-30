@@ -1,0 +1,33 @@
+{
+  "name": "猴三毛遊戲中心",
+  "short_name": "猴三毛",
+  "description": "猴三毛陪你玩財富帝國、大老二。選遊戲、揪朋友、一起開玩！",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "lang": "zh-Hant",
+  "background_color": "#fff8ec",
+  "theme_color": "#fff7eb",
+  "icons": [
+    {
+      "src": "./assets/icons/app-icon-192-v070.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/app-icon-512-v070.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/app-maskable-512-v070.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

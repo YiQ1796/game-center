@@ -22,7 +22,7 @@ for (const game of games) {
 }
 assert.match(html, /猴三毛遊戲中心/);
 assert.match(html, /https:\/\/yiq1796\.github\.io\/game-center\//);
-assert.match(html, /V0\.6\.0/);
+assert.match(html, /V0\.7\.0/);
 assert.ok(!html.includes('utm_source='), 'Do not include tracking parameters');
 for(const path of ['assets/mascot-logo.webp','assets/hero-clubhouse.webp','assets/club-welcome.webp']){
  assert.ok(existsSync(resolve(root, path)), `Missing ${path}`);
