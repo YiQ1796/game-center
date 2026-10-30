@@ -38,6 +38,8 @@ jobs:
           node scripts/verify-site.mjs
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - name: Upload website
         uses: actions/upload-pages-artifact@v4
         with:
