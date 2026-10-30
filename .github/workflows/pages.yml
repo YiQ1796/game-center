@@ -1,0 +1,47 @@
+name: Publish HouSanMao Game Center
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: hou-san-mao-pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate site
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s index.html
+          test -s assets/site.css
+          test -s assets/site.js
+          test -s assets/games.js
+          test -s assets/hero-clubhouse.webp
+          test -s assets/wealth-monkey.webp
+          test -s assets/poker-monkey.webp
+          node --check assets/site.js
+          node --check assets/games.js
+          node scripts/verify-site.mjs
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload website
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: .
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
