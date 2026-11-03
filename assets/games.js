@@ -28,7 +28,7 @@ window.SANMAO_GAMES = Object.freeze([
     name: '猴三毛拉密',
     category: '數字牌・單機與好友對戰',
     summary: '固定四人開局，單機與 AI 挑戰，或邀請朋友一起排牌！空位由 AI 補滿。',
-    visualType: 'rummikub-tiles', // 使用網頁樣式呈現數字牌，不覆蓋任何既有猴子圖片。
+    visualType: 'rummikub-illustration', // 延用經確認的猴三毛遊戲館角色插畫，數字牌由 DOM/CSS 繪製。
     status: 'beta', // Pages 已發布；跨網路真人連線 UAT 尚未完成。
     url: 'https://yiq1796.github.io/Rummikub_Web/'
   })

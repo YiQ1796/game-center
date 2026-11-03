@@ -18,21 +18,24 @@
     const playable = (game.status === 'available' || game.status === 'beta') && typeof game.url === 'string' && /^https:\/\//.test(game.url);
     const card = element('article', `game-card game-${game.id}`);
     const visual = element('div', 'game-card-visual');
-    if (game.visualType === 'rummikub-tiles') {
-      // 不額外產圖：拉密牌面用 CSS + DOM 製作，沿用首頁的猴三毛品牌角色素材。
-      const artwork = element('div', 'rummikub-art');
-      artwork.setAttribute('aria-hidden', 'true');
-      const mascot = element('img', 'rummikub-mascot');
-      mascot.src = 'assets/mascot-logo.webp';
+    if (game.visualType === 'rummikub-illustration') {
+      // 舊縮小頭像與舊牌面已停用：使用完整角色插畫和單一 CSS 拉密牌桌。
+      const artwork = element('div', 'rummikub-showcase');
+      artwork.setAttribute('role', 'img');
+      artwork.setAttribute('aria-label', '猴三毛在綠色遊戲桌前，桌上排列彩色拉密數字牌');
+      const mascot = element('img', 'rummikub-character');
+      mascot.src = 'assets/hero-clubhouse.webp';
       mascot.alt = '';
       mascot.loading = 'lazy';
-      mascot.width = 112;
-      mascot.height = 112;
-      const tiles = element('div', 'rummikub-tiles');
-      for (const [number, color] of [['3', 'blue'], ['4', 'red'], ['5', 'orange'], ['6', 'black']]) {
-        tiles.append(element('span', `rummikub-tile tile-${color}`, number));
+      mascot.width = 952;
+      mascot.height = 430;
+      const board = element('div', 'rummikub-board');
+      const rack = element('div', 'rummikub-rail');
+      for (const [number, color] of [['3', 'blue'], ['4', 'red'], ['5', 'yellow'], ['6', 'black']]) {
+        rack.append(element('span', `rummikub-tile tile-${color}`, number));
       }
-      artwork.append(mascot, tiles);
+      board.append(rack);
+      artwork.append(mascot, board);
       visual.append(artwork);
     } else {
       const picture = element('img', 'game-illustration');

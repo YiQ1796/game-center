@@ -20,10 +20,10 @@ const expected = new Map([
 for (const game of games) {
   assert.equal(game.url, expected.get(game.id), `Incorrect game link: ${game.id}`);
   assert.ok(game.url.startsWith('https://yiq1796.github.io/'), 'Only approved game domains allowed');
-  if (game.visualType === 'rummikub-tiles') {
+  if (game.visualType === 'rummikub-illustration') {
     assert.equal(game.id, 'rummikub', 'Only Rummikub should use DOM tile artwork');
     assert.equal(game.status, 'beta', 'Rummikub network UAT has not passed');
-    assert.ok(existsSync(resolve(root, 'assets/mascot-logo.webp')), 'Missing mascot');
+    assert.ok(existsSync(resolve(root, 'assets/hero-clubhouse.webp')), 'Missing full-size approved monkey artwork');
   } else {
     assert.match(game.image, /^assets\/[\w-]+\.webp$/, 'Image path invalid');
     assert.ok(existsSync(resolve(root, game.image)), `Missing ${game.image}`);
@@ -31,8 +31,13 @@ for (const game of games) {
 }
 assert.match(html, /猴三毛遊戲中心/);
 assert.match(html, /https:\/\/yiq1796\.github\.io\/game-center\//);
-assert.match(html, /V0\.8\.0/);
+assert.match(html, /V0\.8\.1/);
 assert.ok(!html.includes('utm_source='), 'Do not include tracking parameters');
+const styleSource = read('assets/site.css');
+const uiSource = read('assets/site.js');
+assert.ok(styleSource.includes('.rummikub-showcase'), 'Rummikub illustration styles missing');
+assert.ok(uiSource.includes("rummikub-showcase"), 'Rummikub illustration render missing');
+assert.ok(!uiSource.includes('rummikub-mascot'), 'Old small avatar render must be disabled');
 for(const path of ['assets/mascot-logo.webp','assets/hero-clubhouse.webp','assets/club-welcome.webp']){
  assert.ok(existsSync(resolve(root, path)), `Missing ${path}`);
 }
