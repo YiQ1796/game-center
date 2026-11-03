@@ -18,13 +18,31 @@
     const playable = (game.status === 'available' || game.status === 'beta') && typeof game.url === 'string' && /^https:\/\//.test(game.url);
     const card = element('article', `game-card game-${game.id}`);
     const visual = element('div', 'game-card-visual');
-    const picture = element('img', 'game-illustration');
-    picture.src = game.image;
-    picture.alt = game.imageAlt;
-    picture.loading = 'lazy';
-    picture.width = 284;
-    picture.height = 200;
-    visual.append(picture);
+    if (game.visualType === 'rummikub-tiles') {
+      // 不額外產圖：拉密牌面用 CSS + DOM 製作，沿用首頁的猴三毛品牌角色素材。
+      const artwork = element('div', 'rummikub-art');
+      artwork.setAttribute('aria-hidden', 'true');
+      const mascot = element('img', 'rummikub-mascot');
+      mascot.src = 'assets/mascot-logo.webp';
+      mascot.alt = '';
+      mascot.loading = 'lazy';
+      mascot.width = 112;
+      mascot.height = 112;
+      const tiles = element('div', 'rummikub-tiles');
+      for (const [number, color] of [['3', 'blue'], ['4', 'red'], ['5', 'orange'], ['6', 'black']]) {
+        tiles.append(element('span', `rummikub-tile tile-${color}`, number));
+      }
+      artwork.append(mascot, tiles);
+      visual.append(artwork);
+    } else {
+      const picture = element('img', 'game-illustration');
+      picture.src = game.image;
+      picture.alt = game.imageAlt;
+      picture.loading = 'lazy';
+      picture.width = 284;
+      picture.height = 200;
+      visual.append(picture);
+    }
     const detail = element('div', 'game-card-detail');
     detail.append(element('span', `status-label ${game.status === 'beta' ? 'status-beta' : playable ? 'status-open' : 'status-soon'}`, game.status === 'beta' ? '測試開放' : playable ? '開放遊玩' : '製作中'));
     detail.append(element('h3', '', game.name));

@@ -1,28 +1,22 @@
-# 猴三毛遊戲中心 V0.7.0｜遊戲圖示整合版
+# 猴三毛遊戲中心 V0.8.0｜加入猴三毛拉密
+正式網址：https://yiq1796.github.io/game-center/
 
-正式網站：https://yiq1796.github.io/game-center/
+## 遊戲入口（分別獨立維護）
+- **財富帝國 V20**：https://yiq1796.github.io/Wealth_Empire/v20/
+- **大老二（測試開放）**：https://yiq1796.github.io/BigTwo_Web/
+- **猴三毛拉密（測試開放，固定四人）**：https://yiq1796.github.io/Rummikub_Web/
 
-本輪只新增網站圖示與可安裝網站資訊。沿用 V0.6.0 首頁主視覺和遊戲入口，並未修改《財富帝國》或《大老二》的程式碼。
+2026-11-03 已核對 Rummikub_Web main SHA cf84d99870242a72eedfc7a135ecd9fc4202ad1f、Pages Run #9 SUCCESS，版本 V0.2.4。單機為一位真人加三位 AI，多人不足四人時由 AI 補齊。跨網路真人 UAT 未驗收，不能標榜正式穩定連線。
 
-## 圖示來源與用途
-- `assets/icons/source-monkey-gaming.png`：使用者已選定的猴三毛打電動圖示原圖，保留作美術來源（本機備份，不加入 GitHub 公開站以避免額外下載負擔）。
-- `favicon.ico`：多尺寸 16/32/48，Windows／瀏覽器舊式圖示。
-- `assets/icons/favicon-32-v070.png`：瀏覽器分頁與書籤。
-- `assets/icons/apple-touch-icon-v070.png`：iPhone/iPad 加入主畫面。
-- `assets/icons/app-icon-192-v070.png`：瀏覽器網頁應用安裝。
-- `assets/icons/app-icon-512-v070.png`：高解析度安裝圖示。
-- `assets/icons/app-maskable-512-v070.png`：支援 maskable 的 Android 圖示，主角保留安全邊界。
-- `site.webmanifest`：PWA 安裝描述、起始網址、語言與圖示。
+## 本輪改動
+- V0.7.0 已發布版本為安全回退基準（commit `3c04d5d63d4744a4b94ea1eb055f84eb5e7ed48d`）。
+- 新增第三張《猴三毛拉密》卡片；使用 **CSS 數字牌＋現有猴三毛角色**，不額外生成或疊加新圖片。
+- 沿用網站版型、favicon 與網站安裝圖示；遊戲清單可搜尋「拉密」。
+- 三款遊戲程式本體均未修改。首頁入口按鈕開新分頁；搜尋資料只依一份遊戲清單。
+- 對應自動測試 `node scripts/verify-site.mjs`；`node scripts/verify-icons.mjs` 保持不變。
+- 發布流程由 `.github/workflows/pages.yml` 自動測試並部署 GitHub Pages。
 
-## 使用方法
-1. iPhone Safari 開啟網站，使用「分享 → 加入主畫面」；若原有舊圖示，先刪除舊捷徑再加入。
-2. Windows Edge/Chrome 開啟網站，在瀏覽器選單中「應用程式 → 將此網站安裝為應用程式」或同義選項。普通 .url 捷徑是否採用網站 favicon 取決於瀏覽器/Windows，不能保證已建立的舊捷徑會自動換圖。
-3. 圖示檔名帶 v070 以避開快取，新舊安裝圖示仍可能需重新建立捷徑。
-
-## Code Review 需追蹤的三項改善
-1. 減小圖示的 PNG 大小，並以清晰度比較結果調整色階；避免為了壓縮讓猴子線條失真。
-2. 為各平台捷徑／圖示建立實機截圖驗收：iOS Safari、Android Chrome、Windows Edge/Chrome。
-3. 下一版將圖示轉換流程寫成可重現 CLI 和 CI QA，並增加 manifest 路徑／來源版本自動驗證。
-
-## 發布與驗證
-執行 `node scripts/verify-icons.mjs` 與 `node scripts/verify-site.mjs`；完成 GitHub Actions 部署後查核 commit / Pages run / 公開網址。
+## Code Review：後續改善
+1. 新增真正的 Playwright 三種裝置截圖測試，確保第三張遊戲卡片在寬版／窄版不溢出。
+2. 目前網址僅驗證為固定路徑與 Pages SUCCESS；應在 CI 增加入口連結 HTTP 狀態與頁面版本檢查，避免未來退回舊版。
+3. 將遊戲卡片資料加上結構驗證（唯一 ID、允許的狀態／視覺型別、可信 HTTPS 網域），防止未來新增遊戲誤連第三方網站。
