@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a2029">
+  <meta name="description" content="水族世界 Aqua World。照顧你的魚、維護水質、打造自己的水下花園。">
+  <title>水族世界 Aqua World｜水族日誌</title>
+  <script defer src="./vendor/phaser-3.90.0.min.js"></script>
+  <script type="module" crossorigin src="./assets/index-0t8ptBj0.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-D1lsvd4N.css">
+</head>
+<body>
+  <a class="skip-link" href="#aquarium">跳到水族缸</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">≈</span><span><strong>水族世界</strong><small>AQUA WORLD</small></span></a>
+      <div class="top-actions">
+        <span class="edition"><i></i> 單機試玩</span>
+        <span class="wallet" aria-label="金幣"><b aria-hidden="true">◉</b> <strong id="coins">5,000</strong></span>
+        <a class="back-link" href="https://yiq1796.github.io/game-center/">↗ <span>遊戲中心</span></a>
+      </div>
+    </div>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow"><i></i> AQUARIUM LOG <span>／</span> VOL. 01</p>
+        <h1 id="page-title">我的水族館</h1>
+        <p>照顧水中夥伴，慢慢養成一座水下花園。</p>
+      </div>
+      <div class="intro-meta"><span>養成日誌</span><strong>NO. 001</strong><small id="save-state">正在讀取試玩存檔</small></div>
+    </section>
+    <p class="rotate-tip">↻ 橫放手機，魚缸和照顧面板可以並排顯示。</p>
+    <div class="workbench">
+      <aside class="sidebar" aria-label="魚缸與顯示設定">
+        <div class="sidebar-title"><span>我的魚缸</span><small>02</small></div>
+        <nav id="tank-list" aria-label="切換魚缸"></nav>
+        <div class="sidebar-bottom">
+          <button id="low-power" class="power" type="button" aria-pressed="false"><span aria-hidden="true">◐</span> 節能模式</button>
+          <p>水族日誌 <span id="build-id">v0.1.0</span></p>
+        </div>
+      </aside>
+      <section class="display" id="aquarium" aria-labelledby="tank-name">
+        <div class="tank-header">
+          <div><p class="tank-index" id="tank-index">TANK 01 / 淡水</p><h2 id="tank-name">晨光溪谷</h2></div>
+          <div class="tank-tag" id="tank-count">魚隻 3</div>
+        </div>
+        <div class="stage" id="stage" aria-label="互動魚缸">
+          <div id="phaser-stage"></div>
+          <div class="stage-message" id="stage-message" hidden>這座魚缸目前沒有魚</div>
+          <div class="stage-caption"><span><i></i> 缸內觀察</span><span id="stage-help">點選游動中的魚</span></div>
+        </div>
+        <div class="capacity">
+          <div><span>生物負載</span><strong id="load-label">7 / 30 點</strong></div>
+          <meter id="load-meter" min="0" max="30" value="7" aria-label="生物負載"></meter>
+          <div id="fish-list" class="fish-list" aria-label="個別魚隻"></div>
+        </div>
+      </section>
+      <section class="care" aria-label="魚缸照顧面板">
+        <div class="tabs" role="tablist" aria-label="照顧功能">
+          <button id="care-tab" type="button" role="tab" aria-selected="true" aria-controls="care-panel">照顧</button>
+          <button id="decor-tab" type="button" role="tab" aria-selected="false" aria-controls="decor-panel" tabindex="-1">造景</button>
+        </div>
+        <div id="care-panel" class="panel" role="tabpanel" aria-labelledby="care-tab">
+          <div id="fish-card"></div>
+          <div class="section-heading"><h3>水質觀測</h3><span id="water-status"></span></div>
+          <dl id="water-metrics" class="water-metrics"></dl>
+          <p id="water-warning" class="muted"></p>
+          <div class="actions">
+            <button id="feed" type="button" class="primary">餵食全缸</button>
+            <button id="water" type="button">換水</button>
+          </div>
+          <div class="supply"><span>飼料 <strong id="food">24</strong> 份</span><button id="buy" type="button">補充 12 份 · 40 金幣</button></div>
+        </div>
+        <div id="decor-panel" class="panel" role="tabpanel" aria-labelledby="decor-tab" hidden>
+          <div class="section-heading"><h3>造景工具</h3><span>自由擺放</span></div>
+          <p class="muted">選擇物件後點擊魚缸放置。拖曳可移動，選單也能微調位置。</p>
+          <div class="decor-actions" aria-label="可放置物件">
+            <button type="button" data-decor="grass" aria-pressed="false">＋ 水草</button>
+            <button type="button" data-decor="stone" aria-pressed="false">＋ 溪石</button>
+            <button type="button" data-decor="wood" aria-pressed="false">＋ 沉木</button>
+          </div>
+          <button id="place-center" type="button">放在魚缸中央</button>
+          <label class="muted" for="decor-list">缸內造景</label>
+          <select id="decor-list" aria-label="選擇造景"></select>
+          <div class="decor-actions" aria-label="微調造景位置">
+            <button type="button" data-move="left" aria-label="向左移動">←</button>
+            <button type="button" data-move="up" aria-label="向上移動">↑</button>
+            <button type="button" data-move="down" aria-label="向下移動">↓</button>
+            <button type="button" data-move="right" aria-label="向右移動">→</button>
+          </div>
+          <button id="remove-decor" type="button" class="remove-decor">移除選取物件</button>
+        </div>
+        <p class="feedback" id="feedback" role="status" aria-live="polite">從觀察魚缸開始今天的照顧。</p>
+      </section>
+    </div>
+    <footer><span>AQUA WORLD <b>✧</b> 水族日誌</span><span>試玩進度儲存在目前使用的瀏覽器</span></footer>
+  </main>
+</body>
+</html>
