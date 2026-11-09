@@ -37,6 +37,11 @@
       board.append(rack);
       artwork.append(mascot, board);
       visual.append(artwork);
+    } else if (game.visualType === 'aqua-world-label') {
+      const artwork = element('div', 'aqua-world-showcase');
+      artwork.setAttribute('aria-hidden', 'true');
+      artwork.append(element('span', '', '≈'), element('small', '', 'AQUA WORLD'));
+      visual.append(artwork);
     } else {
       const picture = element('img', 'game-illustration');
       picture.src = game.image;

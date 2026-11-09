@@ -1,8 +1,11 @@
-# 猴三毛遊戲中心 V0.8.1｜重做拉密遊戲卡片
+# 猴三毛遊戲中心 V0.8.2｜加入水族世界試玩
 
 公開網址：https://yiq1796.github.io/game-center/
 
-## 本版修正：拉密卡片與其他遊戲美術不一致
+## V0.8.2 水族世界
+- [水族世界 v0.1.0-g1](https://yiq1796.github.io/game-center/aqua-world/) 開放單機養魚、換水、造景與瀏覽器存檔。
+
+## V0.8.1 拉密卡片調整
 - 取消 V0.8.0 的「縮小頭像＋四張牌」舊視覺渲染來源，不與新版堆疊。
 - 改用既有、已選定的猴三毛遊戲館角色插畫 `assets/hero-clubhouse.webp`，裁切聚焦角色，與《財富帝國》《大老二》的角色占比一致。
 - 使用 CSS 建立柔和森林色系、木質牌架、四色拉密數字牌，這些是獨立 DOM 元件，不是新產出的圖片。
@@ -11,6 +14,7 @@
 - 桌機/手機/平板瀏覽器本機模擬檢查無 JS 錯誤或水平溢出；真人裝置 UAT 仍須玩家確認。
 
 ## 正式遊戲連結
+- 水族世界（單機試玩）：https://yiq1796.github.io/game-center/aqua-world/
 - 財富帝國 V20：https://yiq1796.github.io/Wealth_Empire/v20/
 - 大老二：https://yiq1796.github.io/BigTwo_Web/
 - 猴三毛拉密：https://yiq1796.github.io/Rummikub_Web/

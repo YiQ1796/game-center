@@ -10,13 +10,14 @@ const source = read('assets/games.js');
 const context = {window: {}};
 vm.runInNewContext(source, context, { timeout: 1000 });
 const games = Array.from(context.window.SANMAO_GAMES || []);
-assert.equal(games.length, 3, 'Expected three featured games');
-assert.equal(new Set(games.map(game => game.id)).size, 3, 'Game IDs must be unique');
 const expected = new Map([
   ['wealth-empire', 'https://yiq1796.github.io/Wealth_Empire/v20/'],
   ['big-two', 'https://yiq1796.github.io/BigTwo_Web/'],
   ['rummikub', 'https://yiq1796.github.io/Rummikub_Web/'],
+  ['aqua-world', 'https://yiq1796.github.io/game-center/aqua-world/'],
 ]);
+assert.equal(games.length, expected.size, 'Expected one card per game');
+assert.equal(new Set(games.map(game => game.id)).size, expected.size, 'Game IDs must be unique');
 for (const game of games) {
   assert.equal(game.url, expected.get(game.id), `Incorrect game link: ${game.id}`);
   assert.ok(game.url.startsWith('https://yiq1796.github.io/'), 'Only approved game domains allowed');
@@ -24,6 +25,11 @@ for (const game of games) {
     assert.equal(game.id, 'rummikub', 'Only Rummikub should use DOM tile artwork');
     assert.equal(game.status, 'beta', 'Rummikub network UAT has not passed');
     assert.ok(existsSync(resolve(root, 'assets/hero-clubhouse.webp')), 'Missing full-size approved monkey artwork');
+  } else if (game.id === 'aqua-world') {
+    assert.equal(game.visualType, 'aqua-world-label');
+    assert.equal(game.status, 'beta', 'Aqua World is a solo trial');
+    assert.match(read('aqua-world/index.html'), /水族世界 Aqua World/);
+    assert.equal(JSON.parse(read('aqua-world/build-info.json')).mode, 'solo-trial');
   } else {
     assert.match(game.image, /^assets\/[\w-]+\.webp$/, 'Image path invalid');
     assert.ok(existsSync(resolve(root, game.image)), `Missing ${game.image}`);
@@ -31,12 +37,14 @@ for (const game of games) {
 }
 assert.match(html, /猴三毛遊戲中心/);
 assert.match(html, /https:\/\/yiq1796\.github\.io\/game-center\//);
-assert.match(html, /V0\.8\.1/);
+assert.match(html, /V0\.8\.2/);
 assert.ok(!html.includes('utm_source='), 'Do not include tracking parameters');
 const styleSource = read('assets/site.css');
 const uiSource = read('assets/site.js');
 assert.ok(styleSource.includes('.rummikub-showcase'), 'Rummikub illustration styles missing');
 assert.ok(uiSource.includes("rummikub-showcase"), 'Rummikub illustration render missing');
+assert.ok(styleSource.includes('.aqua-world-showcase'), 'Aqua World card styles missing');
+assert.ok(uiSource.includes('aqua-world-showcase'), 'Aqua World card render missing');
 assert.ok(!uiSource.includes('rummikub-mascot'), 'Old small avatar render must be disabled');
 for(const path of ['assets/mascot-logo.webp','assets/hero-clubhouse.webp','assets/club-welcome.webp']){
  assert.ok(existsSync(resolve(root, path)), `Missing ${path}`);

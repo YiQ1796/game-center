@@ -31,5 +31,14 @@ window.SANMAO_GAMES = Object.freeze([
     visualType: 'rummikub-illustration', // 延用經確認的猴三毛遊戲館角色插畫，數字牌由 DOM/CSS 繪製。
     status: 'beta', // Pages 已發布；跨網路真人連線 UAT 尚未完成。
     url: 'https://yiq1796.github.io/Rummikub_Web/'
+  }),
+  Object.freeze({
+    id: 'aqua-world',
+    name: '水族世界',
+    category: '水族養成・自由造景',
+    summary: '照顧游動中的小魚、換水和布置魚缸。單機試玩進度儲存在瀏覽器。',
+    visualType: 'aqua-world-label',
+    status: 'beta',
+    url: 'https://yiq1796.github.io/game-center/aqua-world/'
   })
 ]);
