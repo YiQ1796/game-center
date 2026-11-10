@@ -7,8 +7,8 @@
   <meta name="description" content="水族世界 Aqua World。照顧你的魚、維護水質、打造自己的水下花園。">
   <title>水族世界 Aqua World｜水族日誌</title>
   <script defer src="./vendor/phaser-3.90.0.min.js"></script>
-  <script type="module" crossorigin src="./assets/index-0t8ptBj0.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-D1lsvd4N.css">
+  <script type="module" crossorigin src="./assets/index--LlWkRNN.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-OQlX1xl9.css">
 </head>
 <body>
   <a class="skip-link" href="#aquarium">跳到水族缸</a>
@@ -16,8 +16,9 @@
     <div class="topbar-inner">
       <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">≈</span><span><strong>水族世界</strong><small>AQUA WORLD</small></span></a>
       <div class="top-actions">
-        <span class="edition"><i></i> 單機試玩</span>
+        <span class="edition"><i></i> <span id="edition-label">單機試玩</span></span>
         <span class="wallet" aria-label="金幣"><b aria-hidden="true">◉</b> <strong id="coins">5,000</strong></span>
+        <button id="cloud-open" type="button" class="back-link" aria-haspopup="dialog">雲端存檔</button>
         <a class="back-link" href="https://yiq1796.github.io/game-center/">↗ <span>遊戲中心</span></a>
       </div>
     </div>
@@ -95,7 +96,43 @@
         <p class="feedback" id="feedback" role="status" aria-live="polite">從觀察魚缸開始今天的照顧。</p>
       </section>
     </div>
-    <footer><span>AQUA WORLD <b>✧</b> 水族日誌</span><span>試玩進度儲存在目前使用的瀏覽器</span></footer>
+    <footer><span>AQUA WORLD <b>✧</b> 水族日誌</span><span id="save-note">試玩進度儲存在目前使用的瀏覽器</span></footer>
   </main>
+  <dialog id="cloud-dialog" aria-labelledby="cloud-title">
+    <div class="cloud-heading">
+      <h2 id="cloud-title">雲端存檔</h2>
+      <button id="cloud-close" type="button" aria-label="關閉雲端存檔">關閉</button>
+    </div>
+    <p class="muted">雲端魚缸和單機試玩分開保存。首次建立雲端帳號時會開一座新水族館。</p>
+    <form id="cloud-credentials" class="cloud-fields" hidden>
+      <label for="cloud-email">電子郵件</label>
+      <input id="cloud-email" type="email" autocomplete="username" required maxlength="254">
+      <label for="cloud-password">密碼</label>
+      <input id="cloud-password" type="password" autocomplete="current-password" required maxlength="4096">
+      <div class="cloud-buttons">
+        <button class="primary" type="submit">登入</button>
+        <button id="cloud-register" type="button">建立帳號</button>
+        <button id="cloud-password-reset" type="button">重設密碼</button>
+      </div>
+    </form>
+    <div id="cloud-verification" class="cloud-buttons" hidden>
+      <button id="cloud-confirm" class="primary" type="button">我已驗證，繼續登入</button>
+      <button id="cloud-resend" type="button">重寄驗證信</button>
+      <button type="button" data-cloud-back>返回登入</button>
+    </div>
+    <form id="cloud-profile" class="cloud-fields" hidden>
+      <label for="cloud-nickname">玩家暱稱（2～30 字）</label>
+      <input id="cloud-nickname" autocomplete="nickname" minlength="2" maxlength="60" required>
+      <div class="cloud-buttons">
+        <button class="primary" type="submit">建立雲端魚缸</button>
+        <button type="button" data-cloud-back>返回登入</button>
+      </div>
+    </form>
+    <div id="cloud-active" class="cloud-buttons" hidden>
+      <button id="cloud-sync" class="primary" type="button">同步最新進度</button>
+      <button id="cloud-signout" type="button">登出並回到試玩</button>
+    </div>
+    <p id="cloud-status" class="muted" role="status" aria-live="polite"></p>
+  </dialog>
 </body>
 </html>
