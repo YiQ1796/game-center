@@ -1,5 +1,5 @@
 {
-  "build": "0.3.0-g3-preview",
+  "build": "0.4.0-daylight",
   "mode": "solo-trial",
   "baseSourceCommit": "b826ecdaac60c58de488f5452960cc6c6a5f9b63"
 }
