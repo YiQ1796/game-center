@@ -26,7 +26,7 @@ const waterFragment = `
   ${waveCode}
   void main() {
     vec2 p = positionInWorld.xy;
-    float level = clamp((p.y + 2.65) / 5.1, 0.0, 1.0);
+    float level = clamp((p.y + 2.65) / 5.7, 0.0, 1.0);
     vec3 water = mix(lowColor, highColor, pow(level, 1.46));
     float glow = exp(-0.12 * length((p - vec2(2.7,2.7)) * vec2(1.1, 1.67)));
     float shine = exp(-1.08 * abs((p.x - 2.7) + (2.65 - p.y)*.36)) * glow;
@@ -49,7 +49,7 @@ const surfaceFragment = `
     vec2 p = positionInWorld.xz;
     float wave = waves(p * .71, clock * .83);
     float trace = pow(1.0-abs(sin(wave * 2.7 + sin(p.y*5.4 - clock))), 6.0);
-    float sparkle = pow(max(0.0, wave * .47), 3.6);
+    float sparkle = pow(max(0.0, wave * .45), 4.1);
     vec3 color = vec3(.042,.166,.268) + vec3(.080,.28,.41)*trace + vec3(.36,.49,.54)*sparkle;
     gl_FragColor = vec4(color, 1.0);
     #include <tonemapping_fragment>
@@ -64,7 +64,7 @@ function buildWater(scene) {
       clock, lowColor: { value: new T.Color('#102c45') }, highColor: { value: new T.Color('#3086b1') },
     },
   }));
-  background.position.set(0, 0, -5.55);
+  background.position.set(0, 0, -9.62);
   scene.add(background);
   const surface = new T.Mesh(new T.PlaneGeometry(26, 17), new T.ShaderMaterial({
     vertexShader: waterVertex, fragmentShader: surfaceFragment, side: T.DoubleSide, uniforms: { clock },
@@ -115,7 +115,7 @@ function swimSeed(id) {
 }
 
 function addLights(scene) {
-  scene.add(new T.HemisphereLight('#caecff', '#b5a082', 1.85));
+  scene.add(new T.HemisphereLight('#def3ff', '#c5a885', 1.63));
   const sunlight = new T.DirectionalLight('#fff1cf', 2.30);
   sunlight.position.set(-2.1, 6.3, 4.2);
   sunlight.castShadow = true;
@@ -124,7 +124,7 @@ function addLights(scene) {
   sunlight.shadow.bias = -.00025;
   sunlight.shadow.normalBias = .04;
   scene.add(sunlight);
-  const rim = new T.DirectionalLight('#6bbdff', 1.05);
+  const rim = new T.DirectionalLight('#83bfff', .85);
   rim.position.set(4, 1.5, -3);
   scene.add(rim);
 }
@@ -154,14 +154,14 @@ export class AquariumScene {
     this.renderer.setSize(1152, 648, false);
     this.renderer.outputColorSpace = T.SRGBColorSpace;
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.03;
+    this.renderer.toneMappingExposure = 1.04;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = T.PCFSoftShadowMap;
     this.renderer.shadowMap.autoUpdate = false;
     parent.append(this.renderer.domElement);
 
     this.scene = new T.Scene();
-    this.scene.fog = new T.FogExp2('#3c7d9c', .054);
+    this.scene.fog = new T.FogExp2('#236b98', .034);
     this.camera = new T.PerspectiveCamera(33, 16 / 9, .08, 45);
     this.camera.position.set(0, .70, 11.35);
     this.camera.lookAt(0, -.13, 0);
@@ -346,7 +346,7 @@ export class AquariumScene {
       const stream = index % 5;
       const x = stream === 0 ? -4.87 : stream === 4 ? 4.33 : 2.02;
       moving.setXYZ(index, x + Math.sin(seconds * 1.22 + index * 2.44) * (.08 + depth * .21),
-        FLOOR + .26 + depth * 4.40, -.65 + (index % 7) * .17);
+        FLOOR + .26 + depth * 4.82, -.65 + (index % 7) * .17);
     }
     moving.needsUpdate = true;
     this.renderer.render(this.scene, this.camera);

@@ -1,6 +1,6 @@
 import * as T from '../vendor/three-0.160.1.module.js';
 
-export const WATERLINE = 2.57;
+export const WATERLINE = 3.08;
 export const FLOOR = -2.28;
 
 function random(seed) {
@@ -26,7 +26,8 @@ function grit(base, sand = false) {
     ` + shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
       float freckles = roughNoise(grain * ${sand ? '83.0' : '27.0'});
       float stains = roughNoise(grain * ${sand ? '2.4' : '4.2'});
-      diffuseColor.rgb *= ${sand ? '0.83 + 0.24*stains + 0.10*freckles' : '0.49 + 0.44*stains + 0.26*freckles'};
+      float striation = roughNoise(grain * vec3(4.0, 21.0, 5.0) + stains * 1.2);
+      diffuseColor.rgb *= ${sand ? '0.83 + 0.24*stains + 0.10*freckles' : '0.37 + 0.37*stains + 0.35*striation + 0.25*freckles'};
       ${sand ? 'float streak = abs(sin(grain.x*6.8 + grain.y*4.0 + sin(grain.x*3.3-grain.y*2.4))); diffuseColor.rgb += vec3(0.09, 0.12, 0.11) * pow(1.0 - streak, 7.0);' : ''}
     `);
   };
@@ -34,13 +35,17 @@ function grit(base, sand = false) {
   return material;
 }
 
-const leafMaterial = new T.MeshStandardMaterial({ vertexColors: true, side: T.DoubleSide, roughness: .62 });
+const leafMaterial = new T.MeshStandardMaterial({ vertexColors: true, side: T.DoubleSide, roughness: .53 });
+leafMaterial.onBeforeCompile = shader => {
+  shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>',
+    '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * .31;');
+};
 const stoneMaterials = [grit('#748d9c'), grit('#829993'), grit('#667887')];
-const sand = grit('#ddceb0', true);
+const sand = grit('#f3dfb6', true);
 const stemMaterials = new Map();
 
 function softRock(seed, flat = false) {
-  const geometry = new T.IcosahedronGeometry(1, 4);
+  const geometry = new T.SphereGeometry(1, 56, 36);
   const positions = geometry.attributes.position;
   for (let index = 0; index < positions.count; index++) {
     const x = positions.getX(index), y = positions.getY(index), z = positions.getZ(index);
@@ -137,7 +142,7 @@ function coral(seed, color) {
     stems.push([path, height, x, z]);
   }
   const group = new T.Group();
-  const body = new T.MeshStandardMaterial({ color, roughness: .76 });
+  const body = new T.MeshStandardMaterial({ color, roughness: .64, emissive: color, emissiveIntensity: .15 });
   const tip = new T.MeshStandardMaterial({ color: new T.Color(color).lerp(new T.Color('#ffe4b4'), .38), roughness: .71 });
   const end = new T.SphereGeometry(.042, 7, 5);
   for (const [path, height, x, z] of stems) {
@@ -154,7 +159,7 @@ function pebbleBed(root) {
   const geometry = new T.IcosahedronGeometry(1, 1);
   const pebbles = new T.InstancedMesh(geometry, new T.MeshStandardMaterial({ color: '#ffffff', roughness: .94 }), 285);
   const stamp = new T.Object3D();
-  const colors = ['#c7b794','#bdc0b2','#87958e','#ddc8a7','#a49b80','#e6d4b8'].map(value => new T.Color(value));
+  const colors = ['#c7ad8b','#c5bfab','#889a8d','#e4caa0','#a99678','#f1dcad'].map(value => new T.Color(value));
   for (let index = 0; index < pebbles.count; index++) {
     const size = .026 + draw() ** 2.9 * .17;
     stamp.position.set((draw() - .5) * 16, FLOOR + .01, (draw() - .45) * 11);
@@ -178,7 +183,8 @@ export function createLandscape(tankId) {
   pebbleBed(root);
   const river = tankId === 'river';
   const layers = river ? [
-    [-5.0,-1.26,-3.05,1.42,1.18,1.23,.3,0],[-3.36,-.90,-3.22,1.34,1.62,1.15,.8,1],
+    [-1.45,-.98,-6.40,1.61,1.94,1.53,.45,2],[-2.58,-1.22,-6.01,1.17,1.44,1.04,.31,1],
+    [2.10,-1.54,-6.08,1.42,.90,1.33,.91,0],[-5.0,-1.26,-3.05,1.42,1.18,1.23,.3,0],[-3.36,-.90,-3.22,1.34,1.62,1.15,.8,1],
     [-1.81,-1.28,-3.66,1.17,1.20,1.36,.52,2],[-3.24,-.30,-3.30,1.49,.38,1.09,.9,2],
     [3.57,-1.17,-2.15,1.37,1.25,1.45,.2,1],[4.49,-.69,-3.15,1.07,1.52,1.25,1.8,0],
     [5.74,-1.37,-1.03,1.37,.96,1.13,-.7,2],[-5.54,-1.85,1.35,1.38,.50,.96,1.4,2],
@@ -192,10 +198,11 @@ export function createLandscape(tankId) {
   ];
   for (const point of layers) rock(root, ...point);
   const beds = river ? [
-    [-5.7,-1.9,-2.4,'#e48435',2.17],[-4.82,-1.87,-3.72,'#f19746',2.16],[-3.9,-1.7,-3.75,'#df5474',1.68],
+    [-5.7,-1.9,-2.4,'#fc8425',2.17],[-4.82,-1.87,-3.72,'#ff9d39',2.16],[-3.9,-1.7,-3.75,'#ed507f',1.68],
+    [-1.18,-2.25,-5.75,'#74c885',1.42,true],[.02,-2.25,-5.31,'#f0a83f',1.22],[1.1,-2.25,-5.62,'#5fa9ab',1.24],
     [-1.8,-1.85,-4.12,'#9bd892',2.25],[-2.8,-1.29,-2.67,'#7ac28a',1.15,true],[-1.47,-2.24,-1.88,'#e66b54',1.18],
-    [1.63,-2.25,-3.36,'#83cbbc',2.12],[2.79,-1.67,-2.75,'#d66092',1.32],[4.58,-1.20,-3.1,'#ed9240',2.07],
-    [5.86,-1.86,-1.17,'#f18438',1.70],[4.65,-2.23,-.36,'#d1bb60',1.16,true],[-5.18,-2.16,.34,'#81b75e',1.33],
+    [1.63,-2.25,-3.36,'#83cbbc',2.12],[2.79,-1.67,-2.75,'#d66092',1.32],[4.58,-1.20,-3.1,'#ff9934',2.07],
+    [5.86,-1.86,-1.17,'#ff7933',1.70],[4.65,-2.23,-.36,'#d1bb60',1.16,true],[-5.18,-2.16,.34,'#81b75e',1.33],
     [-4.55,-2.24,1.67,'#56a477',.94,true],[5.01,-2.15,1.55,'#56cdb1',1.06],[3.77,-2.23,2.66,'#7fbe69',.84,true],
   ] : [
     [-5.32,-2.2,-1.6,'#5dac85',1.78],[-4.32,-1.58,-3.1,'#ce9260',1.82],[-3.26,-1.89,-3.75,'#79c396',1.46],
@@ -212,9 +219,9 @@ export function createLandscape(tankId) {
   }
   if (river) {
     for (const [index, [x,y,z,color,scale]] of [
-      [-4.14,-1.63,-.28,'#d65d7c',1.18],[-2.59,-2.14,1.02,'#cd6487',1.32],
-      [-.65,-2.23,.19,'#de7c50',1.12],[1.97,-2.16,1.45,'#a183c8',1.08],[5.32,-1.74,.73,'#e59143',1.29],
-      [-4.99,-2.05,2.27,'#c583c4',1.07],
+      [-4.14,-1.63,-.28,'#f0658d',1.18],[-2.59,-2.14,1.02,'#ea4386',1.32],
+      [-.65,-2.23,.19,'#fb8153',1.12],[1.97,-2.16,1.45,'#b269cf',1.08],[5.32,-1.74,.73,'#ffa737',1.29],
+      [-4.99,-2.05,2.27,'#e17bc7',1.07],
     ].entries()) {
       const piece = coral(942 + index * 11, color);
       piece.position.set(x,y,z);

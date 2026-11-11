@@ -2,11 +2,11 @@ import * as T from '../vendor/three-0.160.1.module.js';
 
 const forms = {
   guppy: { size: 1.18, depth: .13, halfHeight: .17, length: .49, tailLength: .45, tailHeight: .26,
-    top: '#b68050', flank: '#ffcc83', belly: '#f0d9ae', fin: '#f37846', tips: '#ffb04c' },
+    top: '#bc642d', flank: '#fa9a4e', belly: '#f3d79b', fin: '#ed5029', tips: '#ffb13f' },
   neon: { size: .80, depth: .10, halfHeight: .13, length: .49, tailLength: .27, tailHeight: .15,
     top: '#386b84', flank: '#6bc8ce', belly: '#cde5db', fin: '#78adba', tips: '#a0cfd6' },
   betta: { size: 1.31, depth: .15, halfHeight: .20, length: .49, tailLength: .55, tailHeight: .32,
-    top: '#4c5893', flank: '#8a91dc', belly: '#a6b9e4', fin: '#7b54b2', tips: '#c08ce1' },
+    top: '#424781', flank: '#6c70db', belly: '#adabd9', fin: '#743baf', tips: '#c781e9' },
 };
 
 const eyeball = new T.SphereGeometry(.045, 12, 8);
@@ -16,6 +16,10 @@ const irisMaterial = new T.MeshStandardMaterial({ color: '#edbd63', roughness: .
 const pupilMaterial = new T.MeshStandardMaterial({ color: '#0b1425', roughness: .25 });
 const glintMaterial = new T.MeshBasicMaterial({ color: '#ffffff' });
 const bodyMaterial = new T.MeshPhysicalMaterial({ vertexColors: true, roughness: .34, metalness: .11, clearcoat: .34 });
+bodyMaterial.onBeforeCompile = shader => {
+  shader.vertexShader = 'varying vec3 fishSurface;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n fishSurface = position;');
+  shader.fragmentShader = 'varying vec3 fishSurface;\n' + shader.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n float lattice = sin(fishSurface.x*194.0+sin(fishSurface.y*118.0)*1.45) * sin(fishSurface.y*151.0); diffuseColor.rgb *= .91 + .13 * smoothstep(-.8,.8,lattice);');
+};
 const profiles = new Map();
 const finModels = new Map();
 
