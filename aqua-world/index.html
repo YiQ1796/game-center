@@ -5,10 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0a2029">
   <meta name="description" content="水族世界 Aqua World。照顧你的魚、維護水質、打造自己的水下花園。">
-  <title>水族世界 Aqua World｜水族日誌</title>
+  <title>水族世界 Aqua World｜我的水族館</title>
   <script defer src="./vendor/phaser-3.90.0.min.js"></script>
-  <script type="module" crossorigin src="./assets/index--LlWkRNN.js"></script>
+  <script type="module" crossorigin src="./assets/aquarium-runtime-v030.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/index-OQlX1xl9.css">
+  <script type="module" src="./assets/aquarium-ui.mjs?v=030"></script>
+  <link rel="stylesheet" href="./assets/aquarium-career.css?v=030">
 </head>
 <body>
   <a class="skip-link" href="#aquarium">跳到水族缸</a>
@@ -25,21 +27,23 @@
   </header>
   <main>
     <section class="intro" aria-labelledby="page-title">
-      <div>
-        <p class="eyebrow"><i></i> AQUARIUM LOG <span>／</span> VOL. 01</p>
-        <h1 id="page-title">我的水族館</h1>
-        <p>照顧水中夥伴，慢慢養成一座水下花園。</p>
-      </div>
-      <div class="intro-meta"><span>養成日誌</span><strong>NO. 001</strong><small id="save-state">正在讀取試玩存檔</small></div>
+      <div><h1 id="page-title">我的水族館</h1><small id="save-state">正在讀取試玩存檔</small></div>
     </section>
+    <nav class="career-bar" aria-label="水族館功能">
+      <button type="button" data-career="shop" aria-haspopup="dialog">水族商店</button>
+      <button type="button" data-career="missions" aria-haspopup="dialog">養成任務<span id="mission-badge" hidden></span></button>
+      <button type="button" data-career="breed" aria-haspopup="dialog">繁殖</button>
+      <button type="button" data-career="collection" aria-haspopup="dialog">魚類圖鑑</button>
+      <p id="career-track" aria-live="polite">養成任務</p>
+    </nav>
     <p class="rotate-tip">↻ 橫放手機，魚缸和照顧面板可以並排顯示。</p>
     <div class="workbench">
       <aside class="sidebar" aria-label="魚缸與顯示設定">
-        <div class="sidebar-title"><span>我的魚缸</span><small>02</small></div>
+        <div class="sidebar-title"><span>我的魚缸</span></div>
         <nav id="tank-list" aria-label="切換魚缸"></nav>
         <div class="sidebar-bottom">
           <button id="low-power" class="power" type="button" aria-pressed="false"><span aria-hidden="true">◐</span> 節能模式</button>
-          <p>水族日誌 <span id="build-id">v0.1.0</span></p>
+          <p><span id="build-id">v0.3.0-g3-preview</span></p>
         </div>
       </aside>
       <section class="display" id="aquarium" aria-labelledby="tank-name">
@@ -97,7 +101,20 @@
       </section>
     </div>
     <footer><span>AQUA WORLD <b>✧</b> 水族日誌</span><span id="save-note">試玩進度儲存在目前使用的瀏覽器</span></footer>
+    <details class="photo-credits"><summary>魚隻與水族缸素材來源</summary>
+      <p>水草造景：<a href="https://commons.wikimedia.org/wiki/File:Nature_Aquarium_Aquascape.jpg">Dileepkumardr</a>、<a href="https://commons.wikimedia.org/wiki/File:Planted_Nano_Aquarium.JPG">Tdwittt</a>，<a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0 1.0</a>。</p>
+      <p>孔雀魚：<a href="https://commons.wikimedia.org/wiki/File:Poecilia_Reticulata_-_Vienna_Guppy.png">drew goodman</a>。日光燈魚：<a href="https://commons.wikimedia.org/wiki/File:Neon_tetra_(Paracheirodon_innesi).png">Mr.Angelfish</a>。兩圖為 <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>。</p>
+      <p>暹羅鬥魚：<a href="https://commons.wikimedia.org/wiki/File:Betta_splendens.png">Brivanna</a>，<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>。站內版本調整尺寸和壓縮格式。</p>
+    </details>
   </main>
+  <dialog id="career-dialog" aria-labelledby="career-title">
+    <div class="career-heading">
+      <h2 id="career-title">養成任務</h2>
+      <button id="career-close" class="career-button" type="button" autofocus>關閉</button>
+    </div>
+    <div id="career-content"></div>
+    <p id="career-status" role="status" aria-live="polite"></p>
+  </dialog>
   <dialog id="cloud-dialog" aria-labelledby="cloud-title">
     <div class="cloud-heading">
       <h2 id="cloud-title">雲端存檔</h2>

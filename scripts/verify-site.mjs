@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import { execFileSync } from 'node:child_process';
 
 const root = resolve(import.meta.dirname, '..');
 const read = (name) => readFileSync(resolve(root, name), 'utf8');
@@ -50,3 +51,7 @@ for(const path of ['assets/mascot-logo.webp','assets/hero-clubhouse.webp','asset
  assert.ok(existsSync(resolve(root, path)), `Missing ${path}`);
 }
 console.log('Game center structural tests PASS (links, artwork, scripts, version)');
+// Prepare the assets served by Pages and exercise the current aquarium before upload.
+await import('./prepare-aqua-world.mjs');
+execFileSync(process.execPath, ['--test', resolve(root, 'scripts/test-aqua-world.mjs')], { stdio: 'inherit' });
+await import('./smoke-aqua-world.mjs');

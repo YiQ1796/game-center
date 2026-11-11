@@ -1,5 +1,5 @@
 {
-  "build": "0.2.0-g2-preview",
+  "build": "0.3.0-g3-preview",
   "mode": "solo-trial",
-  "sourceCommit": "b826ecdaac60c58de488f5452960cc6c6a5f9b63"
+  "baseSourceCommit": "b826ecdaac60c58de488f5452960cc6c6a5f9b63"
 }
