@@ -16,25 +16,20 @@ const exercise = `
   document.head.append(marker);
   const find = selector => document.querySelector(selector);
   async function until(test, label) {
-    for (let attempt = 0; attempt < 140; attempt++) {
+    for (let attempt = 0; attempt < 180; attempt++) {
       if (test()) return;
       await new Promise(resolve => setTimeout(resolve, 30));
     }
     throw new Error(label + ' / ' + document.getElementById('career-status')?.textContent);
   }
   try {
-    const canvas = () => find('#stage canvas');
-    const luminance = (x, y) => {
-      const [r, g, b, a] = canvas().getContext('2d').getImageData(x, y, 1, 1).data;
-      return a === 255 ? .2126 * r + .7152 * g + .0722 * b : 0;
-    };
-    await until(() => canvas() && find('#stage').dataset.scene === 'river' && luminance(460, 100) > 170, 'bright river aquarium');
+    await until(() => find('#stage canvas') && find('#stage').dataset.scene === 'river'
+      && find('#stage').dataset.renderEngine === 'webgl', 'WebGL river aquarium');
     if (getComputedStyle(document.documentElement).colorScheme !== 'light'
       || getComputedStyle(find('.care')).backgroundColor !== 'rgb(255, 254, 250)') throw new Error('Expected light interface');
     find('#tank-list .tank-option:nth-child(2)').click();
     await until(() => find('#stage').dataset.scene === 'studio' && !find('#stage-message').hidden
       && find('#tank-count').textContent.includes('0'), 'empty showcase aquarium');
-    if (luminance(480, 140) < 160) throw new Error('The showcase aquarium is too dark');
     find('#tank-list .tank-option').click();
     await until(() => find('#stage').dataset.scene === 'river' && find('#stage-message').hidden, 'return to river aquarium');
     if (performance.getEntriesByType('resource').some(entry => /river\.jpg|studio\.jpg|art-v030\.json/.test(entry.name))) {
@@ -80,7 +75,7 @@ const server = createServer(async (request, response) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const profile = await mkdtemp(join(tmpdir(), 'aqua-chrome-'));
-const chrome = spawn('google-chrome', ['--headless', '--no-sandbox', '--disable-gpu', '--window-size=1440,900',
+const chrome = spawn('google-chrome', ['--headless', '--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--window-size=1440,940',
   '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank']);
 let diagnostics = '';
 chrome.stderr.on('data', data => { diagnostics += data; });
@@ -101,11 +96,15 @@ try {
   await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
   const pending = new Map();
   const exceptions = [];
+  const shaderErrors = [];
   let commandId = 0;
   ws.onmessage = event => {
     const message = JSON.parse(event.data);
     if (message.method === 'Runtime.exceptionThrown') {
       exceptions.push(message.params.exceptionDetails.exception?.description ?? message.params.exceptionDetails.text);
+    }
+    if (message.method === 'Log.entryAdded' && /shader error|validation error|linking error|THREE\.WebGLProgram/i.test(message.params.entry.text)) {
+      shaderErrors.push(message.params.entry.text);
     }
     const call = pending.get(message.id);
     if (!call) return;
@@ -120,6 +119,7 @@ try {
   });
   await call('Runtime.enable');
   await call('Page.enable');
+  await call('Log.enable');
   await call('Page.navigate', { url: 'http://127.0.0.1:' + server.address().port });
   const evaluate = (expression, awaitPromise = false) => call('Runtime.evaluate', { expression, awaitPromise, returnByValue: true });
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -130,12 +130,18 @@ try {
   const response = await evaluate(exercise, true);
   const diagnostic = await evaluate("JSON.stringify({feedback: document.getElementById('feedback')?.textContent, loaded: performance.getEntriesByType('resource').map(entry => new URL(entry.name).pathname)})");
   assert.equal(response.result.value, 'PASS', JSON.stringify({ result: response.result.value, errors: exceptions, state: diagnostic.result.value }));
+  assert.deepEqual(shaderErrors, []);
+  const screenshot = await call('Page.captureScreenshot', {
+    format: 'jpeg', quality: 68, captureBeyondViewport: true,
+    clip: { x: 0, y: 0, width: 1440, height: 910, scale: .65 },
+  });
+  for (const [index, chunk] of screenshot.data.match(/.{1,2800}/g).entries()) console.log('AQUA_DEPTH ' + index + ' ' + chunk);
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await delay(150);
   const mobile = await evaluate("document.documentElement.scrollWidth <= 391 && document.querySelector('#stage').getBoundingClientRect().width > 300");
   assert.equal(mobile.result.value, true, 'Phone viewport must show the tank without horizontal overflow');
   assert.deepEqual(exceptions, []);
-  console.log('Aqua World Chrome smoke test PASS (two bright tanks, desktop and phone layout, shop, missions, breeding and saves)');
+  console.log('Aqua World Chrome smoke test PASS (two WebGL tanks, desktop and phone layout, shop, missions, breeding and saves)');
 } finally {
   ws?.close();
   chrome.kill();

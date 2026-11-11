@@ -1,4 +1,6 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { mkdtemp, readFile, rm, writeFile, copyFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 const assets = resolve(import.meta.dirname, '..', 'aqua-world', 'assets');
@@ -13,7 +15,18 @@ if (sceneStart < 0 || sceneEnd < 0 || !source.slice(sceneStart, sceneEnd).includ
 }
 
 // The original app still owns gameplay and persistence. The new module owns the entire tank rendering.
-const runtime = 'import { AquariumScene as M } from "./aquarium-daylight-scene.mjs";\n'
-  + (source.slice(0, sceneStart) + source.slice(sceneEnd)).replace('0.2.0-g2-preview', '0.4.0-daylight');
-await writeFile(join(assets, 'aquarium-runtime-v040.js'), runtime);
-console.log('Aqua World: daylight scene prepared');
+const runtime = 'import { AquariumScene as M } from "./aquarium-depth-scene.mjs";\n'
+  + (source.slice(0, sceneStart) + source.slice(sceneEnd)).replace('0.2.0-g2-preview', '0.5.0-3d');
+await writeFile(join(assets, 'aquarium-runtime-v050.js'), runtime);
+const vendor = resolve(assets, '..', 'vendor');
+const scratch = await mkdtemp(join(tmpdir(), 'aqua-three-'));
+try {
+  const [pack] = JSON.parse(execFileSync('npm', ['pack', 'three@0.160.1', '--ignore-scripts', '--json', '--pack-destination', scratch], { encoding: 'utf8' }));
+  if (pack.version !== '0.160.1' || pack.filename !== 'three-0.160.1.tgz') throw new Error('Unexpected Three.js package');
+  execFileSync('tar', ['-xzf', join(scratch, pack.filename), '-C', scratch, 'package/build/three.module.js', 'package/LICENSE']);
+  await copyFile(join(scratch, 'package/build/three.module.js'), join(vendor, 'three-0.160.1.module.js'));
+  await copyFile(join(scratch, 'package/LICENSE'), join(vendor, 'three-LICENSE.txt'));
+} finally {
+  await rm(scratch, { recursive: true, force: true });
+}
+console.log('Aqua World: WebGL scene and pinned Three.js prepared');
