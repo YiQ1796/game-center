@@ -5,9 +5,9 @@ export const SALE_LIMIT = 3;
 
 // The three species already supported by the aquarium scene and save format.
 export const FISH = Object.freeze({
-  guppy: { name: '孔雀魚', price: 120, points: 2, life: 90, hours: 6, habitat: '南美洲與加勒比海', detail: '善於游動的淡水魚。遊戲中適合 23–28°C。', image: 'guppy.png' },
-  neon: { name: '日光燈魚', price: 180, points: 1, life: 120, hours: 10, habitat: '亞馬遜河流域', detail: '有鮮明藍紅色帶的淡水小型魚。遊戲中適合 22–27°C。', image: 'neon.png' },
-  betta: { name: '暹羅鬥魚', price: 260, points: 4, life: 150, hours: 18, habitat: '東南亞', detail: '以長鰭聞名。遊戲中適合 24–28°C。', image: 'betta.png' },
+  guppy: { name: '孔雀魚', price: 120, points: 2, life: 90, hours: 6, habitat: '南美洲與加勒比海', detail: '善於游動的淡水魚。遊戲中適合 23–28°C。' },
+  neon: { name: '日光燈魚', price: 180, points: 1, life: 120, hours: 10, habitat: '亞馬遜河流域', detail: '有鮮明藍紅色帶的淡水小型魚。遊戲中適合 22–27°C。' },
+  betta: { name: '暹羅鬥魚', price: 260, points: 4, life: 150, hours: 18, habitat: '東南亞', detail: '以長鰭聞名。遊戲中適合 24–28°C。' },
 });
 
 export class RuleError extends Error {}

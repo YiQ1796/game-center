@@ -1,5 +1,6 @@
 import { SAVE_KEY, FISH, SALE_LIMIT, RuleError, activeTank, alive, readTrial, career,
   allFish, sexOf, patternOf, salePrice, salesToday, missions, pairOptions, recessiveChance, applyAction } from './aquarium-career.mjs';
+import { drawFishModel } from './aquarium-render.mjs';
 
 const byId = id => document.getElementById(id);
 const dialog = byId('career-dialog');
@@ -41,12 +42,13 @@ function select(label, options, callback) {
   return { wrapper, control };
 }
 
-function fishPhoto(speciesId) {
-  const photo = node('img', undefined, 'career-fish-photo');
-  photo.alt = FISH[speciesId].name;
-  photo.src = './assets/aquarium/' + FISH[speciesId].image;
-  photo.loading = 'lazy';
-  return photo;
+function fishPreview(speciesId) {
+  const canvas = node('canvas', undefined, 'career-fish-photo');
+  canvas.width = 240;
+  canvas.height = 108;
+  canvas.setAttribute('aria-hidden', 'true');
+  drawFishModel(canvas.getContext('2d'), { speciesId }, { x: 126, y: 53 }, 1, 0, false);
+  return canvas;
 }
 
 function readState() {
@@ -112,7 +114,7 @@ function renderShop(state, now) {
   for (const [speciesId, species] of Object.entries(FISH)) {
     const card = node('article', undefined, 'career-card');
     const sex = select('性別', [['female', '母魚'], ['male', '公魚']]);
-    card.append(fishPhoto(speciesId), node('h3', species.name), node('p', '負載 ' + species.points + ' 點', 'career-subtext'),
+    card.append(fishPreview(speciesId), node('h3', species.name), node('p', '負載 ' + species.points + ' 點', 'career-subtext'),
       sex.wrapper, button(species.price + ' 金幣 · 購買', () =>
         void commit({ type: 'purchase', speciesId, sex: sex.control.value }), { primary: true, disabled: state.coins < species.price }));
     grid.append(card);
@@ -198,7 +200,7 @@ function renderCollection(state, now) {
       }
       detail.append(list);
     }
-    card.append(fishPhoto(speciesId), detail);
+    card.append(fishPreview(speciesId), detail);
     content.append(card);
   }
 }

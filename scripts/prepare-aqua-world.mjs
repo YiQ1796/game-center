@@ -8,9 +8,6 @@ const output = join(assets, 'aquarium');
 const sources = [
   ['river.jpg', '0/09/Nature_Aquarium_Aquascape.jpg'],
   ['studio.jpg', '3/30/Planted_Nano_Aquarium.JPG', 1280],
-  ['guppy.png', 'b/bd/Poecilia_Reticulata_-_Vienna_Guppy.png', 330],
-  ['neon.png', '4/44/Neon_tetra_(Paracheirodon_innesi).png', 250],
-  ['betta.png', '1/10/Betta_splendens.png', 960],
 ];
 
 const source = await readFile(join(assets, 'index--LlWkRNN.js'), 'utf8');
@@ -58,4 +55,4 @@ for (const [name, remote, size] of sources) {
 await writeFile(join(output, 'art-v030.json'), JSON.stringify({
   fish: {}, tanks: { river: 'river.jpg', studio: 'studio.jpg' },
 }) + '\n');
-console.log('Aqua World: 2 aquarium backgrounds and 3 species reference photos prepared');
+console.log('Aqua World: 2 aquarium backgrounds prepared');
