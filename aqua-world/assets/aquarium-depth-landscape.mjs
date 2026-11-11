@@ -145,11 +145,20 @@ function coral(seed, color) {
   const body = new T.MeshStandardMaterial({ color, roughness: .64, emissive: color, emissiveIntensity: .15 });
   const tip = new T.MeshStandardMaterial({ color: new T.Color(color).lerp(new T.Color('#ffe4b4'), .38), roughness: .71 });
   const end = new T.SphereGeometry(.042, 7, 5);
-  for (const [path, height, x, z] of stems) {
-    group.add(new T.Mesh(new T.TubeGeometry(path, 6, .035, 5), body));
+  for (const [index, [path, height, x, z]] of stems.entries()) {
+    group.add(new T.Mesh(new T.TubeGeometry(path, 7, .035, 6), body));
     const cap = new T.Mesh(end, tip);
     cap.position.set(x,height,z);
     group.add(cap);
+    if (index % 3 === 0) continue;
+    const fork = path.getPoint(.54);
+    const endPoint = new T.Vector3(x + .09 * Math.cos(index * 2.45), height + .12, z + .14 * Math.sin(index * 2.45));
+    const spur = new T.QuadraticBezierCurve3(fork, fork.clone().lerp(endPoint, .56).add(new T.Vector3(0,.08,0)), endPoint);
+    group.add(new T.Mesh(new T.TubeGeometry(spur, 5, .021, 5), body));
+    const budding = new T.Mesh(end, tip);
+    budding.scale.setScalar(.64);
+    budding.position.copy(endPoint);
+    group.add(budding);
   }
   return group;
 }
@@ -204,6 +213,7 @@ export function createLandscape(tankId) {
     [1.63,-2.25,-3.36,'#83cbbc',2.12],[2.79,-1.67,-2.75,'#d66092',1.32],[4.58,-1.20,-3.1,'#ff9934',2.07],
     [5.86,-1.86,-1.17,'#ff7933',1.70],[4.65,-2.23,-.36,'#d1bb60',1.16,true],[-5.18,-2.16,.34,'#81b75e',1.33],
     [-4.55,-2.24,1.67,'#56a477',.94,true],[5.01,-2.15,1.55,'#56cdb1',1.06],[3.77,-2.23,2.66,'#7fbe69',.84,true],
+    [-2.72,-2.24,2.36,'#76b66b',.73,true],[1.12,-2.25,2.94,'#54a884',.64,true],
   ] : [
     [-5.32,-2.2,-1.6,'#5dac85',1.78],[-4.32,-1.58,-3.1,'#ce9260',1.82],[-3.26,-1.89,-3.75,'#79c396',1.46],
     [3.54,-1.8,-3.06,'#8ec7a5',1.70],[4.62,-1.72,-2.9,'#c59166',1.92],[5.57,-2.15,-.5,'#64a795',1.4],
@@ -221,7 +231,7 @@ export function createLandscape(tankId) {
     for (const [index, [x,y,z,color,scale]] of [
       [-4.14,-1.63,-.28,'#f0658d',1.18],[-2.59,-2.14,1.02,'#ea4386',1.32],
       [-.65,-2.23,.19,'#fb8153',1.12],[1.97,-2.16,1.45,'#b269cf',1.08],[5.32,-1.74,.73,'#ffa737',1.29],
-      [-4.99,-2.05,2.27,'#e17bc7',1.07],
+      [-4.99,-2.05,2.27,'#e17bc7',1.07],[4.07,-2.20,2.43,'#ff9b47',.86],
     ].entries()) {
       const piece = coral(942 + index * 11, color);
       piece.position.set(x,y,z);

@@ -52,7 +52,17 @@ const exercise = `
     find('#career-close').click();
     find('#water').click();
     await until(() => find('#water-metrics').textContent.includes('100%'), 'existing water action');
-    const save = JSON.parse(localStorage.getItem('aqua-world:trial:v1'));
+    const getSave = () => JSON.parse(localStorage.getItem('aqua-world:trial:v1'));
+    const decor = () => getSave().tanks.find(tank => tank.id === 'river').decorations;
+    const count = decor().length;
+    find('#decor-tab').click();
+    find('[data-decor=grass]').click();
+    find('#place-center').click();
+    await until(() => decor().length === count + 1, 'add 3D decoration');
+    const placed = decor().at(-1);
+    find('[data-move=right]').click();
+    await until(() => decor().find(item => item.id === placed.id).x > placed.x, 'move 3D decoration');
+    const save = getSave();
     if (save.career.jobs.length !== 1 || save.career.claimed[0] !== 'stock') throw new Error('Legacy care action lost career save');
     marker.content = 'PASS';
   } catch (error) {
@@ -131,17 +141,12 @@ try {
   const diagnostic = await evaluate("JSON.stringify({feedback: document.getElementById('feedback')?.textContent, loaded: performance.getEntriesByType('resource').map(entry => new URL(entry.name).pathname)})");
   assert.equal(response.result.value, 'PASS', JSON.stringify({ result: response.result.value, errors: exceptions, state: diagnostic.result.value }));
   assert.deepEqual(shaderErrors, []);
-  const screenshot = await call('Page.captureScreenshot', {
-    format: 'jpeg', quality: 68, captureBeyondViewport: true,
-    clip: { x: 0, y: 0, width: 1440, height: 910, scale: .65 },
-  });
-  for (const [index, chunk] of screenshot.data.match(/.{1,2800}/g).entries()) console.log('AQUA_DEPTH ' + index + ' ' + chunk);
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await delay(150);
   const mobile = await evaluate("document.documentElement.scrollWidth <= 391 && document.querySelector('#stage').getBoundingClientRect().width > 300");
   assert.equal(mobile.result.value, true, 'Phone viewport must show the tank without horizontal overflow');
   assert.deepEqual(exceptions, []);
-  console.log('Aqua World Chrome smoke test PASS (two WebGL tanks, desktop and phone layout, shop, missions, breeding and saves)');
+  console.log('Aqua World Chrome smoke test PASS (two WebGL tanks, desktop and phone layout, shop, missions, breeding, decoration and saves)');
 } finally {
   ws?.close();
   chrome.kill();

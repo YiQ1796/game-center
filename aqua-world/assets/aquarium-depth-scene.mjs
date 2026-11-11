@@ -47,11 +47,12 @@ const surfaceFragment = `
   ${waveCode}
   void main() {
     vec2 p = positionInWorld.xz;
-    float wave = waves(p * .71, clock * .83);
-    float trace = pow(1.0-abs(sin(wave * 2.7 + sin(p.y*5.4 - clock))), 6.0);
+    float wave = waves(p * vec2(.31,.46), clock * .71);
+    float trace = pow(1.0-abs(sin(wave * 2.15 + sin(p.y*3.15 - clock*.67))), 4.1);
     float sparkle = pow(max(0.0, wave * .45), 4.1);
     vec3 color = vec3(.042,.166,.268) + vec3(.080,.28,.41)*trace + vec3(.36,.49,.54)*sparkle;
-    gl_FragColor = vec4(color, 1.0);
+    float edge = smoothstep(-6.75,-3.55,p.y);
+    gl_FragColor = vec4(color, edge);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
@@ -68,6 +69,7 @@ function buildWater(scene) {
   scene.add(background);
   const surface = new T.Mesh(new T.PlaneGeometry(26, 17), new T.ShaderMaterial({
     vertexShader: waterVertex, fragmentShader: surfaceFragment, side: T.DoubleSide, uniforms: { clock },
+    transparent: true, depthWrite: false, forceSinglePass: true,
   }));
   surface.rotation.x = -Math.PI / 2;
   surface.position.set(0, WATERLINE, -2.15);
