@@ -6,7 +6,7 @@ import { extname, resolve, sep } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..', 'aqua-world');
 const types = { '.html': 'text/html; charset=utf-8', '.mjs': 'text/javascript', '.js': 'text/javascript',
-  '.css': 'text/css', '.json': 'application/json', '.webp': 'image/webp' };
+  '.css': 'text/css', '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png' };
 const exercise = `
 <script type="module">
   const marker = document.createElement('meta');

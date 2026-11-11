@@ -143,3 +143,10 @@ export function drawFishModel(ctx, fish, point, heading, time, selected, artwork
   eye(ctx, 32, -4);
   ctx.restore();
 }
+
+export function drawTankPhoto(ctx, photo, width, height) {
+  const zoom = Math.max(width / photo.naturalWidth, height / photo.naturalHeight);
+  const drawnWidth = photo.naturalWidth * zoom;
+  const drawnHeight = photo.naturalHeight * zoom;
+  ctx.drawImage(photo, (width - drawnWidth) / 2, (height - drawnHeight) / 2, drawnWidth, drawnHeight);
+}
