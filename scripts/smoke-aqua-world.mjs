@@ -130,13 +130,6 @@ try {
   const response = await evaluate(exercise, true);
   const diagnostic = await evaluate("JSON.stringify({feedback: document.getElementById('feedback')?.textContent, loaded: performance.getEntriesByType('resource').map(entry => new URL(entry.name).pathname)})");
   assert.equal(response.result.value, 'PASS', JSON.stringify({ result: response.result.value, errors: exceptions, state: diagnostic.result.value }));
-  const screenshot = await call('Page.captureScreenshot', {
-    format: 'jpeg', quality: 61, captureBeyondViewport: true,
-    clip: { x: 0, y: 0, width: 1440, height: 820, scale: .59 },
-  });
-  for (const [index, chunk] of screenshot.data.match(/.{1,2800}/g).entries()) {
-    console.log('AQUA_VISUAL ' + index + ' ' + chunk);
-  }
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await delay(150);
   const mobile = await evaluate("document.documentElement.scrollWidth <= 391 && document.querySelector('#stage').getBoundingClientRect().width > 300");

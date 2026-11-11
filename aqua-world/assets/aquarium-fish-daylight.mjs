@@ -58,7 +58,7 @@ function eye(ctx, x, y) {
   ctx.fill();
 }
 
-export function drawFishModel(ctx, fish, point, heading, time, selected, artwork) {
+export function drawFishModel(ctx, fish, point, heading, time, selected) {
   const form = forms[fish.speciesId];
   ctx.save();
   ctx.translate(point.x, point.y);
@@ -71,14 +71,6 @@ export function drawFishModel(ctx, fish, point, heading, time, selected, artwork
   }
 
   ctx.scale(heading * form.size, form.size);
-  if (artwork) {
-    const ratio = Math.min(116 / artwork.naturalWidth, 66 / artwork.naturalHeight);
-    const width = artwork.naturalWidth * ratio;
-    const height = artwork.naturalHeight * ratio;
-    ctx.drawImage(artwork, -width / 2, -height / 2, width, height);
-    ctx.restore();
-    return;
-  }
   ctx.rotate(Math.sin(time * 3.1 + point.y) * .035);
   if (fish.glow) {
     ctx.shadowColor = '#87fff4';
