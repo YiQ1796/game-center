@@ -1,14 +1,16 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { setTimeout as delay } from 'node:timers/promises';
 import { createServer } from 'node:http';
-import { extname, resolve, sep } from 'node:path';
+import { extname, join, resolve, sep } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..', 'aqua-world');
 const types = { '.html': 'text/html; charset=utf-8', '.mjs': 'text/javascript', '.js': 'text/javascript',
   '.css': 'text/css', '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png' };
 const exercise = `
-<script type="module">
+(async () => {
   const marker = document.createElement('meta');
   marker.id = 'aqua-smoke';
   document.head.append(marker);
@@ -45,7 +47,8 @@ const exercise = `
   } catch (error) {
     marker.content = error.message;
   }
-</script>`;
+  return marker.content;
+})()`;
 
 const server = createServer(async (request, response) => {
   try {
@@ -54,28 +57,69 @@ const server = createServer(async (request, response) => {
     if (!path.startsWith(root + sep)) throw new Error('Invalid path');
     const contents = await readFile(path);
     response.setHeader('Content-Type', types[extname(path)] ?? 'application/octet-stream');
-    response.end(pathname === '/' ? contents.toString('utf8').replace('</body>', exercise + '</body>') : contents);
+    response.end(contents);
   } catch {
     response.writeHead(404).end();
   }
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+const profile = await mkdtemp(join(tmpdir(), 'aqua-chrome-'));
+const chrome = spawn('google-chrome', ['--headless', '--no-sandbox', '--disable-gpu', '--window-size=1440,900',
+  '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank']);
+let diagnostics = '';
+chrome.stderr.on('data', data => { diagnostics += data; });
+let browserError;
+chrome.on('error', error => { browserError = error; });
+const closed = new Promise(resolve => chrome.once('close', resolve));
+let ws;
 try {
-  const url = 'http://127.0.0.1:' + server.address().port;
-  const chrome = spawn('google-chrome', ['--headless', '--no-sandbox', '--disable-gpu',
-    '--window-size=1440,900', '--virtual-time-budget=18000', '--dump-dom', url]);
-  let html = '';
-  let diagnostics = '';
-  chrome.stdout.on('data', data => { html += data; });
-  chrome.stderr.on('data', data => { diagnostics += data; });
-  const code = await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => { chrome.kill(); reject(new Error('Chrome smoke test timed out')); }, 45_000);
-    chrome.once('error', error => { clearTimeout(timeout); reject(error); });
-    chrome.once('close', code => { clearTimeout(timeout); resolve(code); });
+  let port;
+  for (let attempt = 0; attempt < 100 && !port; attempt++) {
+    if (browserError) throw browserError;
+    port = await readFile(join(profile, 'DevToolsActivePort'), 'utf8').then(value => Number(value.split('\n')[0]), () => undefined);
+    if (!port) await delay(100);
+  }
+  assert.ok(port, diagnostics);
+  const pages = await (await fetch('http://127.0.0.1:' + port + '/json/list')).json();
+  ws = new WebSocket(pages.find(page => page.type === 'page').webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; });
+  const pending = new Map();
+  const exceptions = [];
+  let commandId = 0;
+  ws.onmessage = event => {
+    const message = JSON.parse(event.data);
+    if (message.method === 'Runtime.exceptionThrown') {
+      exceptions.push(message.params.exceptionDetails.exception?.description ?? message.params.exceptionDetails.text);
+    }
+    const call = pending.get(message.id);
+    if (!call) return;
+    pending.delete(message.id);
+    if (message.error) call.reject(new Error(message.error.message));
+    else call.resolve(message.result);
+  };
+  const call = (method, params = {}) => new Promise((resolve, reject) => {
+    const id = ++commandId;
+    pending.set(id, { resolve, reject });
+    ws.send(JSON.stringify({ id, method, params }));
   });
-  assert.equal(code, 0, diagnostics);
-  assert.match(html, /<meta id="aqua-smoke" content="PASS">/, html.match(/<meta id="aqua-smoke"[^>]*>/)?.[0] ?? diagnostics);
+  await call('Runtime.enable');
+  await call('Page.enable');
+  await call('Page.navigate', { url: 'http://127.0.0.1:' + server.address().port });
+  const evaluate = (expression, awaitPromise = false) => call('Runtime.evaluate', { expression, awaitPromise, returnByValue: true });
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const response = await evaluate("location.hostname === '127.0.0.1' && document.readyState === 'complete'");
+    if (response.result.value === true) break;
+    await delay(50);
+  }
+  const response = await evaluate(exercise, true);
+  const diagnostic = await evaluate("JSON.stringify({feedback: document.getElementById('feedback')?.textContent, loaded: performance.getEntriesByType('resource').map(entry => new URL(entry.name).pathname)})");
+  assert.equal(response.result.value, 'PASS', JSON.stringify({ result: response.result.value, errors: exceptions, state: diagnostic.result.value }));
+  assert.deepEqual(exceptions, []);
   console.log('Aqua World Chrome smoke test PASS (art, shop, missions, breeding and existing saves)');
 } finally {
+  ws?.close();
+  chrome.kill();
+  await closed;
   server.close();
+  await rm(profile, { recursive: true, force: true });
 }
