@@ -16,6 +16,7 @@ const expected = new Map([
   ['big-two', 'https://yiq1796.github.io/BigTwo_Web/'],
   ['rummikub', 'https://yiq1796.github.io/Rummikub_Web/'],
   ['aqua-world', 'https://yiq1796.github.io/game-center/aqua-world/'],
+  ['one-a-two-b', 'https://yiq1796.github.io/game-center/one-a-two-b/'],
 ]);
 assert.equal(games.length, expected.size, 'Expected one card per game');
 assert.equal(new Set(games.map(game => game.id)).size, expected.size, 'Game IDs must be unique');
@@ -31,6 +32,9 @@ for (const game of games) {
     assert.equal(game.status, 'beta', 'Aqua World is a solo trial');
     assert.match(read('aqua-world/index.html'), /水族世界 Aqua World/);
     assert.equal(JSON.parse(read('aqua-world/build-info.json')).mode, 'solo-trial');
+  } else if (game.id === 'one-a-two-b') {
+    assert.equal(game.visualType, 'one-a-two-b-showcase');
+    assert.equal(game.status, 'beta');
   } else {
     assert.match(game.image, /^assets\/[\w-]+\.webp$/, 'Image path invalid');
     assert.ok(existsSync(resolve(root, game.image)), `Missing ${game.image}`);
@@ -38,7 +42,7 @@ for (const game of games) {
 }
 assert.match(html, /猴三毛遊戲中心/);
 assert.match(html, /https:\/\/yiq1796\.github\.io\/game-center\//);
-assert.match(html, /V0\.8\.2/);
+assert.match(html, /V0\.8\.3/);
 assert.ok(!html.includes('utm_source='), 'Do not include tracking parameters');
 const styleSource = read('assets/site.css');
 const uiSource = read('assets/site.js');
@@ -51,6 +55,9 @@ for(const path of ['assets/mascot-logo.webp','assets/hero-clubhouse.webp','asset
  assert.ok(existsSync(resolve(root, path)), `Missing ${path}`);
 }
 console.log('Game center structural tests PASS (links, artwork, scripts, version)');
+assert.ok(styleSource.includes('.one-a-two-b-showcase'), '1A2B card styles missing');
+assert.ok(uiSource.includes('one-a-two-b-showcase'), '1A2B card render missing');
+await import('./verify-one-a-two-b.mjs');
 // Prepare the assets served by Pages and exercise the current aquarium before upload.
 await import('./prepare-aqua-world.mjs');
 execFileSync(process.execPath, ['--test', resolve(root, 'scripts/test-aqua-world.mjs')], { stdio: 'inherit' });

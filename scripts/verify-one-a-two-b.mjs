@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { codeForSeed, isCode, isSeed, scoreGuess, uniqueDigits } from '../one-a-two-b/rules.mjs';
+
+const page = readFileSync(new URL('../one-a-two-b/index.html', import.meta.url), 'utf8');
+assert.match(page, /猴三毛 1A2B/);
+assert.match(page, /href="\.\.\/#games"/);
+assert.match(page, /src="\.\.\/assets\/mascot-logo\.webp"/);
+assert.match(page, /<script type="module" src="\.\/game\.mjs\?v=1">/);
+assert.match(page, /href="\.\/game\.css\?v=1"/);
+assert.equal(isCode('0123'), true);
+assert.equal(isCode('0012'), false);
+assert.equal(isCode('123'), false);
+assert.equal(isSeed('00000000'), true);
+assert.equal(isSeed('1a2b'), false);
+assert.equal(uniqueDigits('a10120'), '102');
+assert.deepEqual(scoreGuess('9724', '9271'), { a: 1, b: 2 });
+assert.deepEqual(scoreGuess('0123', '0123'), { a: 4, b: 0 });
+assert.deepEqual(scoreGuess('0123', '3210'), { a: 0, b: 4 });
+assert.deepEqual(scoreGuess('0123', '4567'), { a: 0, b: 0 });
+
+const samples = Array.from({ length: 256 }, (_, value) => value.toString(16).padStart(8, '0'));
+assert.ok(samples.every(seed => isCode(codeForSeed(seed))), 'Every challenge has four unique digits');
+assert.ok(new Set(samples.map(codeForSeed)).size > 200, 'Challenge codes produce varied puzzles');
+assert.equal(codeForSeed('0ba1a2b0'), '0956', 'Published v1 challenge seeds must keep the same answer');
+console.log('1A2B structural and scoring checks PASS');

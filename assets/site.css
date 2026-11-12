@@ -34,3 +34,28 @@
 .aqua-world-showcase{display:grid;align-content:center;justify-items:center;gap:4px;width:100%;padding:10px;color:#cbffe8;text-align:center;background:radial-gradient(ellipse at 30% 0%,#71c1a0,transparent 68%),linear-gradient(#2d8883,#0a344b)}
 .aqua-world-showcase span{font-size:clamp(44px,5vw,74px);line-height:1;font-weight:700}
 .aqua-world-showcase small{font-size:clamp(9px,1vw,12px);letter-spacing:.18em;font-weight:800}
+
+.game-one-a-two-b { background: linear-gradient(145deg, #fff9eb, #e6eddb); }
+.game-one-a-two-b h3 { white-space: normal; font-size: clamp(23px, 2.15vw, 32px); }
+.game-one-a-two-b .game-card-detail { padding-left: 13px; }
+.game-one-a-two-b .game-entry { color: #fffaf0; background: #214a3e; box-shadow: 0 3px 0 #15352c35; }
+.one-a-two-b-showcase {
+  width: 100%;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 13px;
+  padding: 12px 6px;
+  background: radial-gradient(ellipse at 30% 0%, #3d6a59, transparent 70%), #214a3e;
+}
+.one-a-two-b-showcase img {
+  width: clamp(62px, 7vw, 94px);
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  border-radius: 50%;
+  border: 2px solid #d5a96a;
+  background: #fff2d7;
+}
+.one-a-two-b-mark { display: flex; gap: 3px; color: #fffaf0; font: 800 clamp(24px, 3vw, 44px)/1 Georgia, serif; letter-spacing: -.06em; }
+.one-a-two-b-mark span:first-child { color: #e8bf79; }

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#214a3e">
+  <meta name="description" content="跟猴三毛一起猜出四位數密碼。用 A、B 線索推理，也可以邀朋友挑戰同一題。">
+  <title>猴三毛 1A2B｜數字推理</title>
+  <link rel="canonical" href="https://yiq1796.github.io/game-center/one-a-two-b/">
+  <link rel="icon" href="../favicon.ico">
+  <link rel="stylesheet" href="./game.css?v=1">
+  <script type="module" src="./game.mjs?v=1"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="frame header-inner">
+      <a class="home-link" href="../#games"><span aria-hidden="true">←</span> 猴三毛遊戲中心</a>
+      <button type="button" class="header-button" id="help">怎麼玩 <span aria-hidden="true">?</span></button>
+    </div>
+  </header>
+
+  <main class="frame">
+    <section class="hero" aria-labelledby="game-title">
+      <div class="hero-copy">
+        <p class="hero-label">猴三毛的推理筆記</p>
+        <h1 id="game-title"><span>1A</span>2B</h1>
+        <p>猜出四位數密碼，數字不重複。</p>
+      </div>
+      <img class="mascot" src="../assets/mascot-logo.webp" width="89" height="86" alt="猴三毛">
+    </section>
+
+    <div class="game-layout">
+      <section class="panel play-panel" aria-labelledby="play-title">
+        <div class="panel-heading">
+          <div><p class="mode" id="mode">單人練習</p><h2 id="play-title">輸入你的猜測</h2></div>
+          <div class="clock"><span>用時</span><time id="clock" datetime="PT0S">00:00</time></div>
+        </div>
+        <div class="slots" id="slots" tabindex="-1" aria-label="目前輸入">
+          <span class="slot current">–</span><span class="slot">–</span><span class="slot">–</span><span class="slot">–</span>
+        </div>
+        <p class="feedback" id="feedback" role="status">選四個不同的數字。第一格可以填 0。</p>
+        <div class="keypad" id="keypad" role="group" aria-label="數字鍵盤">
+          <button type="button" data-digit="1">1</button>
+          <button type="button" data-digit="2">2</button>
+          <button type="button" data-digit="3">3</button>
+          <button type="button" data-digit="4">4</button>
+          <button type="button" data-digit="5">5</button>
+          <button type="button" data-digit="6">6</button>
+          <button type="button" data-digit="7">7</button>
+          <button type="button" data-digit="8">8</button>
+          <button type="button" data-digit="9">9</button>
+          <button type="button" id="erase" class="key-secondary" aria-label="刪除最後一個數字" disabled>⌫</button>
+          <button type="button" data-digit="0">0</button>
+          <button type="button" id="submit" class="key-submit" disabled>送出</button>
+        </div>
+        <div class="round-actions">
+          <button type="button" class="action-button" id="hint">取提示</button>
+          <button type="button" class="action-button" id="share">好友同題</button>
+          <button type="button" class="action-button" id="restart">新遊戲</button>
+        </div>
+        <p class="hint-result" id="hint-result" hidden></p>
+        <p class="record" id="record">單人最佳 · —</p>
+      </section>
+
+      <section class="panel notebook" aria-labelledby="history-title">
+        <div class="panel-heading">
+          <div><h2 id="history-title">推理紀錄</h2><p class="legend"><strong>A</strong> 數字和位置都對 <span>／</span> <strong>B</strong> 數字對、位置錯</p></div>
+          <span class="count" id="count">0 次</span>
+        </div>
+        <p class="empty-history" id="empty-history">送出猜測後，A 和 B 的線索會記在這裡。</p>
+        <ol class="history" id="history" reversed aria-label="猜測紀錄，最新一筆在上方"></ol>
+        <details class="notes">
+          <summary>推理筆記</summary>
+          <p id="exclusion-label">點一下數字，標記或取消排除。</p>
+          <div class="notes-digits" id="notes-digits" role="group" aria-labelledby="exclusion-label"></div>
+          <p>記下每個位置的候選數字。</p>
+          <div class="candidates" id="candidates"></div>
+        </details>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="help-dialog" aria-labelledby="help-title">
+    <form method="dialog">
+      <div class="dialog-heading"><h2 id="help-title">怎麼玩</h2><button type="submit" class="close-button" aria-label="關閉玩法說明">×</button></div>
+      <p>答案由四個不同的數字組成，第一格也可以是 0。每次猜完，會得到 A 和 B 的線索。</p>
+      <div class="example">
+        <p>答案 <strong>9724</strong>，猜 <strong>9271</strong> <span aria-hidden="true">→</span> <strong>1A2B</strong></p>
+        <ul>
+          <li><strong>1A</strong> · 9 的數字和位置都對。</li>
+          <li><strong>2B</strong> · 2、7 在答案裡，位置放錯了。</li>
+          <li>1 沒出現在答案裡。</li>
+        </ul>
+      </div>
+      <p>猜到 <strong>4A</strong> 就過關。每局可取一次提示，也能用筆記標記排除數字與位置候選。</p>
+      <button class="dialog-primary" type="submit">開始玩</button>
+    </form>
+  </dialog>
+
+  <dialog id="share-dialog" aria-labelledby="share-title">
+    <form method="dialog">
+      <div class="dialog-heading"><h2 id="share-title">好友同題</h2><button type="submit" class="close-button" aria-label="關閉分享視窗">×</button></div>
+      <p>分享這個網址，朋友就會拿到你目前這一題。各自在自己的瀏覽器作答。</p>
+      <label class="share-label" for="share-url">同題網址</label>
+      <input id="share-url" class="share-url" type="url" readonly>
+      <button id="copy-link" class="dialog-primary" type="button">複製連結</button>
+      <p id="share-feedback" class="share-feedback" role="status"></p>
+    </form>
+  </dialog>
+
+  <dialog id="restart-dialog" aria-labelledby="restart-title">
+    <form method="dialog">
+      <div class="dialog-heading"><h2 id="restart-title">開始新遊戲？</h2><button type="submit" value="cancel" class="close-button" aria-label="取消新遊戲">×</button></div>
+      <p>這局的猜測和推理筆記會清空，下一局會換一組數字。</p>
+      <div class="dialog-actions">
+        <button class="action-button" type="submit" value="cancel" autofocus>繼續這局</button>
+        <button class="dialog-primary" type="submit" value="restart">開始新遊戲</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

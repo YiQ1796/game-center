@@ -42,6 +42,19 @@
       artwork.setAttribute('aria-hidden', 'true');
       artwork.append(element('span', '', '≈'), element('small', '', 'AQUA WORLD'));
       visual.append(artwork);
+    } else if (game.visualType === 'one-a-two-b-showcase') {
+      const artwork = element('div', 'one-a-two-b-showcase');
+      artwork.setAttribute('aria-hidden', 'true');
+      const mascot = element('img');
+      mascot.src = 'assets/mascot-logo.webp';
+      mascot.alt = '';
+      mascot.loading = 'lazy';
+      mascot.width = 89;
+      mascot.height = 86;
+      const title = element('div', 'one-a-two-b-mark');
+      title.append(element('span', '', '1A'), element('span', '', '2B'));
+      artwork.append(mascot, title);
+      visual.append(artwork);
     } else {
       const picture = element('img', 'game-illustration');
       picture.src = game.image;

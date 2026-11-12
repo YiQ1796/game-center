@@ -40,5 +40,14 @@ window.SANMAO_GAMES = Object.freeze([
     visualType: 'aqua-world-label',
     status: 'beta',
     url: 'https://yiq1796.github.io/game-center/aqua-world/'
+  }),
+  Object.freeze({
+    id: 'one-a-two-b',
+    name: '猴三毛 1A2B',
+    category: '數字推理・單人與好友同題',
+    summary: '四個數字藏著一組密碼。用 A、B 線索推理，也能和朋友挑戰同一題！',
+    visualType: 'one-a-two-b-showcase',
+    status: 'beta',
+    url: 'https://yiq1796.github.io/game-center/one-a-two-b/'
   })
 ]);
