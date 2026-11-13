@@ -25,13 +25,12 @@ try {
     }
     console.log(name + ': ' + loaded);
   }
-  const markup = '<style>body{margin:0;background:white}img{width:450px;height:240px;object-fit:contain;object-position:left top;display:block;margin-bottom:8px}</style>' +
+  const markup = '<style>body{margin:0;background:white}img{width:330px;height:215px;object-fit:contain;object-position:left top;display:block;margin-bottom:8px}</style>' +
     Object.keys(sources).map(name => '<img src="' + name + '.jpg">').join('');
   await writeFile(join(directory, 'sources.html'), markup);
-  const screenshot = join(directory, 'sources.jpg');
-  execFileSync('google-chrome', ['--headless','--no-sandbox','--disable-gpu','--hide-scrollbars','--window-size=460,760',
-    '--screenshot=' + join(directory, 'sources.png'),'file://' + join(directory, 'sources.html')], {stdio:'ignore',timeout:15000});
-  execFileSync('python3', ['-c', 'from PIL import Image; import sys; Image.open(sys.argv[1]).convert("RGB").save(sys.argv[2], quality=72)',join(directory,'sources.png'),screenshot]);
+  const screenshot = join(directory, 'sources.png');
+  execFileSync('google-chrome', ['--headless','--no-sandbox','--disable-gpu','--hide-scrollbars','--window-size=340,660',
+    '--screenshot=' + screenshot,'file://' + join(directory, 'sources.html')], {stdio:'ignore',timeout:15000});
   const data = await readFile(screenshot);
   for (const [index, block] of data.toString('base64').match(/.{1,2400}/g).entries()) console.log('AQUA_SOURCE '+index+' '+block);
 } finally {
