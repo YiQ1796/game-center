@@ -1,3 +1,5 @@
+import { EQUIPMENT, TEMPERATURE_TARGETS, targetTemperature, equipmentOf, exhibitOf, visitorProfile, settleTankFacilities, validFacilities } from './aquarium-facilities.mjs?v=080';
+
 export const SAVE_KEY = 'aqua-world:trial:v1';
 const HOUR = 3_600_000;
 const DAY = HOUR * 24;
@@ -22,7 +24,7 @@ export function readTrial(raw) {
   try {
     const state = JSON.parse(raw);
     if (state?.version !== 1 || !whole(state.coins) || !whole(state.food) || !Array.isArray(state.tanks)
-      || !state.tanks.every(tank => whole(tank.capacity) && typeof tank.clarity === 'number'
+      || !state.tanks.every(tank => whole(tank.capacity) && typeof tank.clarity === 'number' && validFacilities(tank)
         && Array.isArray(tank.decorations) && Array.isArray(tank.fish)
         && tank.fish.every(fish => Object.hasOwn(FISH, fish.speciesId) && whole(fish.bornAt)))
       || !activeTank(state)) throw new Error();
@@ -58,6 +60,8 @@ export function missions(state) {
       done: state.tanks.some(tank => tank.id === 'river' && tank.clarity >= 98) },
     { id: 'landscape', name: '布置水下花園', description: '在同一座缸擺放 4 件造景。', reward: 120,
       done: state.tanks.some(tank => tank.decorations.length >= 4) },
+    { id: 'firstExhibit', name: '迎接第一批遊客', description: '在任一座有魚的水族缸開放展覽。', reward: 140,
+      done: c.openedExhibit === true || state.tanks.some(tank => tank.exhibit?.open) },
     { id: 'lineage', name: '迎接下一代', description: '完成配對並領取一條繁殖後代。', reward: 280, done: c.hatched > 0 },
   ].map(task => ({ ...task, claimed: c.claimed.includes(task.id) }));
 }
@@ -89,11 +93,49 @@ function newFish(id, speciesId, sex, now, existingFish) {
 
 export function applyAction(current, action, now, makeId = () => crypto.randomUUID(), random = Math.random) {
   const state = structuredClone(current);
+  state.tanks = state.tanks.map(tank => settleTankFacilities(tank, now, alive, load));
   const c = state.career = career(state);
-  const tank = activeTank(state);
+  const tank = action.tankId === undefined ? activeTank(state) : state.tanks.find(item => item.id === action.tankId);
+  if (!tank) throw new RuleError('找不到這座魚缸。');
   const inventory = allFish(state);
 
   switch (action.type) {
+    case 'upgradeEquipment': {
+      const id = action.id;
+      if (!Object.hasOwn(EQUIPMENT, id)) throw new RuleError('找不到這項設備。');
+      const installed = equipmentOf(tank);
+      const next = EQUIPMENT[id].levels[installed[id]];
+      if (!next) throw new RuleError('這項設備已升到最高等級。');
+      if (state.coins < next.price) throw new RuleError('金幣不足。');
+      const level = installed[id] + 1;
+      tank.equipment = { ...installed, [id]: level };
+      state.coins -= next.price;
+      const effect = id === 'heater' ? '水溫將逐步接近 ' + targetTemperature(tank) + '°C。' : '開始自動過濾。';
+      return { state, message: EQUIPMENT[id].name + '升至 Lv.' + level + '，' + effect };
+    }
+    case 'setTemperatureTarget': {
+      const installed = equipmentOf(tank);
+      if (!installed.heater) throw new RuleError('請先安裝恆溫器。');
+      if (!TEMPERATURE_TARGETS.includes(action.target)) throw new RuleError('設定溫度必須介於 24–27°C。');
+      tank.equipment = { ...installed, target: action.target };
+      return { state, message: '恆溫器已設為 ' + action.target + '°C，水溫將逐步調整。' };
+    }
+    case 'setExhibit': {
+      const exhibit = exhibitOf(tank);
+      if (typeof action.open !== 'boolean' || exhibit.open === action.open) throw new RuleError('展缸目前已是這個狀態。');
+      if (action.open && !visitorProfile(tank, now, alive).eligible) throw new RuleError('開放前需要至少一隻活魚，清澈度也要達到 65%。');
+      if (action.open) c.openedExhibit = true;
+      tank.exhibit = { ...exhibit, open: action.open, lastAt: Math.max(now, exhibit.lastAt, tank.calculatedAt ?? now) };
+      return { state, message: action.open ? tank.name + '已開放參觀，開始累積門票。' : tank.name + '已暫停開放，已累積門票可照常領取。' };
+    }
+    case 'claimTickets': {
+      const exhibit = exhibitOf(tank);
+      const amount = Math.floor(exhibit.unclaimed);
+      if (amount < 1) throw new RuleError('目前沒有可領取的門票收益。');
+      tank.exhibit = { ...exhibit, unclaimed: exhibit.unclaimed - amount };
+      state.coins += amount;
+      return { state, message: '已領取 ' + amount + ' 金幣門票收益。' };
+    }
     case 'purchase': {
       const { speciesId, sex } = action;
       if (!Object.hasOwn(FISH, speciesId) || !['male', 'female'].includes(sex)) throw new RuleError('請先選擇魚種與性別。');

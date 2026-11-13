@@ -1,5 +1,6 @@
 import { SAVE_KEY, FISH, SALE_LIMIT, RuleError, activeTank, alive, readTrial, career,
-  allFish, sexOf, patternOf, salePrice, salesToday, missions, pairOptions, recessiveChance, applyAction } from './aquarium-career.mjs';
+  allFish, sexOf, patternOf, load, salePrice, salesToday, missions, pairOptions, recessiveChance, applyAction } from './aquarium-career.mjs?v=080';
+import { EQUIPMENT, TEMPERATURE_TARGETS, targetTemperature, equipmentOf, exhibitView } from './aquarium-facilities.mjs?v=080';
 import { drawCharacterPreview } from './aquarium-fish-characters.mjs';
 
 const byId = id => document.getElementById(id);
@@ -8,7 +9,7 @@ const content = byId('career-content');
 const status = byId('career-status');
 const numbers = new Intl.NumberFormat('zh-TW');
 const sexText = fish => sexOf(fish) === 'female' ? '母' : '公';
-const titles = { shop: '水族商店', missions: '養成任務', breed: '繁殖紀錄', collection: '魚類圖鑑' };
+const titles = { shop: '水族商店', missions: '養成任務', breed: '繁殖紀錄', collection: '魚類圖鑑', facilities: '魚缸設備', visitors: '展缸與遊客' };
 let section = 'missions';
 let working = false;
 let pairIndex = 0;
@@ -205,6 +206,70 @@ function renderCollection(state, now) {
   }
 }
 
+function renderEquipment(state) {
+  const tank = activeTank(state);
+  const levels = equipmentOf(tank);
+  const target = targetTemperature(tank);
+  content.append(node('p', tank.name + ' · 持有 ' + numbers.format(state.coins) + ' 金幣', 'career-subtext'));
+  for (const [id, equipment] of Object.entries(EQUIPMENT)) {
+    const level = levels[id];
+    const current = equipment.levels[level - 1];
+    const next = equipment.levels[level];
+    const describe = effect => {
+      if (!effect) return '尚未安裝';
+      if (id === 'filter') return '污損減少 ' + Math.round(effect.protection * 100)
+        + '%，每小時額外恢復 ' + effect.cleaning.toFixed(1) + ' 點清澈度';
+      return '自動靠近 ' + target + '°C，每小時縮小約 '
+        + Math.round((1 - Math.exp(-effect.speed)) * 100) + '% 的溫差';
+    };
+    const card = node('article', undefined, 'career-card facility-card');
+    card.append(node('h3', equipment.name + (level ? ' · Lv.' + level : '')),
+      node('p', describe(current), 'career-subtext'));
+    if (next) {
+      card.append(node('p', 'Lv.' + (level + 1) + ' · ' + describe(next), 'facility-next'),
+        button((level ? '升級' : '安裝') + ' · ' + next.price + ' 金幣',
+          () => void commit({ type: 'upgradeEquipment', id, tankId: tank.id }), { primary: true, disabled: state.coins < next.price }));
+    }
+    if (id === 'heater' && level) {
+      const apply = button('設定水溫', () => void commit({
+        type: 'setTemperatureTarget', tankId: tank.id, target: Number(temperature.control.value),
+      }), { disabled: true });
+      const temperature = select('目標水溫', TEMPERATURE_TARGETS.map(value => [value, value + '°C']),
+        value => { apply.disabled = Number(value) === target; });
+      temperature.control.value = target;
+      const setting = node('div', undefined, 'facility-setting');
+      setting.append(temperature.wrapper, apply);
+      card.append(setting);
+    }
+    content.append(card);
+  }
+}
+
+function renderVisitors(state, now) {
+  const tank = activeTank(state);
+  const view = exhibitView(tank, now, alive, load);
+  const heading = node('div', undefined, 'career-row');
+  const title = node('div');
+  title.append(node('h3', tank.name), node('p', view.open ? (view.eligible ? '開放參觀' : '暫無遊客 · 檢查魚隻與水質')
+    : '尚未開放', 'career-subtext'));
+  heading.append(title, button(view.open ? '暫停參觀' : '開放參觀',
+    () => void commit({ type: 'setExhibit', tankId: tank.id, open: !view.open }), { primary: !view.open, disabled: !view.open && !view.eligible }));
+  const figures = node('dl', undefined, 'facility-metrics');
+  for (const [label, value] of [
+    ['展缸評價', view.rating + ' / 100'],
+    ['目前票房', (view.open ? view.perHour : 0) + ' 金幣／小時'],
+    ['可領門票', numbers.format(view.claimable) + ' 金幣'],
+  ]) {
+    const metric = node('div');
+    metric.append(node('dt', label), node('dd', value));
+    figures.append(metric);
+  }
+  content.append(heading, figures,
+    node('p', '遊客喜歡清澈的水、有不同魚種和多樣的造景。開放條件為至少 1 隻活魚且清澈度達 65%。', 'career-subtext'),
+    node('p', '離線最多結算 ' + view.maxHours + ' 小時，未領取票房上限 ' + view.maxUnclaimed + ' 金幣。', 'career-subtext'),
+    button('領取門票收益', () => void commit({ type: 'claimTickets', tankId: tank.id }), { primary: true, disabled: view.claimable === 0 }));
+}
+
 function refreshTrack(state) {
   const available = missions(state).filter(task => task.done && !task.claimed).length;
   const badge = byId('mission-badge');
@@ -227,6 +292,8 @@ function render(message = '') {
       case 'missions': renderMissions(state); break;
       case 'breed': renderBreeding(state, now); break;
       case 'collection': renderCollection(state, now); break;
+      case 'facilities': renderEquipment(state); break;
+      case 'visitors': renderVisitors(state, now); break;
     }
   } catch (error) {
     status.textContent = error instanceof RuleError ? error.message : '這項資料暫時無法顯示。';
@@ -248,6 +315,7 @@ window.addEventListener('storage', event => {
   if (event.key === SAVE_KEY || event.key === null) updateTrack();
 });
 setInterval(() => {
-  if (dialog.open && section === 'breed' && content.querySelector('.career-time') && !working) render(status.textContent);
+  if (!dialog.open || working || content.contains(document.activeElement)) return;
+  if (section === 'visitors' || (section === 'breed' && content.querySelector('.career-time'))) render(status.textContent);
 }, 60_000);
 updateTrack();

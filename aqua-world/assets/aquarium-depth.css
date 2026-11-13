@@ -201,3 +201,17 @@ dialog::backdrop { background: #173d374f; }
   color: #244d41; background: #fffdf3ec; font-size: 12px; white-space: nowrap;
   pointer-events: none;
 }
+
+.facility-card { padding: 14px; }
+.facility-next { font-size: 13px; line-height: 1.55; color: var(--teal); margin: 7px 0; }
+.facility-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+.facility-metrics div { background: #edf7ee; border: 1px solid #dceadf; border-radius: 9px; padding: 9px; }
+.facility-metrics dt { color: var(--muted); font-size: 12px; }
+.facility-metrics dd { margin: 4px 0 0; font-size: 14px; font-weight: 750; }
+#career-content .facility-metrics ~ .career-primary { margin-top: 8px; }
+@media (max-width: 700px) and (orientation: portrait), (max-width: 560px) {
+  .career-bar button { flex-basis: 30%; }
+}
+
+.facility-setting { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin-top: 12px; }
+.facility-setting .career-label { flex: 1 1 110px; }

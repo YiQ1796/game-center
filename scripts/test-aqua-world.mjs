@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { SAVE_KEY, applyAction, activeTank, pairOptions, patternOf, readTrial, recessiveChance, salesToday } from '../aqua-world/assets/aquarium-career.mjs';
+import { SAVE_KEY, applyAction, activeTank, alive, load, pairOptions, patternOf, readTrial, recessiveChance, salesToday } from '../aqua-world/assets/aquarium-career.mjs';
+import { exhibitView, settleTankFacilities } from '../aqua-world/assets/aquarium-facilities.mjs';
 
 const hour = 3_600_000;
 const now = Date.UTC(2026, 10, 11);
@@ -55,4 +56,59 @@ test('daily sales limit resets on the next local day and sold fish stay in the a
   assert.equal(salesToday(state, now), 3);
   assert.throws(() => applyAction(state, { type: 'sell', fishId: fish[3].id }, now), /上限/);
   assert.equal(salesToday(state, now + 24 * hour), 0);
+});
+
+function existingAquarium(fish = [male]) {
+  const state = game(fish);
+  Object.assign(activeTank(state), { calculatedAt: now, temperature: 25 });
+  return state;
+}
+
+test('equipment upgrades preserve older saves and affect projected water conditions', () => {
+  const original = existingAquarium();
+  const withFilter = applyAction(original, { type: 'upgradeEquipment', id: 'filter' }, now).state;
+  const upgraded = applyAction(withFilter, { type: 'upgradeEquipment', id: 'filter' }, now).state;
+  assert.equal(upgraded.coins, 3_720);
+  assert.equal(activeTank(original).equipment, undefined);
+  assert.throws(() => applyAction(upgraded, { type: 'upgradeEquipment', id: 'filter' }, now), /最高/);
+  assert.throws(() => applyAction({ ...original, coins: 0 }, { type: 'upgradeEquipment', id: 'filter' }, now), /不足/);
+  const clarity = state => settleTankFacilities(activeTank(state), now + 2 * hour, alive, load).clarity;
+  assert.ok(clarity(upgraded) > clarity(withFilter) && clarity(withFilter) > clarity(original));
+  const heated = applyAction(upgraded, { type: 'upgradeEquipment', id: 'heater' }, now).state;
+  const targeted = applyAction(heated, { type: 'setTemperatureTarget', target: 27 }, now).state;
+  const water = settleTankFacilities(activeTank(readTrial(JSON.stringify(targeted))), now + hour, alive, load);
+  assert.ok(water.temperature > 25 && water.temperature < 27);
+  assert.throws(() => applyAction(heated, { type: 'setTemperatureTarget', target: 35 }, now), /24–27/);
+});
+
+test('visitor earnings are settled before pausing and can only be claimed once', () => {
+  const open = { type: 'setExhibit', open: true };
+  const claim = { type: 'claimTickets' };
+  assert.throws(() => applyAction(existingAquarium([]), open, now), /活魚/);
+  const original = existingAquarium();
+  const opened = applyAction(original, open, now).state;
+  const pauseAt = now + 2 * hour;
+  const paused = applyAction(opened, { ...open, open: false }, pauseAt).state;
+  const view = exhibitView(activeTank(paused), now + 10 * hour, alive, load);
+  assert.ok(view.claimable > 0);
+  assert.equal(view.claimable, exhibitView(activeTank(opened), pauseAt, alive, load).claimable);
+  const paid = applyAction(paused, claim, now + 10 * hour).state;
+  assert.equal(paid.coins, original.coins + view.claimable);
+  assert.throws(() => applyAction(paid, claim, now + 10 * hour), /沒有/);
+  const rewarded = applyAction(paid, { type: 'mission', id: 'firstExhibit' }, now + 10 * hour).state;
+  assert.equal(rewarded.coins, paid.coins + 140);
+  assert.throws(() => applyAction(rewarded, { type: 'mission', id: 'firstExhibit' }, now + 10 * hour), /無法領取/);
+});
+
+test('offline tickets respect the time and balance limits', () => {
+  const open = { type: 'setExhibit', open: true };
+  const equipped = applyAction(existingAquarium(), { type: 'upgradeEquipment', id: 'filter' }, now).state;
+  activeTank(equipped).clarity = 100;
+  const simple = applyAction(equipped, open, now).state;
+  assert.equal(exhibitView(activeTank(simple), now + 48 * hour, alive, load).claimable,
+    exhibitView(activeTank(simple), now + 12 * hour, alive, load).claimable);
+  const varied = existingAquarium([male, { ...male, speciesId: 'neon' }, { ...male, speciesId: 'betta' }]);
+  activeTank(varied).decorations = ['grass', 'rock', 'wood'].map(kind => ({ kind }));
+  const popular = applyAction(varied, open, now).state;
+  assert.equal(exhibitView(activeTank(popular), now + 48 * hour, alive, load).claimable, 500);
 });

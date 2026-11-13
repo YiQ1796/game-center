@@ -16,8 +16,12 @@ if (sceneStart < 0 || sceneEnd < 0 || !source.slice(sceneStart, sceneEnd).includ
 
 // The original app still owns gameplay and persistence. The new module owns the entire tank rendering.
 let runtime = 'import { AquariumScene as M } from "./aquarium-life-scene.mjs?v=070";\n'
-  + (source.slice(0, sceneStart) + source.slice(sceneEnd)).replace('0.2.0-g2-preview', '0.7.0-fish-characters');
-const feedingIntegration = [
+  + 'import { settleTankFacilities, validFacilities } from "./aquarium-facilities.mjs?v=080";\n'
+  + 'import { alive as isLiving, load as biologicalLoad } from "./aquarium-career.mjs?v=080";\n'
+  + (source.slice(0, sceneStart) + source.slice(sceneEnd)).replace('0.2.0-g2-preview', '0.8.0-aquarium-management');
+const runtimeIntegration = [
+  ["function u(e,r){return{...e,tanks:e.tanks.map(e=>{let a=Math.max(0,(r-e.calculatedAt)/t),o=e.decorations.filter(e=>e.kind===`grass`).length,s=Math.max(0,l(e)*.055-o*.12);return{...e,calculatedAt:Math.max(r,e.calculatedAt),clarity:Math.max(15,e.clarity-Math.min(a,72)*s),fish:e.fish.map(e=>{if(e.diedAt!==null)return e;let a=e.bornAt+i[e.speciesId].lifespan*n,o=Math.min(r,a),s=Math.min(72,Math.max(0,(o-e.lastCalculatedAt)/t));return{...e,lastCalculatedAt:Math.max(o,e.lastCalculatedAt),growthHours:e.growthHours+s,satiety:Math.max(0,e.satiety-s*2),diedAt:r>=a?a:null}})}})}}", "function u(state, now) {\n  return {\n    ...state,\n    tanks: state.tanks.map(tank => {\n      const settled = settleTankFacilities(tank, now, isLiving, biologicalLoad);\n      return {\n        ...settled,\n        fish: tank.fish.map(fish => {\n          if (fish.diedAt !== null) return fish;\n          const endOfLife = fish.bornAt + i[fish.speciesId].lifespan * n;\n          const elapsed = Math.min(72, Math.max(0, (Math.min(now, endOfLife) - fish.lastCalculatedAt) / t));\n          return {\n            ...fish, lastCalculatedAt: Math.max(Math.min(now, endOfLife), fish.lastCalculatedAt),\n            growthHours: fish.growthHours + elapsed,\n            satiety: Math.max(0, fish.satiety - elapsed * 2),\n            diedAt: now >= endOfLife ? endOfLife : null,\n          };\n        }),\n      };\n    }),\n  };\n}\n"],
+  ["if(!t.has(e.activeTankId))throw Error(`找不到原本選用的魚缸。`);return e", "if(!t.has(e.activeTankId))throw Error(`找不到原本選用的魚缸。`);if(!e.tanks.every(validFacilities))throw Error(`設備或展缸資料不完整。`);return e"],
   [
     "async function b(e,t,n){if(t!==`saved`)return{state:d(e,n,Date.now()),mode:t};let r=()=>{let r=y(Date.now());if(r.mode===`protected`)throw Error(`原存檔格式異常，已保護檔案。請重新整理以進入暫存試玩。`);let i=d(r.mode===`memory`?e:r.state,n,Date.now());if(r.mode===`memory`)return{state:i,mode:r.mode};try{return localStorage.setItem(p,JSON.stringify(i)),{state:i,mode:t}}catch{return{state:i,mode:`memory`}}};return navigator.locks?navigator.locks.request(p,r):r()}",
     "async function b(state, mode, action) {\n  function commit(previous, currentMode) {\n    const now = Date.now();\n    const next = d(previous, action, now);\n    let portionIds;\n    if (action.type === 'feed') {\n      const after = new Map(next.tanks.find(tank => tank.id === action.tankId).fish.map(fish => [fish.id, fish]));\n      portionIds = u(previous, now).tanks.find(tank => tank.id === action.tankId).fish\n        .filter(fish => after.get(fish.id).satiety > fish.satiety).map(fish => fish.id);\n    }\n    if (currentMode === 'saved') {\n      try { localStorage.setItem(p, JSON.stringify(next)); }\n      catch { currentMode = 'memory'; }\n    }\n    return { state: next, mode: currentMode, portionIds };\n  }\n  if (mode !== 'saved') return commit(state, mode);\n  const write = () => {\n    const latest = y(Date.now());\n    if (latest.mode === 'protected') throw Error('原存檔格式異常，已保護檔案。請重新整理以進入暫存試玩。');\n    return commit(latest.mode === 'memory' ? state : latest.state, latest.mode);\n  };\n  return navigator.locks ? navigator.locks.request(p, write) : write();\n}"
@@ -35,11 +39,11 @@ const feedingIntegration = [
     "portions=>C.feed(undefined,portions)"
   ]
 ];
-for (const [oldText, newText] of feedingIntegration) {
-  if (!runtime.includes(oldText)) throw new Error('The aquarium feeding integration no longer matches the base bundle.');
+for (const [oldText, newText] of runtimeIntegration) {
+  if (!runtime.includes(oldText)) throw new Error('The aquarium runtime integration no longer matches the base bundle.');
   runtime = runtime.replace(oldText, newText);
 }
-await writeFile(join(assets, 'aquarium-runtime-v070.js'), runtime);
+await writeFile(join(assets, 'aquarium-runtime-v080.js'), runtime);
 const vendor = resolve(assets, '..', 'vendor');
 const scratch = await mkdtemp(join(tmpdir(), 'aqua-three-'));
 try {

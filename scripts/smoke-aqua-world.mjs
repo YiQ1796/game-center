@@ -91,6 +91,40 @@ const exercise = `
     await until(() => decor().find(item => item.id === placed.id).x > placed.x, 'move 3D decoration');
     const save = getSave();
     if (save.career.jobs.length !== 1 || save.career.claimed[0] !== 'stock') throw new Error('Legacy care action lost career save');
+    const river = () => getSave().tanks.find(tank => tank.id === 'river');
+    const beforeEquipment = getSave().coins;
+    find('[data-career=facilities]').click();
+    find('#career-content .facility-card button').click();
+    await until(() => river().equipment?.filter === 1 && getSave().coins === beforeEquipment - 420, 'install filter');
+    find('#career-content .facility-card:nth-of-type(2) button').click();
+    await until(() => river().equipment?.heater === 1, 'install heater');
+    const temperature = find('#career-content .facility-setting select');
+    temperature.value = '27';
+    temperature.dispatchEvent(new Event('change'));
+    find('#career-content .facility-setting button').click();
+    await until(() => river().equipment?.target === 27, 'adjust thermostat');
+    find('#career-close').click();
+    find('[data-career=visitors]').click();
+    find('#career-content .career-row button').click();
+    await until(() => river().exhibit?.open, 'open visitor exhibit');
+    find('#career-close').click();
+    const originalNow = Date.now;
+    const beforeTickets = getSave().coins;
+    Date.now = () => originalNow() + 2 * 3_600_000;
+    try {
+      find('#care-tab').click();
+      find('#water').click();
+      await until(() => river().exhibit.unclaimed >= 1 && river().temperature > 25, 'legacy care settles tickets and heat');
+      find('[data-career=visitors]').click();
+      const claim = [...find('#career-content').querySelectorAll('button')]
+        .find(button => button.textContent === '領取門票收益');
+      if (claim.disabled) throw new Error('Visitor tickets did not accrue');
+      claim.click();
+      await until(() => getSave().coins > beforeTickets && find('#career-status').textContent.includes('門票收益'), 'claim tickets');
+    } finally {
+      Date.now = originalNow;
+    }
+    find('#career-close').click();
     marker.content = 'PASS';
   } catch (error) {
     marker.content = error.message;
@@ -168,17 +202,12 @@ try {
   const diagnostic = await evaluate("JSON.stringify({feedback: document.getElementById('feedback')?.textContent, loaded: performance.getEntriesByType('resource').map(entry => new URL(entry.name).pathname)})");
   assert.equal(response.result.value, 'PASS', JSON.stringify({ result: response.result.value, errors: exceptions, state: diagnostic.result.value }));
   assert.deepEqual(shaderErrors, []);
-  const sceneClip = await evaluate("JSON.stringify(document.querySelector('#stage').getBoundingClientRect().toJSON())");
-  const { x, y, width, height } = JSON.parse(sceneClip.result.value);
-  const shot = await call('Page.captureScreenshot', { format: 'jpeg', quality: 75, captureBeyondViewport: true,
-    clip: { x, y, width, height, scale: .83 } });
-  for (const [index, block] of shot.data.match(/.{1,2800}/g).entries()) console.log('AQUA_CHARACTERS ' + index + ' ' + block);
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await delay(150);
   const mobile = await evaluate("document.documentElement.scrollWidth <= 391 && document.querySelector('#stage').getBoundingClientRect().width > 300");
   assert.equal(mobile.result.value, true, 'Phone viewport must show the tank without horizontal overflow');
   assert.deepEqual(exceptions, []);
-  console.log('Aqua World Chrome smoke test PASS (illustrated fish in two WebGL tanks, desktop and phone layout, shop, missions, breeding, decoration, individual and full-tank feeding, and saves)');
+  console.log('Aqua World Chrome smoke test PASS (illustrated fish in two WebGL tanks, desktop and phone layout, shop, missions, breeding, decoration, individual and full-tank feeding, equipment, visitor tickets, and saves)');
 } finally {
   ws?.close();
   chrome.kill();
