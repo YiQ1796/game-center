@@ -33,6 +33,7 @@ export function createFeeding(models, portionIds, time) {
     const depth = Math.floor(index / 7);
     return {
       owner: model.motion.id,
+      approach: 0,
       x: limit(model.motion.x * .48 + horizontal * .28, -4, 4),
       y: 2.69 + (index % 3) * .09, z: .46 + depth * .30 + (index % 2) * .16,
       release: time + index % 4 * .09, eaten: false,
@@ -58,7 +59,10 @@ export function stepMotion(motion, seconds, delta, feeding) {
   const tempo = seconds * profile.period + phase;
   const pause = motion.speciesId === 'betta' ? .60 + .4 * Math.sin(tempo * .69) ** 4 : 1;
   const school = motion.speciesId === 'neon' ? Math.sin(seconds * .48) * 2.2 : 0;
-  const destinationX = seeking ? target.x : school + Math.sin(tempo * .53) * (school ? 1.15 : 3.4);
+  if (seeking && !target.approach) target.approach = Math.sign(target.x - motion.x) || motion.facing;
+  const mouthOffset = profile.width * .34;
+  const destinationX = seeking ? target.x - target.approach * mouthOffset
+    : school + Math.sin(tempo * .53) * (motion.speciesId === 'neon' ? 1.15 : 3.4);
   const destinationY = seeking ? target.y : profile.y + Math.sin(tempo * .74 + .3) * profile.drift;
   const destinationZ = seeking ? target.z : profile.depth + Math.sin(tempo * .42 + seed % 7) * .72;
   const dx = destinationX - motion.x;
@@ -70,8 +74,8 @@ export function stepMotion(motion, seconds, delta, feeding) {
   motion.vx += (dx * approach - motion.vx) * easing;
   motion.vy += (dy * approach - motion.vy) * easing;
   motion.vz += (dz * approach - motion.vz) * easing;
-  const direction = Math.sign(seeking ? dx : motion.vx);
-  if (direction && Math.abs(seeking ? dx : motion.vx) > .11 && direction !== motion.facing) {
+  const direction = seeking ? target.approach : Math.sign(motion.vx);
+  if (direction && (seeking || Math.abs(motion.vx) > .11) && direction !== motion.facing) {
     motion.facing = direction;
     motion.flip = .42;
   }
@@ -79,7 +83,7 @@ export function stepMotion(motion, seconds, delta, feeding) {
   motion.x = limit(motion.x + motion.vx * delta, -4.6, 4.6);
   motion.y = limit(motion.y + motion.vy * delta, -1.4, 2.70);
   motion.z = limit(motion.z + motion.vz * delta, -1.55, 1.65);
-  const mouth = motion.x + motion.facing * profile.width * .34;
+  const mouth = motion.x + motion.facing * mouthOffset;
   motion.bite = Math.max(0, motion.bite - delta * 4);
   if (seeking && Math.hypot(target.x - mouth, target.y - motion.y, target.z - motion.z) < .37) {
     target.eaten = true;

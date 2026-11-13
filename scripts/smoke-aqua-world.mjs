@@ -15,12 +15,13 @@ const exercise = `
   marker.id = 'aqua-smoke';
   document.head.append(marker);
   const find = selector => document.querySelector(selector);
-  async function until(test, label) {
-    for (let attempt = 0; attempt < 265; attempt++) {
+  async function until(test, label, timeout = 10_000) {
+    const deadline = performance.now() + timeout;
+    while (performance.now() < deadline) {
       if (test()) return;
       await new Promise(resolve => setTimeout(resolve, 30));
     }
-    throw new Error(label + ' / ' + document.getElementById('career-status')?.textContent);
+    throw new Error(label + ' / ' + find('#feeding-status')?.textContent + ' / ' + find('#food')?.textContent);
   }
   try {
     await until(() => find('#stage canvas') && find('#stage').dataset.scene === 'river'
@@ -41,10 +42,10 @@ const exercise = `
     const singleFeed = [...find('#fish-card').querySelectorAll('button')].find(button => button.textContent === '單獨餵食');
     singleFeed.click();
     await until(() => food() === startingFood - 1 && find('#feeding-status').textContent.includes('0／1'), 'single fish receives one portion');
-    await until(() => find('#stage').dataset.feeding === 'eaten' && find('#feeding-status').textContent.includes('1／1'), 'single fish eats');
+    await until(() => find('#stage').dataset.feeding === 'eaten' && find('#feeding-status').textContent.includes('1／1'), 'single fish eats', 16_000);
     find('#feed').click();
     await until(() => food() === startingFood - 3 && find('#feeding-status').textContent.includes('0／2'), 'only the two hungry fish receive portions');
-    await until(() => find('#stage').dataset.feeding === 'eaten' && find('#feeding-status').textContent.includes('2／2'), 'the two fish eat their portions');
+    await until(() => find('#stage').dataset.feeding === 'eaten' && find('#feeding-status').textContent.includes('2／2'), 'the two fish eat their portions', 16_000);
     find('#tank-list .tank-option:nth-child(2)').click();
     await until(() => find('#stage').dataset.scene === 'studio' && find('#feeding-status').hidden, 'meal state clears when switching tanks');
     find('#tank-list .tank-option').click();

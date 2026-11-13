@@ -131,6 +131,7 @@ export class AquariumScene {
   fish = new Map();
   decor = new Map();
   lastFrame = 0;
+  simulationTime = 0;
   feeding;
   ready = false;
   eatStatus = '';
@@ -250,7 +251,7 @@ export class AquariumScene {
   feed(id, portionIds) {
     const recipients = portionIds ?? (id ? [id] : [...this.fish.keys()]);
     if (!recipients.length || !this.lastFrame) return;
-    const now = this.lastFrame / 1_000;
+    const now = this.simulationTime;
     const next = createFeeding(this.fish, recipients, now);
     if (this.feeding) {
       const pending = this.feeding.pellets.filter(pellet => !pellet.eaten);
@@ -344,9 +345,10 @@ export class AquariumScene {
 
   draw(time) {
     if (!this.tank || !this.ready || time - this.lastFrame < (this.lowPower ? 75 : 32)) return;
-    const delta = this.lastFrame ? Math.min(.085, (time - this.lastFrame) / 1_000) : .033;
+    const delta = this.lastFrame ? Math.min(.20, (time - this.lastFrame) / 1_000) : .033;
     this.lastFrame = time;
-    const seconds = time / 1_000;
+    this.simulationTime += delta;
+    const seconds = this.simulationTime;
     this.water.clock.value = this.lowPower ? 0 : seconds;
     this.scene.fog.density = .034 + (1 - this.tank.clarity / 100) * .068;
     this.selection.visible = false;
@@ -366,7 +368,7 @@ export class AquariumScene {
       this.pellets.setMatrixAt(visible++, this.stamp.matrix);
     }
     this.pellets.count = visible;
-    this.pellets.instanceMatrix.needsUpdate = true;
+    if (visible) this.pellets.instanceMatrix.needsUpdate = true;
     const meal = this.feeding;
     this.updateFeedingStatus(!meal ? 'idle' : meal.eaten === meal.served ? 'eaten' : meal.eaten ? 'eating' : 'searching');
     const moving = this.bubbles.geometry.attributes.position;
