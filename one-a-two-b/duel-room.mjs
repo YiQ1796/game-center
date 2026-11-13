@@ -1,6 +1,8 @@
 import { PeerRoom } from './peer-room.mjs?v=3';
 import { PROTOCOL, applyMove, newRoom, playerName, startRound, validRoomCode, validToken, viewForSeat } from './duel-core.mjs?v=3';
 
+const HEARTBEAT_INTERVAL = 5000;
+const HOST_TIMEOUT = 16000;
 const HOST_STORAGE = 'sanmao-1a2b:host-room-v1';
 const guestKey = code => 'sanmao-1a2b:guest-v1:' + code;
 const randomToken = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), n => n.toString(16).padStart(2, '0')).join('');
@@ -41,6 +43,8 @@ export class DuelRoom {
     this.message = '';
     this.error = false;
     clearTimeout(this.moveTimer);
+    clearInterval(this.heartbeat);
+    this.heartbeat = null;
   }
 
   update(message = this.message, error = this.error) {
@@ -151,7 +155,9 @@ export class DuelRoom {
       return;
     }
     if (connection !== this.connection) return;
-    if (message.type === 'leave') {
+    if (message.type === 'ping') {
+      this.sendHost(connection, 'pong');
+    } else if (message.type === 'leave') {
       this.connection = null;
       if (this.state.phase === 'lobby') {
         this.state.players[1] = null;
@@ -181,6 +187,7 @@ export class DuelRoom {
 
   onGuestMessage(message) {
     if (this.role !== 'guest' || message?.protocol !== PROTOCOL) return;
+    this.hostLastSeen = Date.now();
     if (message.type === 'reject' || message.type === 'closed') {
       this.leave(false);
       this.update(message.type === 'closed' ? '房主已關閉房間。' : message.text, true);
@@ -192,6 +199,12 @@ export class DuelRoom {
     if (message.type === 'welcome') {
       this.transport.confirmJoined();
       this.ready = true;
+      if (!this.heartbeat) {
+        this.heartbeat = setInterval(() => {
+          if (!this.ready) return;
+          if (Date.now() - this.hostLastSeen >= HOST_TIMEOUT || !this.sendGuest('ping')) this.reconnect();
+        }, HEARTBEAT_INTERVAL);
+      }
       save('localStorage', guestKey(this.code), { token: this.token, name: this.name });
     } else if (!this.ready || (this.view && view.revision < this.view.revision)) return;
     this.clearPending();

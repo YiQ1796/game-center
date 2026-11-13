@@ -1,4 +1,4 @@
-import { DuelRoom } from './duel-room.mjs?v=3';
+import { DuelRoom } from './duel-room.mjs?v=4';
 import { isCode } from './rules.mjs?v=1';
 import { validRoomCode } from './duel-core.mjs?v=3';
 
@@ -133,7 +133,7 @@ function render(state) {
   get('duel-start').disabled = !view?.players.every(player => player?.online);
   get('duel-start').textContent = view?.phase === 'finished' ? '再玩一局' : '開始對局';
   get('duel-copy').hidden = !host || !state.ready;
-  get('duel-reconnect').hidden = state.role !== 'guest' || state.ready;
+  get('duel-reconnect').hidden = state.role !== 'guest';
   get('duel-release').hidden = !canStart || !view?.players[1] || view.players[1].online;
   renderSeats(view ?? (host ? { players: state.state.players, seat: 0 } : null), state.ready);
   renderPlay(state);
@@ -173,6 +173,7 @@ get('duel-leave').addEventListener('click', () => {
 });
 get('duel-copy').addEventListener('click', async () => {
   const url = new URL('./', location.href);
+  url.searchParams.set('v', '4');
   url.searchParams.set('room', room.code);
   invite.value = url.href;
   invite.hidden = false;

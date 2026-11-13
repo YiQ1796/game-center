@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { applyMove, newRoom, startRound, viewForSeat } from '../one-a-two-b/duel-core.mjs?v=3';
-import { DuelRoom } from '../one-a-two-b/duel-room.mjs?v=3';
+import { DuelRoom } from '../one-a-two-b/duel-room.mjs?v=4';
 
 const sample = newRoom('012345', '猴三毛');
 assert.equal(startRound(sample, '0123'), false);
