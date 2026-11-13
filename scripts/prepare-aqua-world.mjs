@@ -22,7 +22,7 @@ let runtime = 'import { AquariumScene as M } from "./aquarium-life-scene.mjs?v=0
 const speciesStart = runtime.indexOf('i={guppy:{label:');
 const speciesEnd = runtime.indexOf(',a={grass:', speciesStart);
 if (speciesStart < 0 || speciesEnd < 0) throw new Error('The original aquarium fish table could not be located.');
-runtime = 'import { FISH } from "./aquarium-species.mjs?v=090";\\n'
+runtime = 'import { FISH } from "./aquarium-species.mjs?v=090";\n'
   + runtime.slice(0, speciesStart)
   + 'i=Object.fromEntries(Object.entries(FISH).map(([id, species]) => [id, { ...species, label: species.name, lifespan: species.life }]))'
   + runtime.slice(speciesEnd);

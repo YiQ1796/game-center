@@ -195,7 +195,7 @@ const closed = new Promise(resolve => chrome.once('close', resolve));
 let ws;
 try {
   let port;
-  for (let attempt = 0; attempt < 100 && !port; attempt++) {
+  for (let attempt = 0; attempt < 250 && !port; attempt++) {
     if (browserError) throw browserError;
     port = await readFile(join(profile, 'DevToolsActivePort'), 'utf8').then(value => Number(value.split('\n')[0]), () => undefined);
     if (!port) await delay(100);
