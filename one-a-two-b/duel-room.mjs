@@ -1,5 +1,5 @@
 import { PeerRoom } from './peer-room.mjs?v=3';
-import { PROTOCOL, applyMove, newRoom, playerName, startRound, validRoomCode, validToken, viewForSeat } from './duel-core.mjs?v=3';
+import { PROTOCOL, applyMove, newRoom, playerName, startRound, validRoomCode, validToken, viewForSeat, isTaunt, TAUNT_COOLDOWN } from './duel-core.mjs?v=6';
 
 const HEARTBEAT_INTERVAL = 5000;
 const HOST_TIMEOUT = 16000;
@@ -42,6 +42,9 @@ export class DuelRoom {
     this.pending = false;
     this.message = '';
     this.error = false;
+    this.taunt = null;
+    this.tauntSerial = 0;
+    this.lastTauntAt = [-Infinity, -Infinity];
     clearTimeout(this.moveTimer);
     clearInterval(this.heartbeat);
     this.heartbeat = null;
@@ -157,6 +160,8 @@ export class DuelRoom {
     if (connection !== this.connection) return;
     if (message.type === 'ping') {
       this.sendHost(connection, 'pong');
+    } else if (message.type === 'taunt') {
+      if (message.round === this.state.round) this.publishTaunt(1, message.id);
     } else if (message.type === 'leave') {
       this.connection = null;
       if (this.state.phase === 'lobby') {
@@ -193,10 +198,21 @@ export class DuelRoom {
       this.update(message.type === 'closed' ? '房主已關閉房間。' : message.text, true);
       return;
     }
+    if (message.type === 'taunt') {
+      const { id, seat, round, serial } = message;
+      if (this.ready && this.view?.round === round && isTaunt(id) && (seat === 0 || seat === 1) &&
+          Number.isSafeInteger(serial) && serial > this.tauntSerial) {
+        this.tauntSerial = serial;
+        this.taunt = { id, seat, round, serial };
+        this.onChange(this);
+      }
+      return;
+    }
     const view = message.view;
     if (!['welcome', 'view'].includes(message.type) || view?.code !== this.code || view.seat !== 1 ||
         !Number.isSafeInteger(view.revision) || !Array.isArray(view.players) || !Array.isArray(view.guesses)) return;
     if (message.type === 'welcome') {
+      this.tauntSerial = 0;
       this.transport.confirmJoined();
       this.ready = true;
       if (!this.heartbeat) {
@@ -210,6 +226,26 @@ export class DuelRoom {
     this.clearPending();
     this.view = view;
     this.update(typeof message.notice === 'string' ? message.notice : '', Boolean(message.notice));
+  }
+
+  publishTaunt(seat, id) {
+    if (!this.state || !['playing', 'finished'].includes(this.state.phase) ||
+        !this.state.players.every(player => player?.online) || !isTaunt(id)) return false;
+    const now = Date.now();
+    if (now - this.lastTauntAt[seat] < TAUNT_COOLDOWN) return false;
+    this.lastTauntAt[seat] = now;
+    this.taunt = { id, seat, round: this.state.round, serial: ++this.tauntSerial };
+    if (this.connection?.open) this.sendHost(this.connection, 'taunt', this.taunt);
+    this.onChange(this);
+    return true;
+  }
+
+  sendTaunt(id) {
+    if (!this.ready || !this.view || !isTaunt(id) ||
+        !['playing', 'finished'].includes(this.view.phase) ||
+        !this.view.players.every(player => player?.online)) return false;
+    return this.role === 'host' ? this.publishTaunt(0, id)
+      : this.sendGuest('taunt', { id, round: this.view.round });
   }
 
   start() {

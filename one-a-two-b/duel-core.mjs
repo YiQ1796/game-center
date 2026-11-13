@@ -2,6 +2,15 @@ import { codeForSeed, isCode, scoreGuess } from './rules.mjs?v=1';
 
 export const PROTOCOL = 2;
 const RECENT_GUESSES = 80;
+export const TAUNT_COOLDOWN = 5000;
+export const TAUNTS = Object.freeze([
+  '這題我快看穿了！',
+  '就差一點，你再想想！',
+  '猴三毛都在偷笑了。',
+  '壓力現在在你那邊！',
+  '這手漂亮，換我了！'
+]);
+export const isTaunt = id => Number.isInteger(id) && id >= 0 && id < TAUNTS.length;
 export const validRoomCode = value => typeof value === 'string' && /^\d{6}$/.test(value);
 export const validToken = value => typeof value === 'string' && /^[a-f0-9]{32}$/.test(value);
 

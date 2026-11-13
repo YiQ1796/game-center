@@ -1,6 +1,6 @@
-import { DuelRoom } from './duel-room.mjs?v=4';
+import { DuelRoom } from './duel-room.mjs?v=6';
 import { isCode } from './rules.mjs?v=1';
-import { validRoomCode } from './duel-core.mjs?v=3';
+import { TAUNTS, TAUNT_COOLDOWN, validRoomCode } from './duel-core.mjs?v=6';
 
 const get = id => document.getElementById(id);
 const lobby = get('duel-form');
@@ -22,6 +22,11 @@ let seatsKey = '';
 let historyKey = '';
 let lobbyOpen = false;
 let oldCode;
+let tauntKey = '';
+let tauntTimer;
+let tauntCooldownTimer;
+let tauntLockedUntil = 0;
+let muted = false;
 
 function showLobby(open) {
   lobbyOpen = open;
@@ -63,14 +68,84 @@ function renderSeats(view, ready) {
   }));
 }
 
+function digitsTile(code, compact = false) {
+  const row = label('span', compact ? 'duel-code is-compact' : 'duel-code', '');
+  row.setAttribute('role', 'img');
+  row.setAttribute('aria-label', [...code].join(' '));
+  for (const digit of code) {
+    const tile = label('span', 'duel-digit', digit);
+    tile.setAttribute('aria-hidden', 'true');
+    row.append(tile);
+  }
+  return row;
+}
+
+function scoreTile(a, b) {
+  const score = label('span', 'duel-score', '');
+  for (const [count, letter] of [[a, 'A'], [b, 'B']]) {
+    const chip = label('span', 'duel-score-' + letter.toLowerCase(), '');
+    chip.append(label('strong', '', String(count)), label('span', '', letter));
+    score.append(chip);
+  }
+  return score;
+}
+
+function renderGuesses(view) {
+  const { code, round, seat, players, guesses, guessCount } = view;
+  get('duel-history').hidden = guessCount === 0;
+  get('duel-spotlight').hidden = guessCount === 0;
+  get('duel-history-count').textContent = guessCount + ' 次';
+  get('duel-history-note').textContent = guessCount > guesses.length ? '顯示最近 ' + guesses.length + ' 次猜測。' : '';
+  const key = JSON.stringify([code, round, seat, guessCount, guesses]);
+  if (key === historyKey) return;
+  historyKey = key;
+  const latest = guesses.at(-1);
+  if (latest) {
+    const who = latest.seat === seat ? '你' : players[latest.seat]?.name ?? '好友';
+    get('duel-spotlight-label').textContent = who + ' · 第 ' + guessCount + ' 次猜測';
+    get('duel-spotlight-value').replaceChildren(digitsTile(latest.code), scoreTile(latest.a, latest.b));
+  }
+  historyList.replaceChildren(...[...guesses].reverse().map((guess, index) => {
+    const item = label('li', 'duel-guess', '');
+    const own = guess.seat === seat;
+    item.dataset.owner = own ? 'you' : 'friend';
+    const who = own ? '你' : players[guess.seat]?.name ?? '好友';
+    item.append(label('span', 'duel-guess-who', '#' + (guessCount - index) + ' · ' + who),
+      digitsTile(guess.code, true), scoreTile(guess.a, guess.b));
+    return item;
+  }));
+}
+
+function renderTaunts(state) {
+  const view = state.view;
+  const bubble = get('duel-taunt');
+  const buttons = get('duel-taunt-buttons');
+  buttons.hidden = muted;
+  const enabled = state.ready && view?.players.every(player => player?.online) &&
+    Date.now() >= tauntLockedUntil;
+  for (const button of buttons.children) button.disabled = !enabled;
+  const taunt = state.taunt;
+  if (!taunt || taunt.round !== view?.round || muted) {
+    bubble.textContent = '';
+    return;
+  }
+  const key = [view.code, taunt.round, taunt.seat, taunt.serial].join(':');
+  if (tauntKey === key) return;
+  tauntKey = key;
+  const who = taunt.seat === view.seat ? '你' : view.players[taunt.seat]?.name ?? '好友';
+  bubble.textContent = who + '：「' + TAUNTS[taunt.id] + '」';
+  clearTimeout(tauntTimer);
+  tauntTimer = setTimeout(() => { bubble.textContent = ''; }, 6500);
+}
+
 function renderPlay(state) {
   const view = state.view;
   play.hidden = !view || view.phase === 'lobby';
   if (play.hidden) return;
   const { phase, players, round, seat, turn, winner } = view;
-  const playing = phase === 'playing';
+  const finished = phase === 'finished';
   const bothOnline = state.ready && players.every(player => player?.online);
-  const canMove = bothOnline && playing && turn === seat;
+  const canMove = bothOnline && !finished && turn === seat;
   const nextKey = [view.code, round, phase, view.guessCount].join(':');
   if (nextKey !== inputKey) {
     inputKey = nextKey;
@@ -78,34 +153,26 @@ function renderPlay(state) {
     moveError.textContent = '';
   }
   get('duel-round').textContent = '第 ' + round + ' 局';
-  let message;
-  if (phase === 'finished') {
-    message = winner === seat ? '你猜中了，這局你贏了！' : players[winner].name + ' 猜中了。';
-  } else if (!bothOnline) {
-    message = '等待玩家重新連線，對局暫停。';
-
-  } else {
-    message = turn === seat ? '輪到你猜電腦出的密碼。' : '輪到 ' + players[turn].name + ' 猜題。';
-  }
-  get('duel-turn').textContent = message;
+  const stage = get('duel-stage');
+  stage.dataset.state = finished ? (winner === seat ? 'win' : 'loss') : !bothOnline ? 'paused' : canMove ? 'yours' : 'waiting';
+  get('duel-stage-tag').textContent = finished ? '本局結果' : !bothOnline ? '對局暫停' : canMove ? '你的回合' : '好友回合';
+  const message = finished
+    ? (winner === seat ? '你猜中了，這局你贏了！' : (players[winner]?.name ?? '好友') + ' 先猜中密碼。')
+    : !bothOnline ? '等待玩家重新連線。'
+    : canMove ? '輪到你猜電腦出的密碼。' : '輪到 ' + players[turn].name + ' 猜題。';
+  const turnStatus = get('duel-turn');
+  if (turnStatus.textContent !== message) turnStatus.textContent = message;
   moveForm.hidden = !canMove;
   digits.disabled = state.pending;
   get('duel-submit').disabled = state.pending;
-  get('duel-secret').textContent = phase === 'finished'
-    ? '電腦出的密碼是 ' + view.answer + '。'
-    : '';
-  get('duel-history').hidden = view.guessCount === 0;
-  get('duel-history-note').textContent = view.guessCount > view.guesses.length ? '顯示最近 ' + view.guesses.length + ' 次猜測。' : '';
-  const nextHistoryKey = JSON.stringify([view.code, round, seat, view.guesses]);
-  if (historyKey === nextHistoryKey) return;
-  historyKey = nextHistoryKey;
-  historyList.replaceChildren(...[...view.guesses].reverse().map((guess, index) => {
-    const item = document.createElement('li');
-    const who = guess.seat === seat ? '你' : players[guess.seat].name;
-    item.append(label('span', '', '#' + (view.guessCount - index) + '　' + who + ' 猜 ' + guess.code),
-      label('strong', '', guess.a + 'A ' + guess.b + 'B'));
-    return item;
-  }));
+  const secret = get('duel-secret');
+  secret.hidden = !finished;
+  if (finished && secret.dataset.answer !== view.answer) {
+    secret.dataset.answer = view.answer;
+    secret.replaceChildren(label('strong', '', '正確密碼'), digitsTile(view.answer, true));
+  }
+  renderGuesses(view);
+  renderTaunts(state);
 }
 
 function render(state) {
@@ -118,6 +185,11 @@ function render(state) {
     invite.hidden = true;
     actionStatus.textContent = '';
     inputKey = '';
+    tauntKey = '';
+    tauntLockedUntil = 0;
+    clearTimeout(tauntCooldownTimer);
+    clearTimeout(tauntTimer);
+    get('duel-taunt').textContent = '';
   }
   toggle.hidden = active;
   showLobby(lobbyOpen);
@@ -140,6 +212,30 @@ function render(state) {
 }
 
 const room = new DuelRoom(render);
+
+const tauntButtons = get('duel-taunt-buttons');
+tauntButtons.replaceChildren(...TAUNTS.map((line, id) => {
+  const button = label('button', 'action-button', line);
+  button.type = 'button';
+  button.addEventListener('click', () => {
+    if (!room.sendTaunt(id)) return;
+    tauntLockedUntil = Date.now() + TAUNT_COOLDOWN;
+    renderTaunts(room);
+    clearTimeout(tauntCooldownTimer);
+    tauntCooldownTimer = setTimeout(() => renderTaunts(room), TAUNT_COOLDOWN);
+  });
+  return button;
+}));
+get('duel-mute').addEventListener('click', event => {
+  muted = !muted;
+  if (muted && room.taunt && room.view) {
+    const { round, seat, serial } = room.taunt;
+    tauntKey = [room.view.code, round, seat, serial].join(':');
+  }
+  event.currentTarget.setAttribute('aria-pressed', String(muted));
+  event.currentTarget.textContent = muted ? '取消靜音' : '靜音';
+  renderTaunts(room);
+});
 
 function setRoomUrl(code) {
   const url = new URL(location.href);
@@ -173,7 +269,7 @@ get('duel-leave').addEventListener('click', () => {
 });
 get('duel-copy').addEventListener('click', async () => {
   const url = new URL('./', location.href);
-  url.searchParams.set('v', '5');
+  url.searchParams.set('v', '6');
   url.searchParams.set('room', room.code);
   invite.value = url.href;
   invite.hidden = false;

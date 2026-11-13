@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { applyMove, newRoom, startRound, viewForSeat } from '../one-a-two-b/duel-core.mjs?v=3';
-import { DuelRoom } from '../one-a-two-b/duel-room.mjs?v=4';
+import { TAUNTS, applyMove, newRoom, startRound, viewForSeat } from '../one-a-two-b/duel-core.mjs?v=6';
+import { DuelRoom } from '../one-a-two-b/duel-room.mjs?v=6';
 
 const sample = newRoom('012345', '猴三毛');
 assert.equal(startRound(sample, '0123'), false);
@@ -87,6 +87,7 @@ try {
   await guest.join(host.code, '好友');
   await tick();
   assert.equal(guest.ready, true);
+  assert.equal(host.sendTaunt(0), false, 'Lobby cannot send taunts');
   assert.equal(host.view.players[1].name, '好友');
   const intruder = { open: true, close() {}, receive() { throw new Error('席位不應被取代'); } };
   let rejection;
@@ -96,6 +97,21 @@ try {
   assert.equal(rejection, 'reject');
   host.start();
   await tick();
+  const revision = guest.view.revision;
+  assert.equal(host.sendTaunt(0), true);
+  assert.equal(host.sendTaunt(1), false, 'Host rate limit');
+  assert.equal(guest.sendTaunt(TAUNTS.length), false, 'Unknown text is not accepted');
+  await tick();
+  assert.equal(guest.taunt.id, 0);
+  assert.equal(guest.taunt.seat, 0);
+  assert.equal(guest.view.revision, revision);
+  assert.equal(guest.sendTaunt(1), true);
+  assert.equal(guest.sendTaunt(2), true);
+  await tick();
+  assert.equal(host.taunt.id, 1, 'Host enforces guest rate limit');
+  assert.equal(guest.taunt.id, 1, 'Both players receive the accepted taunt');
+  assert.equal(host.view.revision, revision);
+  assert.equal(host.view.turn, 0);
   const answer = host.state.answer;
   const miss = answer.slice(1) + answer[0];
   assert.equal(guest.view.answer, null);
