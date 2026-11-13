@@ -10,7 +10,7 @@ export const RELAY_BROKERS = Object.freeze([
   'wss://broker.emqx.io:8084/mqtt',
   'wss://test.mosquitto.org:8081'
 ]);
-const TOPIC_PREFIX = 'sanmao-one-a-two-b/relay-v1/';
+const TOPIC_PREFIX = 'sanmao-one-a-two-b/relay-v2/';
 const LIBRARY_URLS = [
   'https://cdn.jsdelivr.net/npm/mqtt@5.14.1/dist/mqtt.min.js',
   'https://unpkg.com/mqtt@5.14.1/dist/mqtt.min.js'

@@ -1,6 +1,6 @@
-import { DuelRoom } from './duel-room.mjs?v=2';
+import { DuelRoom } from './duel-room.mjs?v=3';
 import { isCode } from './rules.mjs?v=1';
-import { validRoomCode } from './duel-core.mjs?v=2';
+import { validRoomCode } from './duel-core.mjs?v=3';
 
 const get = id => document.getElementById(id);
 const lobby = get('duel-form');
@@ -55,7 +55,7 @@ function renderSeats(view, ready) {
     const role = seat === 0 ? '房主' : '好友';
     const you = view?.seat === seat ? '（你）' : '';
     const details = !player ? '空位' : !online ? '離線・保留座位'
-      : '已入座・' + role + (turn ? '・猜題中' : view?.phase === 'setting' && player.ready ? '・已鎖定密碼' : '');
+      : '已入座・' + role + (turn ? '・猜題中' : '');
     seatBody.append(label('strong', 'seat-name', player ? player.name + you : '等待' + role),
       label('span', 'seat-detail', details));
     item.append(seatNumber, seatBody);
@@ -68,11 +68,10 @@ function renderPlay(state) {
   play.hidden = !view || view.phase === 'lobby';
   if (play.hidden) return;
   const { phase, players, round, seat, turn, winner } = view;
-  const setting = phase === 'setting';
   const playing = phase === 'playing';
   const bothOnline = state.ready && players.every(player => player?.online);
-  const canMove = bothOnline && ((setting && !view.ownSecret) || (playing && turn === seat));
-  const nextKey = [view.code, round, phase, phase === 'playing' ? view.guesses.length : view.ownSecret].join(':');
+  const canMove = bothOnline && playing && turn === seat;
+  const nextKey = [view.code, round, phase, view.guessCount].join(':');
   if (nextKey !== inputKey) {
     inputKey = nextKey;
     digits.value = '';
@@ -81,33 +80,29 @@ function renderPlay(state) {
   get('duel-round').textContent = '第 ' + round + ' 局';
   let message;
   if (phase === 'finished') {
-    message = winner === null ? '本局平手。' : winner === seat ? '你猜中了，這局你贏了！' : players[winner].name + ' 猜中了。';
+    message = winner === seat ? '你猜中了，這局你贏了！' : players[winner].name + ' 猜中了。';
   } else if (!bothOnline) {
     message = '等待玩家重新連線，對局暫停。';
-  } else if (setting) {
-    message = view.ownSecret ? '你的密碼已鎖定，等好友完成。' : '設定你的四位密碼，四個數字不得重複，首位可填 0。';
+
   } else {
-    message = turn === seat ? '輪到你猜好友的密碼。' : '輪到 ' + players[turn].name + ' 猜題。';
+    message = turn === seat ? '輪到你猜電腦出的密碼。' : '輪到 ' + players[turn].name + ' 猜題。';
   }
   get('duel-turn').textContent = message;
   moveForm.hidden = !canMove;
   digits.disabled = state.pending;
-  digits.type = setting ? 'password' : 'text';
-  digits.name = setting ? 'own-code' : 'guess-code';
-  get('duel-move-label').textContent = setting ? '你的密碼' : '你的猜測';
   get('duel-submit').disabled = state.pending;
-  get('duel-submit').textContent = setting ? '鎖定密碼' : '送出猜測';
   get('duel-secret').textContent = phase === 'finished'
-    ? '你的密碼 ' + view.ownSecret + '　｜　好友的密碼 ' + view.opponentSecret
-    : view.ownSecret ? '你的密碼已鎖定。' : '';
-  get('duel-history').hidden = view.guesses.length === 0;
+    ? '電腦出的密碼是 ' + view.answer + '。'
+    : '';
+  get('duel-history').hidden = view.guessCount === 0;
+  get('duel-history-note').textContent = view.guessCount > view.guesses.length ? '顯示最近 ' + view.guesses.length + ' 次猜測。' : '';
   const nextHistoryKey = JSON.stringify([view.code, round, seat, view.guesses]);
   if (historyKey === nextHistoryKey) return;
   historyKey = nextHistoryKey;
   historyList.replaceChildren(...[...view.guesses].reverse().map((guess, index) => {
     const item = document.createElement('li');
     const who = guess.seat === seat ? '你' : players[guess.seat].name;
-    item.append(label('span', '', '#' + (view.guesses.length - index) + '　' + who + ' 猜 ' + guess.code),
+    item.append(label('span', '', '#' + (view.guessCount - index) + '　' + who + ' 猜 ' + guess.code),
       label('strong', '', guess.a + 'A ' + guess.b + 'B'));
     return item;
   }));
@@ -198,7 +193,12 @@ moveForm.addEventListener('submit', event => {
     digits.focus();
     return;
   }
-  room.move(room.view.phase === 'setting' ? 'secret' : 'guess', digits.value);
+  if (room.view.guesses.some(guess => guess.code === digits.value)) {
+    moveError.textContent = '這組數字已猜過，請換一組。';
+    digits.focus();
+    return;
+  }
+  room.move(digits.value);
 });
 
 const incomingRoom = new URL(location.href).searchParams.get('room');

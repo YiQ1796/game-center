@@ -1,5 +1,5 @@
-import { PeerRoom } from './peer-room.mjs?v=2';
-import { PROTOCOL, applyMove, newRoom, playerName, startRound, validRoomCode, validToken, viewForSeat } from './duel-core.mjs?v=2';
+import { PeerRoom } from './peer-room.mjs?v=3';
+import { PROTOCOL, applyMove, newRoom, playerName, startRound, validRoomCode, validToken, viewForSeat } from './duel-core.mjs?v=3';
 
 const HOST_STORAGE = 'sanmao-1a2b:host-room-v1';
 const guestKey = code => 'sanmao-1a2b:guest-v1:' + code;
@@ -76,7 +76,7 @@ export class DuelRoom {
 
   restoreHost() {
     const saved = read('sessionStorage', HOST_STORAGE);
-    if (!validRoomCode(saved?.state?.code) || !Array.isArray(saved.state.players)) return false;
+    if (saved?.state?.protocol !== PROTOCOL || !validRoomCode(saved?.state?.code) || !Array.isArray(saved.state.players)) return false;
     void this.host('', saved);
     return true;
   }
@@ -164,7 +164,10 @@ export class DuelRoom {
       this.publish();
     } else if (message.type === 'move') {
       if (applyMove(this.state, 1, message.move)) this.publish();
-      else this.sendHost(connection, 'view', { view: viewForSeat(this.state, 1) });
+      else this.sendHost(connection, 'view', {
+        view: viewForSeat(this.state, 1),
+        notice: this.rejectionMessage(message.move?.code)
+      });
     }
   }
 
@@ -193,7 +196,7 @@ export class DuelRoom {
     } else if (!this.ready || (this.view && view.revision < this.view.revision)) return;
     this.clearPending();
     this.view = view;
-    this.update('', false);
+    this.update(typeof message.notice === 'string' ? message.notice : '', Boolean(message.notice));
   }
 
   start() {
@@ -208,11 +211,12 @@ export class DuelRoom {
     this.publish();
   }
 
-  move(type, code) {
+  move(code) {
     if (!this.ready || !this.view || this.pending) return;
-    const move = { type, code, round: this.view.round, revision: this.view.revision };
+    const move = { code, round: this.view.round, revision: this.view.revision };
     if (this.role === 'host') {
       if (applyMove(this.state, 0, move)) this.publish();
+      else this.update(this.rejectionMessage(code), true);
       return;
     }
     this.pending = this.sendGuest('move', { move });
@@ -222,6 +226,11 @@ export class DuelRoom {
     }
     this.moveTimer = setTimeout(() => this.reconnect(), 8500);
     this.update('等待房主確認…', false);
+  }
+
+  rejectionMessage(code) {
+    return this.state.guesses.some(guess => guess.code === code)
+      ? '這組數字已猜過，請換一組。' : '這次猜測未送出，請確認回合後再試。';
   }
 
   clearPending() {

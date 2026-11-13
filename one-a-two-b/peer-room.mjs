@@ -1,8 +1,8 @@
 /** Small PeerJS/WebRTC signaling wrapper. Game rules stay outside the transport. */
-import { validRoomCode } from './duel-core.mjs?v=2';
-import { createRelayHost, connectRelayGuest } from './relay-transport.mjs?v=2';
+import { validRoomCode } from './duel-core.mjs?v=3';
+import { createRelayHost, connectRelayGuest } from './relay-transport.mjs?v=3';
 
-const PREFIX = 'sanmao-1a2b-v1-';
+const PREFIX = 'sanmao-1a2b-v2-';
 const RETRY_DELAYS = [800, 1500, 3000, 5000, 8000, 12000];
 const MAX_MESSAGE_BYTES = 80000;
 const JOIN_TIMEOUT_MS = 28000;
