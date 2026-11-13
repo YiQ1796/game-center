@@ -62,3 +62,4 @@ await import('./verify-one-a-two-b.mjs');
 await import('./prepare-aqua-world.mjs');
 execFileSync(process.execPath, ['--test', resolve(root, 'scripts/test-aqua-world.mjs')], { stdio: 'inherit' });
 await import('./smoke-aqua-world.mjs');
+await import('./inspect-aqua-fish-sources.mjs');
