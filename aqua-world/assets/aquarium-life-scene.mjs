@@ -255,8 +255,7 @@ export class AquariumScene {
     if (this.feeding) {
       const pending = this.feeding.pellets.filter(pellet => !pellet.eaten);
       next.pellets.unshift(...pending);
-      next.eaten += this.feeding.eaten;
-      next.served += this.feeding.served;
+      next.served += pending.length;
     }
     this.feeding = next;
     this.updateFeedingStatus('searching');
