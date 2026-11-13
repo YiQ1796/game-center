@@ -39,15 +39,15 @@ export function createMotion(fish) {
   };
 }
 
-export function createFeeding(models, portionIds, time) {
+export function createFeeding(models, portionIds, time, swimScale = 1) {
   const selected = [...new Set(portionIds)].map(id => models.get(id)).filter(Boolean);
   const pellets = selected.map((model, index) => {
     const horizontal = index % 7 - Math.min(6, selected.length - 1) / 2;
-    const depth = Math.floor(index / 7);
+    const depth = Math.floor(index / 7) % 4;
     return {
       owner: model.motion.id,
       approach: 0,
-      x: limit(model.motion.x * .48 + horizontal * .28, -4, 4),
+      x: limit(model.motion.x * .48 + horizontal * .28, -4 * swimScale, 4 * swimScale),
       y: 2.69 + (index % 3) * .09, z: .46 + depth * .30 + (index % 2) * .16,
       release: time + index % 4 * .09, eaten: false,
     };
@@ -65,7 +65,7 @@ export function advanceFeeding(feeding, time, delta) {
   return feeding;
 }
 
-export function stepMotion(motion, seconds, delta, feeding) {
+export function stepMotion(motion, seconds, delta, feeding, swimScale = 1) {
   const { phase, seed, profile } = motion;
   const target = feeding?.pellets.find(pellet => pellet.owner === motion.id && !pellet.eaten);
   const seeking = target && !target.eaten && seconds >= target.release;
@@ -75,7 +75,7 @@ export function stepMotion(motion, seconds, delta, feeding) {
   if (seeking && !target.approach) target.approach = Math.sign(target.x - motion.x) || motion.facing;
   const mouthOffset = profile.width * .34;
   const destinationX = seeking ? target.x - target.approach * mouthOffset
-    : school + Math.sin(tempo * .53) * (profile.school ? 1.15 : 3.4);
+    : (school + Math.sin(tempo * .53) * (profile.school ? 1.15 : 3.4)) * swimScale;
   const destinationY = seeking ? target.y : profile.y + Math.sin(tempo * .74 + .3) * profile.drift;
   const destinationZ = seeking ? target.z : profile.depth + Math.sin(tempo * .42 + seed % 7) * .72;
   const dx = destinationX - motion.x;
@@ -93,7 +93,7 @@ export function stepMotion(motion, seconds, delta, feeding) {
     motion.flip = .42;
   }
   motion.flip = Math.min(1, motion.flip + delta * 4.5);
-  motion.x = limit(motion.x + motion.vx * delta, -4.6, 4.6);
+  motion.x = limit(motion.x + motion.vx * delta, -4.6 * swimScale, 4.6 * swimScale);
   motion.y = limit(motion.y + motion.vy * delta, -1.4, 2.70);
   motion.z = limit(motion.z + motion.vz * delta, -1.55, 1.65);
   const mouth = motion.x + motion.facing * mouthOffset;

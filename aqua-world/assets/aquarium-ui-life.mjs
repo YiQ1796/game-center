@@ -1,6 +1,6 @@
 import { SAVE_KEY, FISH, SALE_LIMIT, RuleError, activeTank, alive, readTrial, career,
-  allFish, sexOf, patternOf, load, salePrice, salesToday, missions, pairOptions, recessiveChance, applyAction } from './aquarium-career.mjs?v=090';
-import { EQUIPMENT, TEMPERATURE_TARGETS, targetTemperature, equipmentOf, exhibitView } from './aquarium-facilities.mjs?v=080';
+  allFish, sexOf, patternOf, load, salePrice, salesToday, missions, pairOptions, recessiveChance, applyAction } from './aquarium-career.mjs?v=100';
+import { EQUIPMENT, TEMPERATURE_TARGETS, targetTemperature, equipmentOf, exhibitView } from './aquarium-facilities.mjs?v=100';
 import { drawCharacterPreview } from './aquarium-fish-characters.mjs?v=090';
 
 import { equipmentArtwork } from './aquarium-equipment-view.mjs?v=090';

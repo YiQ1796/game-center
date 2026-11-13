@@ -1,11 +1,10 @@
-import { EQUIPMENT, TEMPERATURE_TARGETS, targetTemperature, equipmentOf, exhibitOf, visitorProfile, settleTankFacilities, validFacilities } from './aquarium-facilities.mjs?v=080';
+import { EQUIPMENT, TEMPERATURE_TARGETS, targetTemperature, equipmentOf, exhibitOf, visitorProfile, settleTankFacilities, validFacilities } from './aquarium-facilities.mjs?v=100';
 
 export const SAVE_KEY = 'aqua-world:trial:v1';
 const HOUR = 3_600_000;
 const DAY = HOUR * 24;
 export const SALE_LIMIT = 3;
 
-// The three species already supported by the aquarium scene and save format.
 import { FISH } from './aquarium-species.mjs?v=090';
 export { FISH };
 

@@ -1,7 +1,7 @@
 import * as T from '../vendor/three-0.160.1.module.js';
 import { createLandscape, makeDecoration, WATERLINE, FLOOR } from './aquarium-depth-landscape.mjs';
 import { makeCharacterFish } from './aquarium-side-fish.mjs?v=090';
-import { createMotion, createFeeding, advanceFeeding, stepMotion } from './aquarium-swim.mjs?v=090';
+import { createMotion, createFeeding, advanceFeeding, stepMotion } from './aquarium-swim.mjs?v=100';
 import { AquariumScene as DaylightScene } from './aquarium-daylight-scene.mjs?v=090';
 
 import { installEquipmentLayer } from './aquarium-equipment-view.mjs?v=090';
@@ -155,7 +155,7 @@ export class AquariumScene {
     this.updateEquipment = installEquipmentLayer(stage);
     stage.dataset.renderEngine = 'webgl';
     stage.dataset.fishArt = 'illustrated';
-    this.renderer.setSize(1152, 648, false);
+    this.parent = parent;
     this.renderer.outputColorSpace = T.SRGBColorSpace;
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.04;
@@ -186,7 +186,21 @@ export class AquariumScene {
     this.pellets.count = 0;
     this.pellets.frustumCulled = false;
     this.scene.add(this.pellets);
+    this.resize();
+    new ResizeObserver(() => this.resize()).observe(parent);
     this.renderer.setAnimationLoop(time => this.draw(time));
+  }
+
+  resize() {
+    const { clientWidth: width, clientHeight: height } = this.parent;
+    if (!width || !height) return;
+    const aspect = width / height;
+    const limit = this.lowPower ? 768 : 1536;
+    const resolution = Math.min(width, limit);
+    this.camera.aspect = aspect;
+    this.camera.updateProjectionMatrix();
+    this.swimScale = Math.min(1.24, aspect / (16 / 9));
+    this.renderer.setSize(resolution, Math.round(resolution / aspect), false);
   }
 
   setView(tank, fishId, lowPower, decorId) {
@@ -203,13 +217,13 @@ export class AquariumScene {
       this.updateFeedingStatus('idle');
     }
     if (lowPower !== this.lowPower) {
-      this.renderer.setSize(lowPower ? 768 : 1152, lowPower ? 432 : 648, false);
+      this.lowPower = lowPower;
+      this.resize();
     }
     this.tank = tank;
     this.updateEquipment(tank);
     this.selectedFish = fishId;
     this.selectedDecor = decorId;
-    this.lowPower = lowPower;
     this.syncFish();
     this.syncDecor();
   }
@@ -252,11 +266,20 @@ export class AquariumScene {
     const recipients = portionIds ?? (id ? [id] : [...this.fish.keys()]);
     if (!recipients.length || !this.lastFrame) return;
     const now = this.simulationTime;
-    const next = createFeeding(this.fish, recipients, now);
+    const next = createFeeding(this.fish, recipients, now, this.swimScale);
     if (this.feeding) {
       const pending = this.feeding.pellets.filter(pellet => !pellet.eaten);
       next.pellets.unshift(...pending);
       next.served += pending.length;
+    }
+    if (next.pellets.length > this.pellets.instanceMatrix.count) {
+      const { geometry, material } = this.pellets;
+      this.scene.remove(this.pellets);
+      this.pellets.dispose();
+      this.pellets = new T.InstancedMesh(geometry, material, next.pellets.length);
+      this.pellets.count = 0;
+      this.pellets.frustumCulled = false;
+      this.scene.add(this.pellets);
     }
     this.feeding = next;
     this.updateFeedingStatus('searching');
@@ -327,7 +350,7 @@ export class AquariumScene {
   moveFish(seconds, delta) {
     for (const [id, model] of this.fish) {
       const { root, motion, material } = model;
-      stepMotion(motion, seconds, delta, this.feeding);
+      stepMotion(motion, seconds, delta, this.feeding, this.swimScale);
       root.position.set(motion.x, motion.y, motion.z);
       root.quaternion.copy(this.camera.quaternion);
       root.rotateZ(motion.angle);

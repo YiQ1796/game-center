@@ -26,6 +26,12 @@ const exercise = `
   try {
     await until(() => find('#stage canvas') && find('#stage').dataset.scene === 'river'
       && find('#stage').dataset.renderEngine === 'webgl' && find('#stage').dataset.fishArt === 'illustrated', 'WebGL aquarium with illustrated fish');
+    const tankBounds = find('#stage').getBoundingClientRect();
+    const panelBounds = find('#tank-tools').getBoundingClientRect();
+    if (tankBounds.width < 1320 || tankBounds.width / tankBounds.height < 2
+      || panelBounds.top < tankBounds.bottom || find('#load-meter').max !== 120) {
+      throw new Error('The wide desktop tank, bottom controls or expanded capacity is missing');
+    }
     if (getComputedStyle(document.documentElement).colorScheme !== 'light'
       || getComputedStyle(find('.care')).backgroundColor !== 'rgb(255, 254, 250)') throw new Error('Expected light interface');
     find('#tank-list .tank-option:nth-child(2)').click();
@@ -241,12 +247,55 @@ try {
   const diagnostic = await evaluate("JSON.stringify({feedback: document.getElementById('feedback')?.textContent, loaded: performance.getEntriesByType('resource').map(entry => new URL(entry.name).pathname)})");
   assert.equal(response.result.value, 'PASS', JSON.stringify({ result: response.result.value, errors: exceptions, state: diagnostic.result.value }));
   assert.deepEqual(shaderErrors, []);
+  const oldSave = await evaluate(`(() => {
+    const key = 'aqua-world:trial:v1';
+    const state = JSON.parse(localStorage.getItem(key));
+    for (const tank of state.tanks) tank.capacity = 30;
+    localStorage.setItem(key, JSON.stringify(state));
+    return JSON.stringify(state);
+  })()`);
+  await call('Page.reload');
+  for (let attempt = 0; attempt < 120; attempt++) {
+    const migration = await evaluate("document.querySelector('#load-meter')?.max === 120 && JSON.parse(localStorage.getItem('aqua-world:trial:v1')).tanks.every(tank => tank.capacity === 120)");
+    if (migration.result.value) break;
+    await delay(50);
+  }
+  const migrated = await evaluate("localStorage.getItem('aqua-world:trial:v1')");
+  const expected = JSON.parse(oldSave.result.value);
+  for (const tank of expected.tanks) tank.capacity = 120;
+  assert.deepEqual(JSON.parse(migrated.result.value), expected, 'Expansion should preserve every other field of the old save');
+
+  const crowded = await evaluate(`(async () => {
+    const key = 'aqua-world:trial:v1';
+    const save = JSON.parse(localStorage.getItem(key));
+    const tank = save.tanks.find(item => item.id === save.activeTankId);
+    const now = Date.now();
+    tank.fish = Array.from({ length: 36 }, (_, index) => ({
+      id: 'crowded-' + index, speciesId: 'guppy', name: '孔雀魚 ' + (index + 1),
+      bornAt: now, lastCalculatedAt: now, growthHours: 0, satiety: 55, diedAt: null,
+    }));
+    save.food = 50;
+    localStorage.setItem(key, JSON.stringify(save));
+    window.dispatchEvent(new StorageEvent('storage', { key }));
+    const stage = document.querySelector('#stage');
+    const deadline = performance.now() + 12000;
+    document.querySelector('#feed').click();
+    while (performance.now() < deadline) {
+      const saved = JSON.parse(localStorage.getItem(key));
+      const label = document.querySelector('#feeding-status').textContent;
+      if (saved.food === 14 && stage.dataset.feeding === 'eaten' && label.includes('36／36')) return true;
+      await new Promise(resolve => setTimeout(resolve, 40));
+    }
+    return document.querySelector('#feeding-status').textContent;
+  })()`, true);
+  assert.equal(crowded.result.value, true, 'All 36 fish should receive and visibly eat their own portion');
+
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await delay(150);
   const mobile = await evaluate("document.documentElement.scrollWidth <= 391 && document.querySelector('#stage').getBoundingClientRect().width > 300");
   assert.equal(mobile.result.value, true, 'Phone viewport must show the tank without horizontal overflow');
   assert.deepEqual(exceptions, []);
-  console.log('Aqua World Chrome smoke test PASS (illustrated fish in two WebGL tanks, desktop and phone layout, shop, missions, breeding, decoration, individual and full-tank feeding, visible per-tank equipment, expanded 15-species shop and collection, visitor tickets, and saves)');
+  console.log('Aqua World Chrome smoke test PASS (illustrated fish in two WebGL tanks, desktop and phone layout, shop, missions, breeding, decoration, individual and full-tank feeding, visible per-tank equipment, expanded 15-species shop and collection, visitor tickets, 120-point save migration and feeding 36 fish)');
 } finally {
   ws?.close();
   chrome.kill();

@@ -126,3 +126,13 @@ test('all 15 freshwater species can be purchased, loaded and used as parents', (
     assert.equal(state.coins, 5_000 - 2 * FISH[speciesId].price);
   }
 });
+
+test('larger tanks dilute water waste without changing the behavior of 30-point tanks', () => {
+  const small = activeTank(existingAquarium());
+  const large = { ...small, capacity: 120 };
+  const future = now + 20 * hour;
+  const smallLoss = small.clarity - settleTankFacilities(small, future, alive, load).clarity;
+  const largeLoss = large.clarity - settleTankFacilities(large, future, alive, load).clarity;
+  assert.ok(Math.abs(smallLoss - 2.2) < .000001);
+  assert.ok(Math.abs(largeLoss - smallLoss / 4) < .000001);
+});

@@ -28,7 +28,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 .skip-link { position: absolute; z-index: 5; inset: -64px auto auto 12px; padding: 9px 14px; border-radius: 8px; background: white; }
 .skip-link:focus { top: 10px; }
 .topbar { border-bottom: 1px solid #dce6dc; background: #fffdf5; }
-.topbar-inner, main { width: min(calc(100% - 48px), 1376px); margin-inline: auto; }
+.topbar-inner, main { width: min(calc(100% - 48px), 1660px); margin-inline: auto; }
 .topbar-inner { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .brand, .top-actions { display: flex; align-items: center; gap: 10px; }
 .brand strong, .brand small { display: block; white-space: nowrap; }
@@ -58,7 +58,7 @@ a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible
 #career-track { margin: 0 4px 0 auto; padding: 4px 7px; color: var(--muted); font-size: 12px; }
 #mission-badge { display: inline-grid; place-items: center; min-width: 19px; height: 19px; padding: 0 4px; margin-left: 5px; border-radius: 50px; background: var(--accent); color: #674512; font-size: 11px; }
 .rotate-tip { display: none; }
-.workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(270px, 302px); align-items: start; gap: 16px; }
+.workbench { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .display, .care {
   min-width: 0; border-radius: var(--radius); border: 1px solid var(--line); background: var(--paper);
   box-shadow: 0 6px 22px #52796910;
@@ -110,7 +110,7 @@ meter::-moz-meter-bar { background: #74b98e; }
 .tabs button { min-height: 36px; color: var(--muted); background: transparent; border: 0; border-radius: 7px; font-weight: 750; }
 .tabs button[aria-selected=true] { color: #1c5d52; background: white; box-shadow: 0 1px 5px #225a4a16; }
 .panel { padding: 11px 0 0; }
-#fish-card { padding: 9px; margin-bottom: 13px; background: #f6faf2; border: 1px solid #e1ebdd; border-radius: 9px; }
+#fish-card { padding: 9px; background: #f6faf2; border: 1px solid #e1ebdd; border-radius: 9px; }
 .fish-card-title { display: flex; align-items: center; gap: 8px; }
 .fish-card-title h3, .fish-empty { margin: 0; }
 .fish-card-title h3 { font-size: 16px; }
@@ -133,9 +133,9 @@ meter::-moz-meter-bar { background: #74b98e; }
 .panel .actions .primary:not(:disabled):hover, #cloud-dialog .primary:not(:disabled):hover, .career-primary:not(:disabled):hover { background: #0c5b50; border-color: #0c5b50; }
 .supply { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; justify-content: space-between; align-items: center; color: var(--muted); font-size: 12px; }
 .supply button { color: #765318; background: #fff5da; border-color: #ecdbad; }
-#decor-panel > label { display: block; margin-top: 8px; }
+#decor-panel label { display: block; margin-top: 8px; }
 #decor-list, .career-label select { display: block; width: 100%; }
-#place-center, .remove-decor { margin-top: 7px; }
+#place-center { margin-top: 7px; }
 .decor-actions button[aria-pressed=true] { color: #246b59; background: #e4f1dd; border-color: #8cbd9b; }
 .feedback { background: #f4f7e8; border-left: 3px solid #99be85; border-radius: 0 7px 7px 0; padding: 8px 9px; margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
 
@@ -162,13 +162,11 @@ dialog::backdrop { background: #173d374f; }
 
 @media (max-width: 920px) {
   .topbar-inner, main { width: calc(100% - 22px); }
-  .workbench { grid-template-columns: minmax(0, 1fr) minmax(219px, 245px); gap: 9px; }
   .display, .care { padding: 9px; }
   .topbar-inner { min-height: 54px; }
   .intro { padding: 13px 0 9px; }
 }
 @media (max-width: 700px) and (orientation: portrait), (max-width: 560px) {
-  .workbench { grid-template-columns: minmax(0, 1fr); }
   .brand, .top-actions { gap: 5px; }
   .brand-mark { width: 29px; height: 29px; font-size: 21px; }
   .brand strong { font-size: 13px; }
@@ -238,3 +236,27 @@ dialog::backdrop { background: #173d374f; }
 @media (prefers-reduced-motion: reduce) { .tank-filter-bubble { animation: none; } }
 .facility-preview { width: 60px; float: right; margin: 0 0 6px 14px; }
 .facility-card { display: flow-root; }
+
+.tank-tools { display: inline-flex; align-items: center; }
+.tank-tools:hover { color: var(--teal); border-color: #96c5a9; }
+#tank-tools { scroll-margin-top: 12px; }
+.care .tabs { width: min(100%, 330px); }
+#care-panel, #decor-panel { display: grid; gap: 12px 20px; align-items: start; }
+#care-panel { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, .85fr); }
+#decor-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#decor-panel h3 { font-size: 15px; margin: 0; }
+#decor-panel label { margin: 0 0 6px; }
+.tank-actions .actions { margin-top: 0; }
+#water-warning { margin: 0; }
+@media (min-width: 1000px) {
+  .stage[data-render-engine="webgl"] { aspect-ratio: 2.18; }
+}
+@media (max-width: 740px) {
+  #care-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #fish-card { grid-column: 1 / -1; }
+}
+@media (max-width: 500px) {
+  .tank-switch { flex-wrap: wrap; justify-content: flex-start; }
+  #tank-list { flex-basis: 100%; }
+  #care-panel, #decor-panel { grid-template-columns: minmax(0, 1fr); }
+}

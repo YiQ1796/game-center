@@ -15,10 +15,10 @@ if (sceneStart < 0 || sceneEnd < 0 || !source.slice(sceneStart, sceneEnd).includ
 }
 
 // The original app still owns gameplay and persistence. The new module owns the entire tank rendering.
-let runtime = 'import { AquariumScene as M } from "./aquarium-life-scene.mjs?v=090";\n'
-  + 'import { settleTankFacilities, validFacilities } from "./aquarium-facilities.mjs?v=090";\n'
-  + 'import { alive as isLiving, load as biologicalLoad } from "./aquarium-career.mjs?v=090";\n'
-  + (source.slice(0, sceneStart) + source.slice(sceneEnd)).replace('0.2.0-g2-preview', '0.9.0-aquarium-life');
+let runtime = 'import { AquariumScene as M } from "./aquarium-life-scene.mjs?v=100";\n'
+  + 'import { settleTankFacilities, validFacilities, waterConcentration } from "./aquarium-facilities.mjs?v=100";\n'
+  + 'import { alive as isLiving, load as biologicalLoad } from "./aquarium-career.mjs?v=100";\n'
+  + (source.slice(0, sceneStart) + source.slice(sceneEnd)).replace('0.2.0-g2-preview', '0.10.0-wide-tanks');
 const speciesStart = runtime.indexOf('i={guppy:{label:');
 const speciesEnd = runtime.indexOf(',a={grass:', speciesStart);
 if (speciesStart < 0 || speciesEnd < 0) throw new Error('The original aquarium fish table could not be located.');
@@ -26,7 +26,30 @@ runtime = 'import { FISH } from "./aquarium-species.mjs?v=090";\n'
   + runtime.slice(0, speciesStart)
   + 'i=Object.fromEntries(Object.entries(FISH).map(([id, species]) => [id, { ...species, label: species.name, lifespan: species.life }]))'
   + runtime.slice(speciesEnd);
+const tankCapacity = 120;
 const runtimeIntegration = [
+  ['a.clarity-e.length*1.5','a.clarity-e.length*1.5*waterConcentration(a)'],
+  ['id:`river`,name:`晨光溪谷`,capacity:30', 'id:`river`,name:`晨光溪谷`,capacity:' + tankCapacity],
+  ['id:`studio`,name:`靜水展示缸`,capacity:30', 'id:`studio`,name:`靜水展示缸`,capacity:' + tankCapacity],
+  [
+    'function x(e){let t=()=>{let t=localStorage.getItem(p);return t===null?(localStorage.setItem(p,JSON.stringify(e)),e):_(t)};return navigator.locks?navigator.locks.request(p,t):t()}',
+    `function x(initialState) {
+  const loadAndExpand = () => {
+    const raw = localStorage.getItem(p);
+    const state = raw === null ? initialState : _(raw);
+    let changed = raw === null;
+    for (const tank of state.tanks) {
+      if ((tank.id === 'river' || tank.id === 'studio') && tank.capacity === 30) {
+        tank.capacity = ${tankCapacity};
+        changed = true;
+      }
+    }
+    if (changed) localStorage.setItem(p, JSON.stringify(state));
+    return state;
+  };
+  return navigator.locks ? navigator.locks.request(p, loadAndExpand) : loadAndExpand();
+}`,
+  ],
   ["function u(e,r){return{...e,tanks:e.tanks.map(e=>{let a=Math.max(0,(r-e.calculatedAt)/t),o=e.decorations.filter(e=>e.kind===`grass`).length,s=Math.max(0,l(e)*.055-o*.12);return{...e,calculatedAt:Math.max(r,e.calculatedAt),clarity:Math.max(15,e.clarity-Math.min(a,72)*s),fish:e.fish.map(e=>{if(e.diedAt!==null)return e;let a=e.bornAt+i[e.speciesId].lifespan*n,o=Math.min(r,a),s=Math.min(72,Math.max(0,(o-e.lastCalculatedAt)/t));return{...e,lastCalculatedAt:Math.max(o,e.lastCalculatedAt),growthHours:e.growthHours+s,satiety:Math.max(0,e.satiety-s*2),diedAt:r>=a?a:null}})}})}}", "function u(state, now) {\n  return {\n    ...state,\n    tanks: state.tanks.map(tank => {\n      const settled = settleTankFacilities(tank, now, isLiving, biologicalLoad);\n      return {\n        ...settled,\n        fish: tank.fish.map(fish => {\n          if (fish.diedAt !== null) return fish;\n          const endOfLife = fish.bornAt + i[fish.speciesId].lifespan * n;\n          const elapsed = Math.min(72, Math.max(0, (Math.min(now, endOfLife) - fish.lastCalculatedAt) / t));\n          return {\n            ...fish, lastCalculatedAt: Math.max(Math.min(now, endOfLife), fish.lastCalculatedAt),\n            growthHours: fish.growthHours + elapsed,\n            satiety: Math.max(0, fish.satiety - elapsed * 2),\n            diedAt: now >= endOfLife ? endOfLife : null,\n          };\n        }),\n      };\n    }),\n  };\n}\n"],
   ["if(!t.has(e.activeTankId))throw Error(`找不到原本選用的魚缸。`);return e", "if(!t.has(e.activeTankId))throw Error(`找不到原本選用的魚缸。`);if(!e.tanks.every(validFacilities))throw Error(`設備或展缸資料不完整。`);return e"],
   [
@@ -50,7 +73,7 @@ for (const [oldText, newText] of runtimeIntegration) {
   if (!runtime.includes(oldText)) throw new Error('The aquarium runtime integration no longer matches the base bundle.');
   runtime = runtime.replace(oldText, newText);
 }
-await writeFile(join(assets, 'aquarium-runtime-v090.js'), runtime);
+await writeFile(join(assets, 'aquarium-runtime-v100.js'), runtime);
 const vendor = resolve(assets, '..', 'vendor');
 const scratch = await mkdtemp(join(tmpdir(), 'aqua-three-'));
 try {

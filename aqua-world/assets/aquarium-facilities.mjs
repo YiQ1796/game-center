@@ -42,11 +42,14 @@ export function validFacilities(tank) {
     && Number.isFinite(exhibit.unclaimed) && exhibit.unclaimed >= 0 && exhibit.unclaimed <= MAX_UNCLAIMED);
 }
 
+// Larger tanks dilute the same amount of waste.
+export const waterConcentration = tank => Math.min(1, 30 / tank.capacity);
+
 export function waterAfter(tank, now, load) {
   if (!Number.isFinite(tank.calculatedAt)) return {};
   const hours = within((now - tank.calculatedAt) / HOUR, 0, MAX_WATER_HOURS);
   const grass = tank.decorations.filter(item => item.kind === 'grass').length;
-  const waste = Math.max(0, load(tank, now) * .055 - grass * .12);
+  const waste = Math.max(0, load(tank, now) * .055 - grass * .12) * waterConcentration(tank);
   const { filter, heater } = equipmentOf(tank);
   const filtration = EQUIPMENT.filter.levels[filter - 1];
   const temperatureControl = EQUIPMENT.heater.levels[heater - 1];

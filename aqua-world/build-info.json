@@ -1,5 +1,5 @@
 {
-  "build": "0.9.0-aquarium-life",
+  "build": "0.10.0-wide-tanks",
   "mode": "solo-trial",
   "baseSourceCommit": "b826ecdaac60c58de488f5452960cc6c6a5f9b63"
 }
