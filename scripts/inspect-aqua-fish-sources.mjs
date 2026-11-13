@@ -27,11 +27,11 @@ try {
   }
   // Coordinates measured against the reviewed display size, with the background excluded.
   const plates = {
-    guppy: { width:323, height:215, cx:155, cy:94, cropWidth:157, cropHeight:90, tilt:-.43, path:
-      'M91 84 Q94 72 102 69 L94 47 Q100 47 107 51 L116 56 L126 66 L134 75 Q145 74 151 79 L154 74 L163 76 L173 80 L182 87 Q202 95 208 113 Q219 125 220 134 L213 137 Q205 136 196 131 Q184 122 175 112 L166 108 L154 111 L142 103 L134 97 Q122 116 105 119 L96 115 L93 107 L94 99 L90 94 Z' },
-    neon: { width:325, height:215, cx:172, cy:91, cropWidth:284, cropHeight:118, tilt:-.24, flip:true, path:
+    guppy: { width:323, height:215, cx:155, cy:94, cropWidth:163, cropHeight:104, tilt:-.59, path:
+      'M91 84 Q94 72 102 69 L94 47 Q100 47 107 51 L116 56 L126 66 L134 75 Q145 74 151 79 L154 74 L163 76 L173 80 L182 87 Q202 95 208 113 Q219 125 220 134 L213 137 Q205 136 196 131 Q184 122 175 112 L166 105 L154 105 L143 101 L134 96 Q122 116 105 119 L96 115 L93 107 L94 99 L90 94 Z' },
+    neon: { width:325, height:215, cx:172, cy:91, cropWidth:303, cropHeight:139, tilt:-.24, flip:true, path:
       'M41 120 Q42 114 53 108 Q74 91 99 84 Q126 73 151 66 L160 52 L172 38 L192 27 L183 54 L185 62 Q220 60 241 64 L254 53 L265 34 Q280 16 291 11 L295 15 L285 38 L277 55 L267 68 L270 89 L279 106 L284 120 L280 122 Q266 115 258 99 Q233 117 203 123 L198 138 L192 145 L183 135 Q139 148 113 144 Q82 151 64 140 L52 136 L44 133 Z' },
-    betta: { width:330, height:169, cx:148, cy:80, cropWidth:266, cropHeight:135, tilt:0, path:
+    betta: { width:330, height:169, cx:148, cy:80, cropWidth:274, cropHeight:141, tilt:0, path:
       'M20 51 L37 48 L25 44 L48 44 L45 40 L66 37 L86 37 Q105 26 126 27 L140 24 Q156 22 168 29 Q175 34 180 43 Q207 41 234 47 L258 45 L271 49 L267 57 L267 65 L257 76 L242 82 L229 80 L216 88 L213 103 L202 110 L195 104 Q179 126 163 135 L152 130 L141 139 L125 140 L109 136 L99 140 L80 134 L70 130 L58 129 L45 121 L40 113 L48 100 L29 111 L24 105 L33 92 L22 96 L21 87 L38 77 L28 77 L29 68 L42 61 L22 60 Z' },
   };
   const inputs = {};
@@ -41,10 +41,13 @@ try {
   const script = `
     (async () => {
       const input = ${JSON.stringify(inputs)};
-      for (const [name, plate] of Object.entries(input)) {
+      await Promise.all(Object.entries(input).map(async ([name, plate]) => {
         const fish = new Image();
-        fish.src = 'data:image/jpeg;base64,' + plate.data;
-        await fish.decode();
+        await new Promise((resolve, reject) => {
+          fish.onload = resolve;
+          fish.onerror = reject;
+          fish.src = 'data:image/jpeg;base64,' + plate.data;
+        });
         const canvas = document.createElement('canvas');
         canvas.width = 384;
         canvas.height = Math.round(384 * plate.cropHeight / plate.cropWidth);
@@ -60,7 +63,7 @@ try {
         result.id = name;
         result.textContent = canvas.toDataURL('image/webp', .86).split(',')[1];
         document.body.append(result);
-      }
+      }));
     })().catch(error => { document.body.textContent = error.message; });
   `;
   await writeFile(join(directory, 'mask.html'), '<!doctype html><body><script>' + script + '</script>');
