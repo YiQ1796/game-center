@@ -10,12 +10,21 @@ const sources = {
   betta: '7/74/Betta_splendens_-_blue_male.JPG',
 };
 try {
-  await Promise.all(Object.entries(sources).map(async ([name, path]) => {
+  for (const [name, path] of Object.entries(sources)) {
     const file = join(directory, name + '.jpg');
-    const response = await fetch('https://upload.wikimedia.org/wikipedia/commons/' + path, {signal: AbortSignal.timeout(15000)});
-    if (!response.ok) throw new Error(name + ': ' + response.status);
-    await writeFile(file, Buffer.from(await response.arrayBuffer()));
-  }));
+    const filename = path.split('/').at(-1);
+    const urls = ['https://upload.wikimedia.org/wikipedia/commons/' + path,
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/' + path + '/330px-' + filename];
+    let loaded = false;
+    for (const url of urls) {
+      try {
+        execFileSync('curl', ['-fsSL', '--max-time', '12', '--user-agent', 'AquaWorld/0.6 (https://github.com/YiQ1796/game-center)', '-o', file, url], {stdio: 'pipe'});
+        loaded = true;
+        break;
+      } catch { /* Try the verified thumbnail too. */ }
+    }
+    console.log(name + ': ' + loaded);
+  }
   const markup = '<style>body{margin:0;background:white}img{width:450px;height:240px;object-fit:contain;object-position:left top;display:block;margin-bottom:8px}</style>' +
     Object.keys(sources).map(name => '<img src="' + name + '.jpg">').join('');
   await writeFile(join(directory, 'sources.html'), markup);
