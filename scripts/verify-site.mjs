@@ -61,5 +61,4 @@ await import('./verify-one-a-two-b.mjs');
 // Prepare the assets served by Pages and exercise the current aquarium before upload.
 await import('./prepare-aqua-world.mjs');
 execFileSync(process.execPath, ['--test', resolve(root, 'scripts/test-aqua-world.mjs')], { stdio: 'inherit' });
-await import('./inspect-aqua-fish-sources.mjs');
 await import('./smoke-aqua-world.mjs');

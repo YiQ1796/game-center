@@ -16,7 +16,7 @@ const exercise = `
   document.head.append(marker);
   const find = selector => document.querySelector(selector);
   async function until(test, label) {
-    for (let attempt = 0; attempt < 180; attempt++) {
+    for (let attempt = 0; attempt < 265; attempt++) {
       if (test()) return;
       await new Promise(resolve => setTimeout(resolve, 30));
     }
@@ -24,7 +24,7 @@ const exercise = `
   }
   try {
     await until(() => find('#stage canvas') && find('#stage').dataset.scene === 'river'
-      && find('#stage').dataset.renderEngine === 'webgl', 'WebGL river aquarium');
+      && find('#stage').dataset.renderEngine === 'webgl' && find('#stage').dataset.fishArt === 'photo', 'WebGL aquarium with three photo profiles');
     if (getComputedStyle(document.documentElement).colorScheme !== 'light'
       || getComputedStyle(find('.care')).backgroundColor !== 'rgb(255, 254, 250)') throw new Error('Expected light interface');
     find('#tank-list .tank-option:nth-child(2)').click();
@@ -35,6 +35,20 @@ const exercise = `
     if (performance.getEntriesByType('resource').some(entry => /river\.jpg|studio\.jpg|art-v030\.json/.test(entry.name))) {
       throw new Error('Previous tank photographs were requested');
     }
+    const food = () => Number(find('#food').textContent);
+    const startingFood = food();
+    find('#fish-list .fish-option').click();
+    const singleFeed = [...find('#fish-card').querySelectorAll('button')].find(button => button.textContent === '單獨餵食');
+    singleFeed.click();
+    await until(() => food() === startingFood - 1 && find('#feeding-status').textContent.includes('0／1'), 'single fish receives one portion');
+    await until(() => find('#stage').dataset.feeding === 'eaten' && find('#feeding-status').textContent.includes('1／1'), 'single fish eats');
+    find('#feed').click();
+    await until(() => food() === startingFood - 3 && find('#feeding-status').textContent.includes('0／2'), 'only the two hungry fish receive portions');
+    await until(() => find('#stage').dataset.feeding === 'eaten' && find('#feeding-status').textContent.includes('2／2'), 'the two fish eat their portions');
+    find('#tank-list .tank-option:nth-child(2)').click();
+    await until(() => find('#stage').dataset.scene === 'studio' && find('#feeding-status').hidden, 'meal state clears when switching tanks');
+    find('#tank-list .tank-option').click();
+    await until(() => find('#stage').dataset.scene === 'river', 'return to fed aquarium');
     await until(() => find('#career-track').textContent.includes('迎接一條魚苗'), 'mission tracker');
     find('[data-career=shop]').click();
     await until(() => find('#career-content .career-card button'), 'shop');
@@ -146,7 +160,7 @@ try {
   const mobile = await evaluate("document.documentElement.scrollWidth <= 391 && document.querySelector('#stage').getBoundingClientRect().width > 300");
   assert.equal(mobile.result.value, true, 'Phone viewport must show the tank without horizontal overflow');
   assert.deepEqual(exceptions, []);
-  console.log('Aqua World Chrome smoke test PASS (two WebGL tanks, desktop and phone layout, shop, missions, breeding, decoration and saves)');
+  console.log('Aqua World Chrome smoke test PASS (two WebGL tanks, desktop and phone layout, shop, missions, breeding, decoration, individual and full-tank feeding, and saves)');
 } finally {
   ws?.close();
   chrome.kill();

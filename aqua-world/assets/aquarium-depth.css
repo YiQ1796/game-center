@@ -194,3 +194,12 @@ dialog::backdrop { background: #173d374f; }
   .tank-top { flex-wrap: wrap; }
   .tank-top .tank-switch { width: 100%; }
 }
+
+#feeding-status {
+  position: absolute; z-index: 2; bottom: 10px; left: 50%; translate: -50%;
+  border: 1px solid #c8ded2; border-radius: 20px; padding: 5px 11px;
+  color: #244d41; background: #fffdf3ec; font-size: 12px; white-space: nowrap;
+  pointer-events: none;
+}
+.fish-credits { color: var(--muted); font-size: 12px; padding: 0 1px 14px; }
+.fish-credits a { text-decoration: underline; }
