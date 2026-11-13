@@ -5,12 +5,13 @@ import { codeForSeed, isCode, isSeed, scoreGuess, uniqueDigits } from '../one-a-
 const page = readFileSync(new URL('../one-a-two-b/index.html', import.meta.url), 'utf8');
 assert.match(page, /猴三毛 1A2B/);
 assert.match(page, /href="\.\.\/#games"/);
-assert.match(page, /src="\.\/sanmao-expression\.webp"/);
+assert.match(page, /src="\.\/sanmao-full-body\.webp" width="321" height="468"/);
+assert.doesNotMatch(page, /detective-coat|mascot-logo|sanmao-expression/);
 assert.match(page, /<script type="module" src="\.\/game\.mjs\?v=3">/);
-assert.match(page, /href="\.\/game\.css\?v=3"/);
+assert.match(page, /href="\.\/game\.css\?v=5"/);
 assert.match(page, /id="duel-seats"/);
-assert.match(page, /src="\.\/duel-ui\.mjs\?v=4"/);
-assert.ok(readFileSync(new URL('../one-a-two-b/sanmao-expression.webp', import.meta.url)).length > 0);
+assert.match(page, /src="\.\/duel-ui\.mjs\?v=5"/);
+assert.ok(readFileSync(new URL('../one-a-two-b/sanmao-full-body.webp', import.meta.url)).length > 0);
 await import('./verify-duel.mjs');
 assert.equal(isCode('0123'), true);
 assert.equal(isCode('0012'), false);

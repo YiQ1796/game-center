@@ -173,7 +173,7 @@ get('duel-leave').addEventListener('click', () => {
 });
 get('duel-copy').addEventListener('click', async () => {
   const url = new URL('./', location.href);
-  url.searchParams.set('v', '4');
+  url.searchParams.set('v', '5');
   url.searchParams.set('room', room.code);
   invite.value = url.href;
   invite.hidden = false;
