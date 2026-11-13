@@ -329,7 +329,7 @@ restartDialog.addEventListener('close', () => {
 
 document.addEventListener('keydown', event => {
   if (event.defaultPrevented || event.isComposing || event.ctrlKey || event.altKey || event.metaKey
-    || document.querySelector('dialog[open]') || event.target.closest('.notes, input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
+    || get('solo-game').hidden || document.querySelector('dialog[open]') || event.target.closest('.notes, input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
   if (/^\d$/.test(event.key)) {
     event.preventDefault();
     addDigit(event.key);

@@ -4,12 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#214a3e">
-  <meta name="description" content="跟猴三毛一起猜出四位數密碼。用 A、B 線索推理，也可以邀朋友挑戰同一題。">
+  <meta name="description" content="跟猴三毛一起猜出四位數密碼。用 A、B 線索推理，也可以開房和好友互猜密碼。">
   <title>猴三毛 1A2B｜數字推理</title>
   <link rel="canonical" href="https://yiq1796.github.io/game-center/one-a-two-b/">
   <link rel="icon" href="../favicon.ico">
-  <link rel="stylesheet" href="./game.css?v=1">
-  <script type="module" src="./game.mjs?v=1"></script>
+  <link rel="stylesheet" href="./game.css?v=2">
+  <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js" integrity="sha512-XEKeWX+mI3Ov+tg2evDlVQFzVOIp4T8J3cNcCEPaEUGpxJV3eZaN8rHuvnFPvQpGJBHPmrozJDMpm2xcDvtmyQ==" crossorigin="anonymous"></script>
+  <script type="module" src="./game.mjs?v=2"></script>
+  <script type="module" src="./duel-ui.mjs?v=2"></script>
 </head>
 <body>
   <header class="site-header">
@@ -26,10 +28,58 @@
         <h1 id="game-title"><span>1A</span>2B</h1>
         <p>猜出四位數密碼，數字不重複。</p>
       </div>
-      <img class="mascot" src="../assets/mascot-logo.webp" width="89" height="86" alt="猴三毛">
+      <div class="detective" role="img" aria-label="猴三毛拿著放大鏡查看密碼筆記">
+        <span class="detective-notebook" aria-hidden="true"><b>?</b><b>?</b><b>?</b><b>?</b></span>
+        <span class="detective-coat" aria-hidden="true"></span>
+        <img src="./sanmao-expression.webp" width="96" height="96" alt="">
+        <span class="detective-lens" aria-hidden="true"></span>
+      </div>
     </section>
 
-    <div class="game-layout">
+    <section class="panel room-panel" id="online-room" aria-labelledby="duel-title">
+      <div class="panel-heading room-heading">
+        <div><h2 id="duel-title">好友連線</h2><p class="room-rules">兩人各自設定四位密碼，輪流猜對方的答案。</p></div>
+        <button type="button" class="action-button" id="open-duel" aria-expanded="false" aria-controls="duel-form">建立／加入房間</button>
+      </div>
+      <p id="room-status" class="room-status" role="status"></p>
+      <form id="duel-form" class="duel-form" hidden>
+        <label>暱稱<input id="duel-name" type="text" maxlength="32" placeholder="選填" autocomplete="off"></label>
+        <button type="button" id="duel-create" class="action-button">建立房間</button>
+        <label>好友房號<input id="duel-code" type="text" inputmode="numeric" maxlength="6" placeholder="6 位數字" autocomplete="off"></label>
+        <button type="submit" class="action-button">加入房間</button>
+      </form>
+      <div id="duel-room" hidden>
+        <div class="room-meta"><strong>房號 <span id="duel-room-code"></span></strong><span id="duel-seat-count"></span></div>
+        <ol class="duel-seats" id="duel-seats" aria-label="好友房間座位"></ol>
+        <div class="room-actions">
+          <button type="button" id="duel-start" class="dialog-primary" hidden>開始對局</button>
+          <button type="button" id="duel-copy" class="action-button" hidden>複製邀請連結</button>
+          <button type="button" id="duel-reconnect" class="action-button" hidden>重新連線</button>
+          <button type="button" id="duel-release" class="action-button" hidden>釋出離線座位</button>
+          <button type="button" id="duel-leave" class="action-button">離開房間</button>
+        </div>
+        <input id="duel-invite" class="share-url" aria-label="好友房間邀請網址" type="url" readonly hidden>
+        <p id="duel-action-status" class="room-status" role="status"></p>
+      </div>
+    </section>
+
+    <section class="panel duel-play" id="duel-play" aria-labelledby="duel-play-title" hidden>
+      <div class="panel-heading"><h2 id="duel-play-title">好友對局</h2><span class="count" id="duel-round"></span></div>
+      <p id="duel-turn" class="duel-turn" role="status"></p>
+      <form id="duel-move" class="duel-move" hidden>
+        <label id="duel-move-label" for="duel-digits">四位數字</label>
+        <input id="duel-digits" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required autocomplete="off" enterkeyhint="go">
+        <button type="submit" class="dialog-primary" id="duel-submit">送出</button>
+        <p id="duel-move-error" class="room-status" role="status"></p>
+      </form>
+      <p id="duel-secret" class="room-rules"></p>
+      <section id="duel-history" hidden>
+        <h3>推理紀錄</h3>
+        <ol class="history duel-history" id="duel-guesses" reversed></ol>
+      </section>
+    </section>
+
+    <div class="game-layout" id="solo-game">
       <section class="panel play-panel" aria-labelledby="play-title">
         <div class="panel-heading">
           <div><p class="mode" id="mode">單人練習</p><h2 id="play-title">輸入你的猜測</h2></div>
@@ -92,7 +142,7 @@
           <li>1 沒出現在答案裡。</li>
         </ul>
       </div>
-      <p>猜到 <strong>4A</strong> 就過關。每局可取一次提示，也能用筆記標記排除數字與位置候選。</p>
+      <p>猜到 <strong>4A</strong> 就過關。單人和好友同題可取一次提示。好友連線時，兩人各自設定密碼，輪流猜對方的答案。先猜中者獲勝，每局最多合計 80 次。房主須保持網頁開啟。</p>
       <button class="dialog-primary" type="submit">開始玩</button>
     </form>
   </dialog>
