@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { SAVE_KEY, applyAction, activeTank, alive, load, pairOptions, patternOf, readTrial, recessiveChance, salesToday } from '../aqua-world/assets/aquarium-career.mjs';
+import { SAVE_KEY, FISH, applyAction, activeTank, alive, load, pairOptions, patternOf, readTrial, recessiveChance, salesToday } from '../aqua-world/assets/aquarium-career.mjs';
 import { exhibitView, settleTankFacilities } from '../aqua-world/assets/aquarium-facilities.mjs';
 
 const hour = 3_600_000;
@@ -111,4 +111,18 @@ test('offline tickets respect the time and balance limits', () => {
   activeTank(varied).decorations = ['grass', 'rock', 'wood'].map(kind => ({ kind }));
   const popular = applyAction(varied, open, now).state;
   assert.equal(exhibitView(activeTank(popular), now + 48 * hour, alive, load).claimable, 500);
+});
+
+test('all 15 freshwater species can be purchased, loaded and used as parents', () => {
+  assert.equal(Object.keys(FISH).length, 15);
+  for (const speciesId of Object.keys(FISH)) {
+    let state = existingAquarium([]);
+    for (const sex of ['male', 'female']) {
+      state = applyAction(state, { type: 'purchase', speciesId, sex }, now, () => sex).state;
+    }
+    const restored = readTrial(JSON.stringify(state));
+    assert.equal(load(activeTank(restored), now), 2 * FISH[speciesId].points);
+    assert.equal(pairOptions(restored, now).length, 1);
+    assert.equal(state.coins, 5_000 - 2 * FISH[speciesId].price);
+  }
 });

@@ -1,8 +1,10 @@
 import * as T from '../vendor/three-0.160.1.module.js';
 import { createLandscape, makeDecoration, WATERLINE, FLOOR } from './aquarium-depth-landscape.mjs';
-import { makeCharacterFish } from './aquarium-side-fish.mjs?v=070';
-import { createMotion, createFeeding, advanceFeeding, stepMotion } from './aquarium-swim.mjs';
-import { AquariumScene as DaylightScene } from './aquarium-daylight-scene.mjs?v=070';
+import { makeCharacterFish } from './aquarium-side-fish.mjs?v=090';
+import { createMotion, createFeeding, advanceFeeding, stepMotion } from './aquarium-swim.mjs?v=090';
+import { AquariumScene as DaylightScene } from './aquarium-daylight-scene.mjs?v=090';
+
+import { installEquipmentLayer } from './aquarium-equipment-view.mjs?v=090';
 
 const waterVertex = `
   varying vec2 coordinate;
@@ -150,6 +152,7 @@ export class AquariumScene {
       return new DaylightScene(parent, stage);
     }
     this.stage = stage;
+    this.updateEquipment = installEquipmentLayer(stage);
     stage.dataset.renderEngine = 'webgl';
     stage.dataset.fishArt = 'illustrated';
     this.renderer.setSize(1152, 648, false);
@@ -203,6 +206,7 @@ export class AquariumScene {
       this.renderer.setSize(lowPower ? 768 : 1152, lowPower ? 432 : 648, false);
     }
     this.tank = tank;
+    this.updateEquipment(tank);
     this.selectedFish = fishId;
     this.selectedDecor = decorId;
     this.lowPower = lowPower;

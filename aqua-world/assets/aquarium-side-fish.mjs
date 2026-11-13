@@ -1,6 +1,6 @@
 import * as T from '../vendor/three-0.160.1.module.js';
-import { characterArtwork, CHARACTER_ASPECT } from './aquarium-fish-characters.mjs';
-import { fishWidth } from './aquarium-swim.mjs';
+import { characterArtwork, CHARACTER_ASPECT } from './aquarium-fish-characters.mjs?v=090';
+import { fishWidth } from './aquarium-swim.mjs?v=090';
 
 const textures = new Map();
 const meshes = new Map();

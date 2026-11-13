@@ -1,11 +1,8 @@
-import { drawCanvasCharacter } from './aquarium-fish-characters.mjs';
+import { drawCanvasCharacter } from './aquarium-fish-characters.mjs?v=090';
 import { createTankBackdrop, drawDecoration, drawWaterMotion, WIDTH, HEIGHT } from './aquarium-scenery.mjs';
 
-const sizes = {
-  guppy: { width: 72, height: 30 },
-  neon: { width: 61, height: 22 },
-  betta: { width: 86, height: 46 },
-};
+import { fishWidth, fishLane } from './aquarium-swim.mjs?v=090';
+import { installEquipmentLayer } from './aquarium-equipment-view.mjs?v=090';
 
 function fishSeed(id) {
   let hash = 0;
@@ -16,7 +13,7 @@ function fishSeed(id) {
 function swim(fish, seconds, feeding) {
   const seed = fishSeed(fish.id);
   const phase = seconds * (.24 + (seed % 11) * .014) + (seed % 719) / 110;
-  const lane = .25 + ((seed >>> 8) % 29) / 100;
+  const lane = .46 - fishLane(fish.speciesId) * .13 + ((seed >>> 8) % 9 - 4) / 100;
   const x = WIDTH * (.50 + (.28 + (seed % 6) * .012) * Math.sin(phase));
   const y = HEIGHT * lane + Math.sin(phase * 1.46 + (seed % 7)) * 26;
   return {
@@ -41,6 +38,7 @@ export class AquariumScene {
 
   constructor(parent, stage) {
     this.stage = stage;
+    this.updateEquipment = installEquipmentLayer(stage);
     this.stage.dataset.fishArt = 'illustrated';
     const view = this;
     this.game = new window.Phaser.Game({
@@ -60,6 +58,7 @@ export class AquariumScene {
   setView(tank, fishId, lowPower, decorId) {
     if (this.tank?.id !== tank.id) this.fishPositions = [];
     this.tank = tank;
+    this.updateEquipment(tank);
     this.selectedFish = fishId;
     this.lowPower = lowPower;
     this.selectedDecor = decorId;
@@ -75,9 +74,9 @@ export class AquariumScene {
   fishAt(x, y) {
     for (let index = this.fishPositions.length - 1; index >= 0; index--) {
       const { id, speciesId, point } = this.fishPositions[index];
-      const size = sizes[speciesId];
+      const width = fishWidth(speciesId) * 61;
       const dx = point.x - point.heading * 15 - x * WIDTH;
-      if (Math.hypot(dx / size.width, (point.y - y * HEIGHT) / size.height) <= 1) return id;
+      if (Math.hypot(dx / width, (point.y - y * HEIGHT) / (width * .58)) <= 1) return id;
     }
   }
 

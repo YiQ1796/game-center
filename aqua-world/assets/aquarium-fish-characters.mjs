@@ -1,8 +1,12 @@
+import { extraColors, extraShapes } from './aquarium-fish-profiles.mjs?v=090';
+import { fishWidth } from './aquarium-swim.mjs?v=090';
+
 const SIZE = 256;
 const HEIGHT = 168;
 export const CHARACTER_ASPECT = HEIGHT / SIZE;
 
 const colors = {
+  ...extraColors,
   guppy: {
     outline: '#63364f', shadow: '#dc7951', base: '#ffb85d', light: '#ffe6a4',
     belly: '#fff1bc', blush: '#f48877', fin: '#ee775d', finLight: '#ffca88', accent: '#b64c59',
@@ -18,6 +22,7 @@ const colors = {
 };
 
 const shapes = {
+  ...extraShapes,
   guppy: {
     tail: 'M106 86 C85 81 68 63 46 43 C35 34 21 36 18 46 C16 54 22 64 16 69 C10 77 13 87 19 93 C23 99 16 108 21 117 C27 132 45 125 61 113 C79 100 93 95 106 95Z',
     top: 'M115 72 C119 55 135 42 150 43 C159 44 163 56 160 67Z',
@@ -101,7 +106,46 @@ function drawFins(ctx, name, palette, shape) {
   ctx.restore();
 }
 
+const markings = {
+  zebra: ['M78 86 Q148 71 198 79', 'M84 91 Q142 82 194 87', 'M100 97 Q155 92 194 96'],
+  platy: ['M90 92 Q108 82 126 99 Q117 107 103 107Z'],
+  harlequin: ['M95 94 L164 73 Q158 91 155 110Z'],
+  molly: ['M105 79 Q117 70 129 73 Q125 82 109 86Z', 'M132 97 Q146 87 160 98 Q153 108 138 106Z'],
+  swordtail: ['M94 92 Q151 80 184 88 Q140 91 101 99Z'],
+  cory: ['M179 67 Q206 69 215 85 L207 104 Q193 110 184 100Z', 'M95 86 Q117 78 126 98 L112 114 L89 102Z'],
+  kuhli: ['M73 81 Q85 94 78 113 L91 113 Q96 92 85 81Z', 'M102 87 Q115 102 106 117 L124 120 Q130 106 116 87Z', 'M135 84 Q149 96 143 113 L160 113 Q166 98 152 82Z', 'M166 79 Q179 94 174 109 L188 113 Q196 97 182 78Z'],
+  gourami: ['M93 91 Q147 84 187 92'],
+  ram: ['M142 58 Q154 79 154 94 L144 104 Q144 81 133 63Z', 'M193 69 L207 76 L207 98 L197 103Z'],
+  goldfish: ['M121 65 Q142 66 156 80 Q144 98 115 98 L103 88Z', 'M164 110 Q184 96 209 103 Q201 128 179 131Z'],
+  angelfish: ['M120 61 Q136 84 129 116 L139 127 Q152 86 132 53Z', 'M152 57 Q171 78 162 119 L174 121 Q181 82 165 58Z', 'M189 64 Q204 86 195 111 L204 109 Q214 84 200 68Z'],
+  discus: ['M120 57 Q155 53 183 65', 'M110 69 Q155 63 192 77', 'M106 82 Q151 75 190 90', 'M105 96 Q153 87 191 103', 'M115 108 Q155 102 188 117', 'M129 122 Q154 115 179 127'],
+};
+const markPaths = Object.fromEntries(Object.entries(markings).map(([id, paths]) =>
+  [id, paths.map(path => new Path2D(path))]));
+const linedMarkings = new Set(['zebra', 'gourami', 'discus']);
+const spots = {
+  molly: [[119,91],[132,80],[151,82],[165,92],[166,103],[175,77]],
+  gourami: [[121,83],[130,74],[143,79],[153,71],[163,81],[136,96],[151,100],[167,97],[177,80],[122,101],[171,73]],
+  ram: [[117,83],[124,97],[137,105],[157,80],[165,96],[179,96],[176,76],[148,112]],
+};
+const whiskers = {
+  cory: new Path2D('M213 102 Q225 103 232 111 M216 104 Q222 111 225 117'),
+  kuhli: new Path2D('M211 100 Q225 102 228 110 M215 98 Q226 97 231 104'),
+  gourami: new Path2D('M150 109 Q139 132 115 144 M157 109 Q153 129 140 144'),
+  angelfish: new Path2D('M164 107 Q159 133 151 154 M171 105 Q170 132 165 151'),
+};
+
 function drawMarkings(ctx, name, palette) {
+  if (markPaths[name]) {
+    for (const path of markPaths[name]) {
+      if (linedMarkings.has(name)) line(ctx, path, palette.accent + 'ce', name === 'gourami' ? 2.1 : 3.8);
+      else paintedShape(ctx, path, (name === 'goldfish' ? '#fff0cf' : palette.accent) + 'c8');
+    }
+    for (const [x, y] of spots[name] ?? []) {
+      ellipse(ctx, x, y, 2.7, 1.9, name === 'molly' ? palette.accent : name === 'ram' ? '#83ecf6' : '#f3fff6');
+    }
+    return;
+  }
   if (name === 'neon') {
     paintedShape(ctx, neonRed, '#f78291');
     paintedShape(ctx, neonLine, '#a5fff3');
@@ -147,6 +191,7 @@ function drawFish(ctx, name) {
   ctx.restore();
   line(ctx, gill, palette.outline + '77', 1.25);
   paintedShape(ctx, shape.pectoral, palette.finLight, palette.outline + 'a6', 1.7);
+  if (whiskers[name]) line(ctx, whiskers[name], palette.outline + 'bc', 1.8);
   drawEye(ctx, ...shape.eye, palette);
   line(ctx, shape.smile, palette.outline, 1.7);
 }
@@ -177,7 +222,7 @@ export function drawCharacterPreview(canvas, speciesId) {
 
 export function drawCanvasCharacter(ctx, fish, point, heading, seconds, selected) {
   const source = characterArtwork(fish.speciesId);
-  const size = { guppy: 127, neon: 104, betta: 143 }[fish.speciesId];
+  const size = fishWidth(fish.speciesId) * 122;
   ctx.save();
   ctx.translate(point.x, point.y);
   if (selected) {

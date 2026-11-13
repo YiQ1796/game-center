@@ -15,10 +15,17 @@ if (sceneStart < 0 || sceneEnd < 0 || !source.slice(sceneStart, sceneEnd).includ
 }
 
 // The original app still owns gameplay and persistence. The new module owns the entire tank rendering.
-let runtime = 'import { AquariumScene as M } from "./aquarium-life-scene.mjs?v=070";\n'
-  + 'import { settleTankFacilities, validFacilities } from "./aquarium-facilities.mjs?v=080";\n'
-  + 'import { alive as isLiving, load as biologicalLoad } from "./aquarium-career.mjs?v=080";\n'
-  + (source.slice(0, sceneStart) + source.slice(sceneEnd)).replace('0.2.0-g2-preview', '0.8.0-aquarium-management');
+let runtime = 'import { AquariumScene as M } from "./aquarium-life-scene.mjs?v=090";\n'
+  + 'import { settleTankFacilities, validFacilities } from "./aquarium-facilities.mjs?v=090";\n'
+  + 'import { alive as isLiving, load as biologicalLoad } from "./aquarium-career.mjs?v=090";\n'
+  + (source.slice(0, sceneStart) + source.slice(sceneEnd)).replace('0.2.0-g2-preview', '0.9.0-aquarium-life');
+const speciesStart = runtime.indexOf('i={guppy:{label:');
+const speciesEnd = runtime.indexOf(',a={grass:', speciesStart);
+if (speciesStart < 0 || speciesEnd < 0) throw new Error('The original aquarium fish table could not be located.');
+runtime = 'import { FISH } from "./aquarium-species.mjs?v=090";\\n'
+  + runtime.slice(0, speciesStart)
+  + 'i=Object.fromEntries(Object.entries(FISH).map(([id, species]) => [id, { ...species, label: species.name, lifespan: species.life }]))'
+  + runtime.slice(speciesEnd);
 const runtimeIntegration = [
   ["function u(e,r){return{...e,tanks:e.tanks.map(e=>{let a=Math.max(0,(r-e.calculatedAt)/t),o=e.decorations.filter(e=>e.kind===`grass`).length,s=Math.max(0,l(e)*.055-o*.12);return{...e,calculatedAt:Math.max(r,e.calculatedAt),clarity:Math.max(15,e.clarity-Math.min(a,72)*s),fish:e.fish.map(e=>{if(e.diedAt!==null)return e;let a=e.bornAt+i[e.speciesId].lifespan*n,o=Math.min(r,a),s=Math.min(72,Math.max(0,(o-e.lastCalculatedAt)/t));return{...e,lastCalculatedAt:Math.max(o,e.lastCalculatedAt),growthHours:e.growthHours+s,satiety:Math.max(0,e.satiety-s*2),diedAt:r>=a?a:null}})}})}}", "function u(state, now) {\n  return {\n    ...state,\n    tanks: state.tanks.map(tank => {\n      const settled = settleTankFacilities(tank, now, isLiving, biologicalLoad);\n      return {\n        ...settled,\n        fish: tank.fish.map(fish => {\n          if (fish.diedAt !== null) return fish;\n          const endOfLife = fish.bornAt + i[fish.speciesId].lifespan * n;\n          const elapsed = Math.min(72, Math.max(0, (Math.min(now, endOfLife) - fish.lastCalculatedAt) / t));\n          return {\n            ...fish, lastCalculatedAt: Math.max(Math.min(now, endOfLife), fish.lastCalculatedAt),\n            growthHours: fish.growthHours + elapsed,\n            satiety: Math.max(0, fish.satiety - elapsed * 2),\n            diedAt: now >= endOfLife ? endOfLife : null,\n          };\n        }),\n      };\n    }),\n  };\n}\n"],
   ["if(!t.has(e.activeTankId))throw Error(`找不到原本選用的魚缸。`);return e", "if(!t.has(e.activeTankId))throw Error(`找不到原本選用的魚缸。`);if(!e.tanks.every(validFacilities))throw Error(`設備或展缸資料不完整。`);return e"],
@@ -43,7 +50,7 @@ for (const [oldText, newText] of runtimeIntegration) {
   if (!runtime.includes(oldText)) throw new Error('The aquarium runtime integration no longer matches the base bundle.');
   runtime = runtime.replace(oldText, newText);
 }
-await writeFile(join(assets, 'aquarium-runtime-v080.js'), runtime);
+await writeFile(join(assets, 'aquarium-runtime-v090.js'), runtime);
 const vendor = resolve(assets, '..', 'vendor');
 const scratch = await mkdtemp(join(tmpdir(), 'aqua-three-'));
 try {

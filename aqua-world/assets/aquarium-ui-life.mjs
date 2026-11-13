@@ -1,7 +1,9 @@
 import { SAVE_KEY, FISH, SALE_LIMIT, RuleError, activeTank, alive, readTrial, career,
-  allFish, sexOf, patternOf, load, salePrice, salesToday, missions, pairOptions, recessiveChance, applyAction } from './aquarium-career.mjs?v=080';
+  allFish, sexOf, patternOf, load, salePrice, salesToday, missions, pairOptions, recessiveChance, applyAction } from './aquarium-career.mjs?v=090';
 import { EQUIPMENT, TEMPERATURE_TARGETS, targetTemperature, equipmentOf, exhibitView } from './aquarium-facilities.mjs?v=080';
-import { drawCharacterPreview } from './aquarium-fish-characters.mjs';
+import { drawCharacterPreview } from './aquarium-fish-characters.mjs?v=090';
+
+import { equipmentArtwork } from './aquarium-equipment-view.mjs?v=090';
 
 const byId = id => document.getElementById(id);
 const dialog = byId('career-dialog');
@@ -112,12 +114,17 @@ function renderShop(state, now) {
   }
 
   const grid = node('div', undefined, 'career-species');
+  const freeSpace = Math.max(0, tank.capacity - load(tank, now));
+  content.append(node('p', Object.keys(FISH).length + ' 種淡水魚 · 魚缸剩餘負載 ' + freeSpace + ' 點', 'career-subtext'));
   for (const [speciesId, species] of Object.entries(FISH)) {
     const card = node('article', undefined, 'career-card');
+    card.dataset.species = speciesId;
     const sex = select('性別', [['female', '母魚'], ['male', '公魚']]);
+    const fits = species.points <= freeSpace;
     card.append(fishPreview(speciesId), node('h3', species.name), node('p', '負載 ' + species.points + ' 點', 'career-subtext'),
-      sex.wrapper, button(species.price + ' 金幣 · 購買', () =>
-        void commit({ type: 'purchase', speciesId, sex: sex.control.value }), { primary: true, disabled: state.coins < species.price }));
+      sex.wrapper, button(fits ? species.price + ' 金幣 · 購買' : '魚缸空間不足', () =>
+        void commit({ type: 'purchase', tankId: tank.id, speciesId, sex: sex.control.value }),
+        { primary: true, disabled: !fits || state.coins < species.price }));
     grid.append(card);
   }
   content.append(grid);
@@ -188,9 +195,11 @@ function renderCollection(state, now) {
     const fish = inventory.filter(item => item.speciesId === speciesId);
     const living = fish.filter(item => !item.soldAt && alive(item, now)).length;
     const card = node('article', undefined, 'career-entry');
+    card.dataset.species = speciesId;
     const detail = node('div');
     detail.append(node('h3', species.name), node('p', species.habitat + ' · 現有 ' + living + ' 隻', 'career-subtext'),
-      node('p', species.detail, 'career-subtext'));
+      node('p', species.detail, 'career-subtext'),
+      node('p', '遊戲適溫 ' + species.temperature.join('–') + '°C · pH ' + species.ph.join('–'), 'career-subtext'));
     if (fish.length) {
       const list = node('details');
       list.append(node('summary', '查看個體與族譜（' + fish.length + '）'));
@@ -223,7 +232,9 @@ function renderEquipment(state) {
         + Math.round((1 - Math.exp(-effect.speed)) * 100) + '% 的溫差';
     };
     const card = node('article', undefined, 'career-card facility-card');
-    card.append(node('h3', equipment.name + (level ? ' · Lv.' + level : '')),
+    const preview = equipmentArtwork(id, level || 1, target);
+    preview.classList.add('facility-preview');
+    card.append(preview, node('h3', equipment.name + (level ? ' · Lv.' + level : '')),
       node('p', describe(current), 'career-subtext'));
     if (next) {
       card.append(node('p', 'Lv.' + (level + 1) + ' · ' + describe(next), 'facility-next'),

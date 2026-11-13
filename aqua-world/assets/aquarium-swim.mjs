@@ -1,9 +1,22 @@
 const profiles = {
   guppy: { cruise: .94, rush: 2.8, depth: .32, y: .57, drift: .44, period: .8, width: 1.04 },
-  neon: { cruise: 1.29, rush: 3.15, depth: -.07, y: -.33, drift: .28, period: 1.05, width: .80 },
+  neon: { cruise: 1.29, rush: 3.15, depth: -.07, y: -.33, drift: .28, period: 1.05, width: .80, school: true },
   betta: { cruise: .59, rush: 2.15, depth: .69, y: .96, drift: .56, period: .58, width: 1.17 },
+  zebra: { cruise: 1.65, rush: 3.2, depth: -.20, y: 1.24, drift: .33, period: 1.44, width: .83 },
+  platy: { cruise: .97, rush: 2.7, depth: .36, y: .45, drift: .33, period: .84, width: .96 },
+  harlequin: { cruise: 1.25, rush: 2.95, depth: -.20, y: -.08, drift: .30, period: 1.01, width: .96, school: true },
+  molly: { cruise: .86, rush: 2.64, depth: .36, y: .70, drift: .46, period: .77, width: 1.12 },
+  swordtail: { cruise: 1.25, rush: 3.05, depth: .13, y: .55, drift: .46, period: 1.11, width: 1.15 },
+  cory: { cruise: .80, rush: 2.68, depth: .78, y: -1.38, drift: .18, period: .92, width: .99 },
+  kuhli: { cruise: .71, rush: 2.80, depth: .92, y: -1.42, drift: .12, period: .76, width: 1.11 },
+  gourami: { cruise: .76, rush: 2.55, depth: .26, y: 1.21, drift: .42, period: .72, width: 1.19 },
+  ram: { cruise: .82, rush: 2.70, depth: .60, y: -.75, drift: .31, period: .72, width: 1.09 },
+  goldfish: { cruise: .64, rush: 2.40, depth: .73, y: .23, drift: .45, period: .62, width: 1.42 },
+  angelfish: { cruise: .67, rush: 2.48, depth: .42, y: .42, drift: .63, period: .59, width: 1.42 },
+  discus: { cruise: .57, rush: 2.43, depth: .29, y: .08, drift: .41, period: .54, width: 1.50 },
 };
 export const fishWidth = speciesId => profiles[speciesId].width;
+export const fishLane = speciesId => profiles[speciesId].y;
 
 const limit = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -58,11 +71,11 @@ export function stepMotion(motion, seconds, delta, feeding) {
   const seeking = target && !target.eaten && seconds >= target.release;
   const tempo = seconds * profile.period + phase;
   const pause = motion.speciesId === 'betta' ? .60 + .4 * Math.sin(tempo * .69) ** 4 : 1;
-  const school = motion.speciesId === 'neon' ? Math.sin(seconds * .48) * 2.2 : 0;
+  const school = profile.school ? Math.sin(seconds * .48) * 2.2 : 0;
   if (seeking && !target.approach) target.approach = Math.sign(target.x - motion.x) || motion.facing;
   const mouthOffset = profile.width * .34;
   const destinationX = seeking ? target.x - target.approach * mouthOffset
-    : school + Math.sin(tempo * .53) * (motion.speciesId === 'neon' ? 1.15 : 3.4);
+    : school + Math.sin(tempo * .53) * (profile.school ? 1.15 : 3.4);
   const destinationY = seeking ? target.y : profile.y + Math.sin(tempo * .74 + .3) * profile.drift;
   const destinationZ = seeking ? target.z : profile.depth + Math.sin(tempo * .42 + seed % 7) * .72;
   const dx = destinationX - motion.x;

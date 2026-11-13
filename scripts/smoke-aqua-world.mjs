@@ -55,8 +55,8 @@ const exercise = `
     find('[data-career=shop]').click();
     await until(() => find('#career-content .career-card button'), 'shop');
     const thumbnails = [...document.querySelectorAll('#career-content .career-fish-photo')];
-    if (thumbnails.length !== 3 || new Set(thumbnails.map(canvas => canvas.toDataURL())).size !== 3) {
-      throw new Error('Expected three distinct illustrated fish in the shop');
+    if (thumbnails.length !== 15 || new Set(thumbnails.map(canvas => canvas.toDataURL())).size !== 15) {
+      throw new Error('Expected 15 distinct illustrated fish in the shop');
     }
     for (const canvas of thumbnails) {
       const ctx = canvas.getContext('2d');
@@ -104,6 +104,26 @@ const exercise = `
     find('#career-content .facility-setting button').click();
     await until(() => river().equipment?.target === 27, 'adjust thermostat');
     find('#career-close').click();
+    const filter = find('#stage [data-device=filter]');
+    const heater = find('#stage [data-device=heater]');
+    if (!filter?.querySelector('canvas') || !heater?.querySelector('canvas')
+      || filter.querySelectorAll('.tank-filter-bubble').length !== 3 || !heater.title.includes('27°C')) {
+      throw new Error('Installed equipment is missing from the aquarium');
+    }
+    for (const device of [filter, heater]) {
+      const box = device.getBoundingClientRect();
+      const pixels = device.querySelector('canvas').getContext('2d').getImageData(0, 0, 152, 224).data;
+      if (box.width < 45 || box.height < 60 || !pixels.some((value, index) => index % 4 === 3 && value > 100)) {
+        throw new Error('Equipment artwork is blank or too small');
+      }
+    }
+    filter.click();
+    if (!find('#career-dialog').open || find('#career-title').textContent !== '魚缸設備') throw new Error('Filter did not open equipment');
+    find('#career-close').click();
+    find('#tank-list .tank-option:nth-child(2)').click();
+    await until(() => find('#stage').dataset.scene === 'studio' && !find('#stage .tank-device'), 'equipment stays with its tank');
+    find('#tank-list .tank-option').click();
+    await until(() => find('#stage').dataset.scene === 'river' && find('#stage [data-device=heater]'), 'restore installed equipment on return');
     find('[data-career=visitors]').click();
     find('#career-content .career-row button').click();
     await until(() => river().exhibit?.open, 'open visitor exhibit');
@@ -124,6 +144,25 @@ const exercise = `
     } finally {
       Date.now = originalNow;
     }
+    find('#career-close').click();
+    const remainingSpecies = ['zebra', 'platy', 'harlequin', 'molly', 'swordtail', 'cory', 'kuhli', 'gourami', 'ram', 'goldfish', 'angelfish', 'discus'];
+    for (const [index, species] of remainingSpecies.entries()) {
+      if (index === 7) {
+        find('#tank-list .tank-option:nth-child(2)').click();
+        await until(() => find('#stage').dataset.scene === 'studio', 'switch to second tank for larger fish');
+      }
+      find('[data-career=shop]').click();
+      const purchase = find('#career-content [data-species=' + species + '] button');
+      if (!purchase || purchase.disabled) throw new Error('Missing available purchase for ' + species);
+      purchase.click();
+      await until(() => getSave().tanks.some(tank => tank.fish.some(fish => fish.speciesId === species))
+        && [...find('#fish-list').children].some(fish => fish.textContent.includes(
+          find('#career-content [data-species=' + species + '] h3')?.textContent + ' ')), 'buy and render ' + species);
+      find('#career-close').click();
+    }
+    find('[data-career=collection]').click();
+    if (find('#career-content').querySelectorAll('[data-species]').length !== 15
+      || !find('#career-content [data-species=discus]').textContent.includes('現有 1 隻')) throw new Error('Collection omitted new species');
     find('#career-close').click();
     marker.content = 'PASS';
   } catch (error) {
@@ -207,7 +246,7 @@ try {
   const mobile = await evaluate("document.documentElement.scrollWidth <= 391 && document.querySelector('#stage').getBoundingClientRect().width > 300");
   assert.equal(mobile.result.value, true, 'Phone viewport must show the tank without horizontal overflow');
   assert.deepEqual(exceptions, []);
-  console.log('Aqua World Chrome smoke test PASS (illustrated fish in two WebGL tanks, desktop and phone layout, shop, missions, breeding, decoration, individual and full-tank feeding, equipment, visitor tickets, and saves)');
+  console.log('Aqua World Chrome smoke test PASS (illustrated fish in two WebGL tanks, desktop and phone layout, shop, missions, breeding, decoration, individual and full-tank feeding, visible per-tank equipment, expanded 15-species shop and collection, visitor tickets, and saves)');
 } finally {
   ws?.close();
   chrome.kill();
