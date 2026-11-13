@@ -25,7 +25,7 @@ const exercise = `
   }
   try {
     await until(() => find('#stage canvas') && find('#stage').dataset.scene === 'river'
-      && find('#stage').dataset.renderEngine === 'webgl' && find('#stage').dataset.fishArt === 'photo', 'WebGL aquarium with three photo profiles');
+      && find('#stage').dataset.renderEngine === 'webgl' && find('#stage').dataset.fishArt === 'illustrated', 'WebGL aquarium with illustrated fish');
     if (getComputedStyle(document.documentElement).colorScheme !== 'light'
       || getComputedStyle(find('.care')).backgroundColor !== 'rgb(255, 254, 250)') throw new Error('Expected light interface');
     find('#tank-list .tank-option:nth-child(2)').click();
@@ -33,8 +33,9 @@ const exercise = `
       && find('#tank-count').textContent.includes('0'), 'empty showcase aquarium');
     find('#tank-list .tank-option').click();
     await until(() => find('#stage').dataset.scene === 'river' && find('#stage-message').hidden, 'return to river aquarium');
-    if (performance.getEntriesByType('resource').some(entry => /river\.jpg|studio\.jpg|art-v030\.json/.test(entry.name))) {
-      throw new Error('Previous tank photographs were requested');
+    const previousArt = ['river.jpg', 'studio.jpg', 'art-v030.json', 'fish-profiles/'];
+    if (performance.getEntriesByType('resource').some(entry => previousArt.some(path => entry.name.includes(path)))) {
+      throw new Error('Previous aquarium photographs were requested');
     }
     const food = () => Number(find('#food').textContent);
     const startingFood = food();
@@ -53,6 +54,17 @@ const exercise = `
     await until(() => find('#career-track').textContent.includes('迎接一條魚苗'), 'mission tracker');
     find('[data-career=shop]').click();
     await until(() => find('#career-content .career-card button'), 'shop');
+    const thumbnails = [...document.querySelectorAll('#career-content .career-fish-photo')];
+    if (thumbnails.length !== 3 || new Set(thumbnails.map(canvas => canvas.toDataURL())).size !== 3) {
+      throw new Error('Expected three distinct illustrated fish in the shop');
+    }
+    for (const canvas of thumbnails) {
+      const ctx = canvas.getContext('2d');
+      const picture = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      let painted = 0;
+      for (let i = 3; i < picture.length; i += 4) if (picture[i] > 96) painted++;
+      if (painted < 550 || picture[3] !== 0) throw new Error('Fish preview is blank or lacks transparency');
+    }
     find('#career-content .career-card button').click();
     await until(() => find('#coins').textContent === '4,880' && find('#fish-list').children.length === 4, 'purchase and rerender');
     find('#career-close').click();
@@ -156,12 +168,17 @@ try {
   const diagnostic = await evaluate("JSON.stringify({feedback: document.getElementById('feedback')?.textContent, loaded: performance.getEntriesByType('resource').map(entry => new URL(entry.name).pathname)})");
   assert.equal(response.result.value, 'PASS', JSON.stringify({ result: response.result.value, errors: exceptions, state: diagnostic.result.value }));
   assert.deepEqual(shaderErrors, []);
+  const sceneClip = await evaluate("JSON.stringify(document.querySelector('#stage').getBoundingClientRect().toJSON())");
+  const { x, y, width, height } = JSON.parse(sceneClip.result.value);
+  const shot = await call('Page.captureScreenshot', { format: 'jpeg', quality: 75, captureBeyondViewport: true,
+    clip: { x, y, width, height, scale: .83 } });
+  for (const [index, block] of shot.data.match(/.{1,2800}/g).entries()) console.log('AQUA_CHARACTERS ' + index + ' ' + block);
   await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await delay(150);
   const mobile = await evaluate("document.documentElement.scrollWidth <= 391 && document.querySelector('#stage').getBoundingClientRect().width > 300");
   assert.equal(mobile.result.value, true, 'Phone viewport must show the tank without horizontal overflow');
   assert.deepEqual(exceptions, []);
-  console.log('Aqua World Chrome smoke test PASS (two WebGL tanks, desktop and phone layout, shop, missions, breeding, decoration, individual and full-tank feeding, and saves)');
+  console.log('Aqua World Chrome smoke test PASS (illustrated fish in two WebGL tanks, desktop and phone layout, shop, missions, breeding, decoration, individual and full-tank feeding, and saves)');
 } finally {
   ws?.close();
   chrome.kill();

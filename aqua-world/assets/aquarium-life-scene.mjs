@@ -1,8 +1,8 @@
 import * as T from '../vendor/three-0.160.1.module.js';
 import { createLandscape, makeDecoration, WATERLINE, FLOOR } from './aquarium-depth-landscape.mjs';
-import { makeSideFish, readyProfiles } from './aquarium-side-fish.mjs';
+import { makeCharacterFish } from './aquarium-side-fish.mjs?v=070';
 import { createMotion, createFeeding, advanceFeeding, stepMotion } from './aquarium-swim.mjs';
-import { AquariumScene as DaylightScene } from './aquarium-daylight-scene.mjs';
+import { AquariumScene as DaylightScene } from './aquarium-daylight-scene.mjs?v=070';
 
 const waterVertex = `
   varying vec2 coordinate;
@@ -133,7 +133,6 @@ export class AquariumScene {
   lastFrame = 0;
   simulationTime = 0;
   feeding;
-  ready = false;
   eatStatus = '';
   feedingCount = '';
   ray = new T.Raycaster();
@@ -152,6 +151,7 @@ export class AquariumScene {
     }
     this.stage = stage;
     stage.dataset.renderEngine = 'webgl';
+    stage.dataset.fishArt = 'illustrated';
     this.renderer.setSize(1152, 648, false);
     this.renderer.outputColorSpace = T.SRGBColorSpace;
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
@@ -184,10 +184,6 @@ export class AquariumScene {
     this.pellets.frustumCulled = false;
     this.scene.add(this.pellets);
     this.renderer.setAnimationLoop(time => this.draw(time));
-    readyProfiles.then(loaded => {
-      this.stage.dataset.fishArt = loaded.every(Boolean) ? 'photo' : 'mixed';
-      this.ready = true;
-    });
   }
 
   setView(tank, fishId, lowPower, decorId) {
@@ -225,7 +221,7 @@ export class AquariumScene {
     }
     for (const item of living) {
       if (this.fish.has(item.id)) continue;
-      const model = makeSideFish(item);
+      const model = makeCharacterFish(item);
       this.fish.set(item.id, { ...model, motion: createMotion(item) });
       this.scene.add(model.root);
     }
@@ -344,7 +340,7 @@ export class AquariumScene {
   }
 
   draw(time) {
-    if (!this.tank || !this.ready || time - this.lastFrame < (this.lowPower ? 75 : 32)) return;
+    if (!this.tank || time - this.lastFrame < (this.lowPower ? 75 : 32)) return;
     const delta = this.lastFrame ? Math.min(.20, (time - this.lastFrame) / 1_000) : .033;
     this.lastFrame = time;
     this.simulationTime += delta;

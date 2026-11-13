@@ -1,5 +1,5 @@
 {
-  "build": "0.6.0-fish-care",
+  "build": "0.7.0-fish-characters",
   "mode": "solo-trial",
   "baseSourceCommit": "b826ecdaac60c58de488f5452960cc6c6a5f9b63"
 }

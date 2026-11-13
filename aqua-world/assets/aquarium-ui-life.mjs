@@ -1,6 +1,6 @@
 import { SAVE_KEY, FISH, SALE_LIMIT, RuleError, activeTank, alive, readTrial, career,
   allFish, sexOf, patternOf, salePrice, salesToday, missions, pairOptions, recessiveChance, applyAction } from './aquarium-career.mjs';
-import { drawSidePreview } from './aquarium-side-fish.mjs';
+import { drawCharacterPreview } from './aquarium-fish-characters.mjs';
 
 const byId = id => document.getElementById(id);
 const dialog = byId('career-dialog');
@@ -47,7 +47,7 @@ function fishPreview(speciesId) {
   canvas.width = 240;
   canvas.height = 108;
   canvas.setAttribute('aria-hidden', 'true');
-  drawSidePreview(canvas, speciesId);
+  drawCharacterPreview(canvas, speciesId);
   return canvas;
 }
 

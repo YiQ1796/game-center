@@ -201,5 +201,3 @@ dialog::backdrop { background: #173d374f; }
   color: #244d41; background: #fffdf3ec; font-size: 12px; white-space: nowrap;
   pointer-events: none;
 }
-.fish-credits { color: var(--muted); font-size: 12px; padding: 0 1px 14px; }
-.fish-credits a { text-decoration: underline; }

@@ -1,4 +1,4 @@
-import { drawFishModel } from './aquarium-fish-daylight.mjs';
+import { drawCanvasCharacter } from './aquarium-fish-characters.mjs';
 import { createTankBackdrop, drawDecoration, drawWaterMotion, WIDTH, HEIGHT } from './aquarium-scenery.mjs';
 
 const sizes = {
@@ -41,6 +41,7 @@ export class AquariumScene {
 
   constructor(parent, stage) {
     this.stage = stage;
+    this.stage.dataset.fishArt = 'illustrated';
     const view = this;
     this.game = new window.Phaser.Game({
       type: window.Phaser.CANVAS, width: WIDTH, height: HEIGHT, parent,
@@ -117,7 +118,7 @@ export class AquariumScene {
       return { id: item.id, speciesId: item.speciesId, item, point: swim(item, seconds, attract) };
     }).sort((left, right) => left.point.y - right.point.y);
     for (const { item, point } of this.fishPositions) {
-      drawFishModel(ctx, item, point, point.heading, seconds, item.id === this.selectedFish);
+      drawCanvasCharacter(ctx, item, point, point.heading, seconds, item.id === this.selectedFish);
     }
     this.texture.refresh();
     if (this.stage.dataset.scene !== backdropId) this.stage.dataset.scene = backdropId;

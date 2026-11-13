@@ -15,8 +15,8 @@ if (sceneStart < 0 || sceneEnd < 0 || !source.slice(sceneStart, sceneEnd).includ
 }
 
 // The original app still owns gameplay and persistence. The new module owns the entire tank rendering.
-let runtime = 'import { AquariumScene as M } from "./aquarium-life-scene.mjs";\n'
-  + (source.slice(0, sceneStart) + source.slice(sceneEnd)).replace('0.2.0-g2-preview', '0.6.0-fish-care');
+let runtime = 'import { AquariumScene as M } from "./aquarium-life-scene.mjs?v=070";\n'
+  + (source.slice(0, sceneStart) + source.slice(sceneEnd)).replace('0.2.0-g2-preview', '0.7.0-fish-characters');
 const feedingIntegration = [
   [
     "async function b(e,t,n){if(t!==`saved`)return{state:d(e,n,Date.now()),mode:t};let r=()=>{let r=y(Date.now());if(r.mode===`protected`)throw Error(`原存檔格式異常，已保護檔案。請重新整理以進入暫存試玩。`);let i=d(r.mode===`memory`?e:r.state,n,Date.now());if(r.mode===`memory`)return{state:i,mode:r.mode};try{return localStorage.setItem(p,JSON.stringify(i)),{state:i,mode:t}}catch{return{state:i,mode:`memory`}}};return navigator.locks?navigator.locks.request(p,r):r()}",
@@ -39,7 +39,7 @@ for (const [oldText, newText] of feedingIntegration) {
   if (!runtime.includes(oldText)) throw new Error('The aquarium feeding integration no longer matches the base bundle.');
   runtime = runtime.replace(oldText, newText);
 }
-await writeFile(join(assets, 'aquarium-runtime-v060.js'), runtime);
+await writeFile(join(assets, 'aquarium-runtime-v070.js'), runtime);
 const vendor = resolve(assets, '..', 'vendor');
 const scratch = await mkdtemp(join(tmpdir(), 'aqua-three-'));
 try {
