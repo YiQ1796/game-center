@@ -37,7 +37,8 @@ window.SANMAO_GAMES = Object.freeze([
     name: '水族世界',
     category: '水族養成・自由造景',
     summary: '照顧游動中的小魚、換水和布置魚缸。單機試玩進度儲存在瀏覽器。',
-    visualType: 'aqua-world-label',
+    image: 'assets/aqua-world-sanmao-cover-v1.webp',
+    imageAlt: '猴三毛開心餵魚，照顧色彩繽紛的水族箱',
     status: 'beta',
     url: 'https://yiq1796.github.io/game-center/aqua-world/'
   }),
@@ -46,7 +47,8 @@ window.SANMAO_GAMES = Object.freeze([
     name: '猴三毛 1A2B',
     category: '數字推理・單人與雙人連線',
     summary: '四個數字藏著一組密碼。用 A、B 線索推理，也能開房和朋友輪流猜電腦出的密碼！',
-    visualType: 'one-a-two-b-showcase',
+    image: 'assets/one-a-two-b-sanmao-cover-v1.webp',
+    imageAlt: '猴三毛正在思考數字謎題，猜測 1A2B 密碼',
     status: 'beta',
     url: 'https://yiq1796.github.io/game-center/one-a-two-b/'
   })

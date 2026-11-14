@@ -28,13 +28,17 @@ for (const game of games) {
     assert.equal(game.status, 'beta', 'Rummikub network UAT has not passed');
     assert.ok(existsSync(resolve(root, 'assets/hero-clubhouse.webp')), 'Missing full-size approved monkey artwork');
   } else if (game.id === 'aqua-world') {
-    assert.equal(game.visualType, 'aqua-world-label');
+    assert.equal(game.image, 'assets/aqua-world-sanmao-cover-v1.webp');
+    assert.match(game.imageAlt, /猴三毛/);
     assert.equal(game.status, 'beta', 'Aqua World is a solo trial');
     assert.match(read('aqua-world/index.html'), /水族世界 Aqua World/);
     assert.equal(JSON.parse(read('aqua-world/build-info.json')).mode, 'solo-trial');
+    assert.ok(existsSync(resolve(root, game.image)), 'Missing aquarium cover');
   } else if (game.id === 'one-a-two-b') {
-    assert.equal(game.visualType, 'one-a-two-b-showcase');
+    assert.equal(game.image, 'assets/one-a-two-b-sanmao-cover-v1.webp');
+    assert.match(game.imageAlt, /猴三毛/);
     assert.equal(game.status, 'beta');
+    assert.ok(existsSync(resolve(root, game.image)), 'Missing 1A2B cover');
   } else {
     assert.match(game.image, /^assets\/[\w-]+\.webp$/, 'Image path invalid');
     assert.ok(existsSync(resolve(root, game.image)), `Missing ${game.image}`);
@@ -42,21 +46,22 @@ for (const game of games) {
 }
 assert.match(html, /猴三毛遊戲中心/);
 assert.match(html, /https:\/\/yiq1796\.github\.io\/game-center\//);
-assert.match(html, /V0\.8\.3/);
+assert.match(html, /V0\.8\.4/);
 assert.ok(!html.includes('utm_source='), 'Do not include tracking parameters');
 const styleSource = read('assets/site.css');
 const uiSource = read('assets/site.js');
 assert.ok(styleSource.includes('.rummikub-showcase'), 'Rummikub illustration styles missing');
 assert.ok(uiSource.includes("rummikub-showcase"), 'Rummikub illustration render missing');
-assert.ok(styleSource.includes('.aqua-world-showcase'), 'Aqua World card styles missing');
-assert.ok(uiSource.includes('aqua-world-showcase'), 'Aqua World card render missing');
+assert.ok(styleSource.includes('.game-aqua-world'), 'Aqua World image card styles missing');
+assert.ok(!uiSource.includes('aqua-world-showcase'), 'Old Aqua World placeholder render remains');
 assert.ok(!uiSource.includes('rummikub-mascot'), 'Old small avatar render must be disabled');
 for(const path of ['assets/mascot-logo.webp','assets/hero-clubhouse.webp','assets/club-welcome.webp']){
  assert.ok(existsSync(resolve(root, path)), `Missing ${path}`);
 }
 console.log('Game center structural tests PASS (links, artwork, scripts, version)');
-assert.ok(styleSource.includes('.one-a-two-b-showcase'), '1A2B card styles missing');
-assert.ok(uiSource.includes('one-a-two-b-showcase'), '1A2B card render missing');
+assert.ok(styleSource.includes('.game-one-a-two-b'), '1A2B image card styles missing');
+assert.ok(!uiSource.includes('one-a-two-b-showcase'), 'Old 1A2B placeholder render remains');
+assert.ok(uiSource.includes('game-illustration'), 'Shared image renderer missing');
 await import('./verify-one-a-two-b.mjs');
 // Prepare the assets served by Pages and exercise the current aquarium before upload.
 await import('./prepare-aqua-world.mjs');
