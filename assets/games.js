@@ -20,8 +20,8 @@ window.SANMAO_GAMES = Object.freeze([
     summary: '經典台灣撲克遊戲，簡單上手、越玩越有趣！',
     image: 'assets/poker-monkey.webp',
     imageAlt: '猴三毛拿著一手撲克牌',
-    status: 'beta',
-    url: 'https://yiq1796.github.io/BigTwo_Web/' // Pages 成功，真人跨網 UAT 待驗證。
+    status: 'available',
+    url: 'https://yiq1796.github.io/BigTwo_Web/' // 使用者已完成遊戲驗收（2026-11-17）。
   }),
   Object.freeze({
     id: 'rummikub',
@@ -29,7 +29,7 @@ window.SANMAO_GAMES = Object.freeze([
     category: '數字牌・單機與好友對戰',
     summary: '固定四人開局，單機與 AI 挑戰，或邀請朋友一起排牌！空位由 AI 補滿。',
     visualType: 'rummikub-illustration', // 延用經確認的猴三毛遊戲館角色插畫，數字牌由 DOM/CSS 繪製。
-    status: 'beta', // Pages 已發布；跨網路真人連線 UAT 尚未完成。
+    status: 'available', // 使用者已完成遊戲驗收（2026-11-17）。
     url: 'https://yiq1796.github.io/Rummikub_Web/'
   }),
   Object.freeze({
@@ -49,7 +49,7 @@ window.SANMAO_GAMES = Object.freeze([
     summary: '四個數字藏著一組密碼。用 A、B 線索推理，也能開房和朋友輪流猜電腦出的密碼！',
     image: 'assets/one-a-two-b-sanmao-cover-v1.webp',
     imageAlt: '猴三毛正在思考數字謎題，猜測 1A2B 密碼',
-    status: 'beta',
+    status: 'available',
     url: 'https://yiq1796.github.io/game-center/one-a-two-b/'
   })
 ]);

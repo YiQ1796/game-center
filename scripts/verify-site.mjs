@@ -19,13 +19,18 @@ const expected = new Map([
   ['one-a-two-b', 'https://yiq1796.github.io/game-center/one-a-two-b/'],
 ]);
 assert.equal(games.length, expected.size, 'Expected one card per game');
+const approvedGames = new Set(['big-two', 'rummikub', 'one-a-two-b']);
+for (const game of games) {
+  if (approvedGames.has(game.id)) assert.equal(game.status, 'available', `${game.id} must show 立即進入`);
+}
+assert.equal(games.find(game => game.id === 'aqua-world').status, 'beta', 'Aquarium remains a trial');
 assert.equal(new Set(games.map(game => game.id)).size, expected.size, 'Game IDs must be unique');
 for (const game of games) {
   assert.equal(game.url, expected.get(game.id), `Incorrect game link: ${game.id}`);
   assert.ok(game.url.startsWith('https://yiq1796.github.io/'), 'Only approved game domains allowed');
   if (game.visualType === 'rummikub-illustration') {
     assert.equal(game.id, 'rummikub', 'Only Rummikub should use DOM tile artwork');
-    assert.equal(game.status, 'beta', 'Rummikub network UAT has not passed');
+    assert.equal(game.status, 'available', 'Rummikub passed user acceptance');
     assert.ok(existsSync(resolve(root, 'assets/hero-clubhouse.webp')), 'Missing full-size approved monkey artwork');
   } else if (game.id === 'aqua-world') {
     assert.equal(game.image, 'assets/aqua-world-sanmao-cover-v1.webp');
@@ -37,7 +42,7 @@ for (const game of games) {
   } else if (game.id === 'one-a-two-b') {
     assert.equal(game.image, 'assets/one-a-two-b-sanmao-cover-v1.webp');
     assert.match(game.imageAlt, /猴三毛/);
-    assert.equal(game.status, 'beta');
+    assert.equal(game.status, 'available', '1A2B passed user acceptance');
     assert.ok(existsSync(resolve(root, game.image)), 'Missing 1A2B cover');
   } else {
     assert.match(game.image, /^assets\/[\w-]+\.webp$/, 'Image path invalid');
@@ -46,10 +51,11 @@ for (const game of games) {
 }
 assert.match(html, /猴三毛遊戲中心/);
 assert.match(html, /https:\/\/yiq1796\.github\.io\/game-center\//);
-assert.match(html, /V0\.8\.4/);
+assert.match(html, /V0\.8\.5/);
 assert.ok(!html.includes('utm_source='), 'Do not include tracking parameters');
 const styleSource = read('assets/site.css');
 const uiSource = read('assets/site.js');
+assert.ok(uiSource.includes("game.status === 'beta' ? '進入測試版 →' : '立即進入 →'"), 'Card buttons must follow approved game status');
 assert.ok(styleSource.includes('.rummikub-showcase'), 'Rummikub illustration styles missing');
 assert.ok(uiSource.includes("rummikub-showcase"), 'Rummikub illustration render missing');
 assert.ok(styleSource.includes('.game-aqua-world'), 'Aqua World image card styles missing');
