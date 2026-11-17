@@ -52,7 +52,7 @@ try {
 
   const { seed, actions, player } = sampleReplay();
   const validated = await request('POST', {
-    edition: 2, name: '疾風的測試員', seed, actions,
+    edition: 2, name: '疾風的工頭', seed, actions,
     playerId: '00000000-0000-4000-8000-000000000000',
     validateOnly: true
   });
