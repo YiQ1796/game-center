@@ -1,5 +1,5 @@
 import { advance, applyAction, cellsOf, createPlayer, HEIGHT, HIDDEN, levelOf, MATCH_TIME, PIECES, projected, WIDTH } from './engine.mjs?v=100';
-import { BattleRoom } from './room.mjs?v=100';
+import { BattleRoom } from './room.mjs?v=101';
 import { getRanking, submitScore } from './ranking.mjs?v=100';
 import { isNickname, nicknameChoices } from './names.mjs?v=100';
 

@@ -137,3 +137,21 @@ test('Public anonymous ranking persists verified scores, suppresses a copied rep
   assert.deepEqual(ranking, { entries: [{ name, score: player.score, lines: 1 }] });
   db.close();
 });
+
+test('Host opens a room and a guest connects through the join transport', async () => {
+  const { BattleRoom } = await import('../stack-battle/room.mjs');
+  const calls = [];
+  const room = Object.create(BattleRoom.prototype);
+  room.transport = {
+    host: async code => calls.push(['host', code]),
+    join: async code => calls.push(['join', code])
+  };
+  room.status = () => {};
+  room.leave = message => assert.fail(message);
+  room.state = { role: 'host', code: '123456' };
+  await room.open();
+  assert.equal(room.hostReady, true);
+  room.state = { role: 'guest', code: '123456' };
+  await room.open();
+  assert.deepEqual(calls, [['host', '123456'], ['join', '123456']]);
+});

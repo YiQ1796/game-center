@@ -81,7 +81,8 @@ export class BattleRoom {
     this.remoteReady = false;
     this.status(current.role === 'host' ? '正在建立好友房…' : '正在尋找房主…');
     try {
-      await this.transport[current.role](current.code);
+      if (current.role === 'host') await this.transport.host(current.code);
+      else await this.transport.join(current.code);
       if (this.state !== current) return;
       if (current.role === 'host') {
         this.hostReady = true;
