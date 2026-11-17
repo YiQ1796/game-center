@@ -8,9 +8,9 @@
   <title>猴三毛方塊對戰</title>
   <link rel="icon" href="../favicon.ico">
   <link rel="canonical" href="https://yiq1796.github.io/game-center/stack-battle/">
-  <link rel="stylesheet" href="./game.css?v=100">
+  <link rel="stylesheet" href="./game.css?v=110">
   <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js" integrity="sha512-XEKeWX+mI3Ov+tg2evDlVQFzVOIp4T8J3cNcCEPaEUGpxJV3eZaN8rHuvnFPvQpGJBHPmrozJDMpm2xcDvtmyQ==" crossorigin="anonymous"></script>
-  <script type="module" src="./game.mjs?v=101"></script>
+  <script type="module" src="./game.mjs?v=110"></script>
 </head>
 <body>
   <header class="top">
@@ -23,11 +23,8 @@
   <main class="frame">
     <section class="intro" aria-labelledby="title">
       <div class="intro-copy">
-        <p class="intro-label">猴三毛遊戲中心 ・ 方塊新作</p>
         <h1 id="title">猴三毛<span>方塊對戰</span></h1>
-        <p>和好友打五分鐘 KO，或自己一路堆上歷史榜。</p>
       </div>
-      <div class="hero-art" aria-hidden="true"><i></i><i></i><i></i><img src="../one-a-two-b/sanmao-full-body.webp" alt="" width="321" height="468" fetchpriority="high"></div>
     </section>
     <nav class="modes" aria-label="遊戲模式">
       <button type="button" data-mode="solo" aria-pressed="true">單人無限</button>
@@ -67,26 +64,30 @@
             <span class="caption">對戰倒數</span><strong id="timer">05:00</strong>
             <dl><div><dt>KO｜你・好友</dt><dd id="ko">0 ・ 0</dd></div><div><dt>你送出的垃圾列</dt><dd id="sent">0</dd></div><div><dt>待升起垃圾列</dt><dd id="pending">0</dd></div></dl>
           </div>
-          <div class="side-card previews">
-            <div><span class="caption">暫存</span><canvas id="hold" width="100" height="64" aria-label="暫存方塊"></canvas></div>
-            <div><span class="caption">下一顆</span><canvas id="next" width="100" height="64" aria-label="下一顆方塊"></canvas></div>
+          <div id="combo-display" class="combo-display" hidden>
+            <strong id="clear-score"></strong><span id="combo-caption"></span>
           </div>
         </aside>
 
         <div class="board-area">
           <div class="board-frame" id="board-frame">
-            <canvas id="board" width="290" height="580" aria-label="你的方塊棋盤"></canvas>
+            <canvas id="board" width="400" height="800" aria-label="你的方塊棋盤"></canvas>
+            <canvas id="effects" width="400" height="800" aria-hidden="true"></canvas>
             <div id="board-overlay" class="board-overlay">
               <h2 id="overlay-title">單人無限</h2>
-              <p id="overlay-text">不限時間。消行越多，方塊掉得越快。</p>
+              <p id="overlay-text">一次多消，連擊會再加分。</p>
               <button id="overlay-action" type="button" class="primary">開始遊戲</button>
             </div>
           </div>
           <p id="event" class="play-event" role="status"></p>
         </div>
 
-        <aside class="side friend" id="friend" hidden>
-          <div class="side-card">
+        <aside class="side right-rail" aria-label="方塊預覽與好友資訊">
+          <div class="side-card previews">
+            <div><span class="caption">下一顆</span><canvas id="next" width="100" height="64" aria-label="下一顆方塊"></canvas></div>
+            <div><span class="caption">暫存</span><canvas id="hold" width="100" height="64" aria-label="暫存方塊"></canvas></div>
+          </div>
+          <div class="side-card friend" id="friend" hidden>
             <span id="friend-name" class="caption">好友棋盤</span>
             <canvas id="opponent" width="180" height="360" aria-label="好友方塊棋盤"></canvas>
             <p id="friend-stat"></p>
@@ -97,14 +98,20 @@
         <button type="button" id="pause">暫停</button>
         <button type="button" id="end">結束結算</button>
       </div>
-      <div class="controls" id="controls" aria-label="觸控按鍵" hidden>
-        <button type="button" data-action="l" aria-label="左移">←</button>
-        <button type="button" data-action="r" aria-label="右移">→</button>
-        <button type="button" data-action="d" aria-label="軟降">↓</button>
-        <button type="button" data-action="s" aria-label="順時針旋轉">↻</button>
-        <button type="button" data-action="c">暫存</button>
-        <button type="button" class="primary" data-action="h">落下</button>
+      <div class="controls" id="controls" aria-label="觸控遊戲手把" hidden>
+        <div class="move-pad" aria-label="移動方塊">
+          <button type="button" data-action="l" aria-label="左移"><span>←</span><small>左移</small></button>
+          <button type="button" data-action="r" aria-label="右移"><span>→</span><small>右移</small></button>
+          <button type="button" data-action="d" aria-label="慢降"><span>↓</span><small>慢降</small></button>
+        </div>
+        <div class="piece-pad" aria-label="操作方塊">
+          <button type="button" data-action="z" aria-label="向左旋轉"><span>↶</span><small>左旋</small></button>
+          <button type="button" data-action="s" aria-label="向右旋轉"><span>↷</span><small>右旋</small></button>
+          <button type="button" data-action="c" aria-label="暫存"><span>▣</span><small>暫存</small></button>
+          <button type="button" class="hard-drop" data-action="h" aria-label="快速落下"><span>⇊</span><small>快落</small></button>
+        </div>
       </div>
+      <button type="button" id="mid-duel-leave" class="mid-duel-leave" hidden>離開對戰</button>
       <section id="submit-panel" class="panel submit" aria-labelledby="submit-title" hidden>
         <h2 id="submit-title">登上歷史排行榜</h2>
         <p>選個暱稱即可登錄。公開榜會保留這個瀏覽器的最高成績。</p>
@@ -124,11 +131,11 @@
 
     </section>
   </main>
-  <footer><a href="../#games">回遊戲中心</a><small>V1.0.1 試玩版</small></footer>
+  <footer><a href="../#games">回遊戲中心</a><small>V1.1.0</small></footer>
 
   <dialog id="help-dialog">
     <div class="heading-line"><h2>玩法與按鍵</h2><form method="dialog"><button type="submit" aria-label="關閉玩法">✕</button></form></div>
-    <h3>單人無限</h3><p>一直堆、一直消，每累計消 10 行升一級。新方塊無法進入棋盤時結算，也可自行結束結算。</p>
+    <h3>單人無限</h3><p>一直堆、一直消，每累計消 10 行升一級。一次消 1／2／3／4 行基礎得 100／300／500／800 分。連續消行從第二手起，每多一連擊加 25% 消行分。新方塊無法進入棋盤時結算，也可自行結束結算。</p>
     <h3>好友 KO 對戰</h3><p>限時五分鐘，先拿三次 KO 提前獲勝。時間到先比 KO，再比送出的垃圾列，同分判平手。被 KO 會清盤繼續。</p>
     <p>普通消 1／2／3／4 行，攻擊量為 0／1／2／4 列。連擊、T 旋和全消會加碼。攻擊先抵銷待升起的垃圾列。未消行且未引爆炸彈的回合，垃圾列會從底部升起。將方塊落在炸彈上即可清除那一列。</p>
     <dl class="key-guide"><div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>左右移動</dd></div><div><dt><kbd>↓</kbd></dt><dd>軟降</dd></div><div><dt><kbd>↑</kbd> <kbd>X</kbd> / <kbd>Z</kbd></dt><dd>順／逆時針旋轉</dd></div><div><dt><kbd>空白鍵</kbd></dt><dd>直接落下</dd></div><div><dt><kbd>C</kbd></dt><dd>暫存</dd></div><div><dt><kbd>Esc</kbd></dt><dd>單人暫停／繼續</dd></div></dl>

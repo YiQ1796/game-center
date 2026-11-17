@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-const { DatabaseSync } = await import('node:sqlite').catch(() => ({}));
 import { applyAction, attackRows, createMatch, createPlayer, finishMatch, HIDDEN, HEIGHT, KO_LIMIT, MATCH_TIME, playMatch, WIDTH } from '../stack-battle/engine.mjs';
 import { nicknameChoices, isNickname } from '../stack-battle/names.mjs';
-import { makeScoreCode, verifyScoreCode } from '../stack-battle/replay.mjs';
-import worker from '../stack-battle/backend/worker.mjs';
 
 function sampleReplay() {
   const actions = [...'lllh rh rrrrh'.replaceAll(' ', '')];
@@ -18,14 +14,6 @@ function sampleReplay() {
   }
   assert.fail('No seeded replay fixture');
 }
-
-test('Uncapped solo play clears a line, raises the score and reconstructs it from the replay', async () => {
-  const { seed, actions, player } = sampleReplay();
-  const code = await makeScoreCode(seed, actions);
-  assert.deepEqual(await verifyScoreCode(code), { score: player.score, lines: player.lines });
-  assert.equal(await verifyScoreCode(code.slice(0, -8)), null);
-  assert.equal(await verifyScoreCode(await makeScoreCode(seed, ['r', 'r', 'r', 'r', 'r', 'r'])), null);
-});
 
 test('Seven-piece bags give mirrored starting queues and hold is restricted once per piece', () => {
   const a = createPlayer(193);
@@ -104,40 +92,6 @@ test('Generated nicknames are valid, distinct and refresh to a different set', (
   assert.equal(isNickname('自行輸入名字'), false);
 });
 
-test('Public anonymous ranking persists verified scores, suppresses a copied replay and shows the champion', { skip: !DatabaseSync }, async () => {
-  const db = new DatabaseSync(':memory:');
-  db.exec(readFileSync(new URL('../stack-battle/backend/schema.sql', import.meta.url), 'utf8'));
-  const d1 = {
-    prepare(sql) {
-      const stmt = db.prepare(sql);
-      return {
-        all: async () => ({ results: stmt.all() }),
-        bind: (...args) => ({ first: async () => stmt.get(...args) })
-      };
-    }
-  };
-  const { seed, actions, player } = sampleReplay();
-  const replay = await makeScoreCode(seed, actions);
-  const [name] = nicknameChoices();
-  const env = { DB: d1 };
-  const endpoint = 'https://example.com/api/scores';
-  const send = (origin, payload) => worker.fetch(new Request(endpoint, {
-    method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  }), env);
-  const data = { name, replay, playerId: crypto.randomUUID() };
-  assert.equal((await send('https://other.example', data)).status, 403);
-  assert.equal((await send('https://yiq1796.github.io', { ...data, name: '非法名稱' })).status, 400);
-  assert.equal((await send('https://yiq1796.github.io', { ...data, replay: 'tampered' })).status, 422);
-  const accepted = await send('https://yiq1796.github.io', data);
-  assert.equal(accepted.headers.get('Access-Control-Allow-Origin'), 'https://yiq1796.github.io');
-  assert.deepEqual(await accepted.json(), { saved: true, score: player.score, lines: 1 });
-  assert.equal((await (await send('https://yiq1796.github.io', { ...data, playerId: crypto.randomUUID() })).json()).saved, false);
-  const ranking = await (await worker.fetch(new Request(endpoint), env)).json();
-  assert.deepEqual(ranking, { entries: [{ name, score: player.score, lines: 1 }] });
-  db.close();
-});
-
 test('Host opens a room and a guest connects through the join transport', async () => {
   const { BattleRoom } = await import('../stack-battle/room.mjs');
   const calls = [];
@@ -154,4 +108,57 @@ test('Host opens a room and a guest connects through the join transport', async 
   room.state = { role: 'guest', code: '123456' };
   await room.open();
   assert.deepEqual(calls, [['host', '123456'], ['join', '123456']]);
+});
+
+test('Multi-line clears increase base points and each consecutive clear adds 25%', async () => {
+  const { scoreClear } = await import('../stack-battle/engine.mjs');
+  assert.deepEqual([1, 2, 3, 4].map(lines => scoreClear({ lines }).clearPoints), [100, 300, 500, 800]);
+  assert.deepEqual(scoreClear({ lines: 2, combo: 2 }), { clearPoints: 450, comboBonus: 150 });
+  assert.deepEqual(scoreClear({ lines: 4, combo: 3, level: 2 }), { clearPoints: 2800, comboBonus: 1200 });
+  const player = createPlayer(82);
+  player.combo = 0;
+  player.piece = { type: 'I', x: 3, y: 1, angle: 0 };
+  player.board[HEIGHT + HIDDEN - 1] = [1, 1, 1, 0, 0, 0, 0, 1, 1, 1];
+  player.board[HEIGHT + HIDDEN - 2][0] = 3;
+  assert.equal(applyAction(player, 'h'), true);
+  assert.equal(player.event.clearPoints, 125);
+  assert.equal(player.event.comboBonus, 25);
+  assert.equal(player.event.cleared[0].y, HEIGHT + HIDDEN - 1);
+  assert.equal(player.event.cleared[0].cells.length, WIDTH);
+});
+
+test('Anonymous Apps Script API verifies a replay and stores only the best public record', async () => {
+  const { createHash } = await import('node:crypto');
+  const { runInNewContext } = await import('node:vm');
+  const { buildAppsScript } = await import('../stack-battle/backend/package-leaderboard.mjs');
+  const rows = new Map();
+  let locked = false;
+  const context = {
+    console, 
+    LockService: { getScriptLock: () => ({
+      tryLock: () => { assert.equal(locked, false); locked = true; return true; },
+      releaseLock: () => { locked = false; }
+    }) },
+    PropertiesService: { getScriptProperties: () => ({
+      getProperties: () => Object.fromEntries(rows),
+      setProperty: (key, value) => { assert.equal(locked, true); rows.set(key, value); },
+      deleteProperty: key => rows.delete(key)
+    }) },
+    ContentService: { MimeType: { JSON: 'json' }, createTextOutput: value => ({
+      setMimeType: () => JSON.parse(value)
+    }) },
+    Utilities: { DigestAlgorithm: { SHA_256: 'sha256' }, computeDigest: (name, input) =>
+      [...createHash(name).update(input).digest()] }
+  };
+  runInNewContext(buildAppsScript(), context);
+  const { seed, actions, player } = sampleReplay();
+  const submission = { edition: 2, name: '疾風的工頭', seed, actions: actions.join(''), playerId: crypto.randomUUID() };
+  const post = data => context.doPost({ postData: { contents: JSON.stringify(data) } });
+  assert.deepEqual(post({ ...submission, validateOnly: true }), { verified: true, score: player.score, lines: 1 });
+  assert.equal(rows.size, 0);
+  assert.deepEqual(post(submission), { saved: true, rank: 1, score: player.score });
+  assert.equal(post(submission).reason, 'lower');
+  assert.equal(post({ ...submission, playerId: crypto.randomUUID() }).reason, 'duplicate');
+  assert.deepEqual(context.doGet(), { edition: 2, entries: [{ name: '疾風的工頭', score: player.score, lines: 1 }] });
+  assert.equal(post({ ...submission, actions: 'l?h' }).error, '這局成績無法驗證，至少需消除一行。');
 });

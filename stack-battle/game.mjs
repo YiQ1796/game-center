@@ -1,12 +1,14 @@
-import { advance, applyAction, cellsOf, createPlayer, HEIGHT, HIDDEN, levelOf, MATCH_TIME, PIECES, projected, WIDTH } from './engine.mjs?v=100';
-import { BattleRoom } from './room.mjs?v=101';
-import { getRanking, submitScore } from './ranking.mjs?v=100';
+import { advance, applyAction, cellsOf, createPlayer, HEIGHT, HIDDEN, levelOf, MATCH_TIME, PIECES, projected, WIDTH } from './engine.mjs?v=110';
+import { LineBurst } from './effects.mjs?v=110';
+import { BattleRoom } from './room.mjs?v=110';
+import { getRanking, submitScore } from './ranking.mjs?v=110';
 import { isNickname, nicknameChoices } from './names.mjs?v=100';
 
 const $ = id => document.getElementById(id);
 const numberFormat = new Intl.NumberFormat('zh-TW');
 const format = value => numberFormat.format(value ?? 0);
 const colors = ['#213a30', '#6cc6ce', '#7198e1', '#eea069', '#efce69', '#87c184', '#b79bd9', '#e9858b', '#68776e', '#c24337'];
+const effects = new LineBurst($('effects'), colors);
 const inputMap = {
   ArrowLeft: 'l', ArrowRight: 'r', ArrowDown: 'd', ArrowUp: 's',
   KeyX: 's', KeyZ: 'z', KeyC: 'c', Space: 'h'
@@ -52,6 +54,7 @@ function setMode(target) {
     cancelInputs();
     lastEventKey = '';
     eventUntil = 0;
+    effects.reset();
   }
   mode = target;
   canvasKeys.clear();
@@ -67,6 +70,7 @@ function startSolo() {
   canvasKeys.clear();
   lastEventKey = '';
   eventUntil = 0;
+  effects.reset();
   $('submit-status').textContent = '';
   $('submit-score').disabled = false;
   render();
@@ -99,6 +103,12 @@ function tick(now) {
   if (mode === 'solo' && soloStatus === 'playing') {
     advance(solo, elapsed, soloInput);
     renderPlay();
+  }
+  effects.paint(now);
+  if (eventUntil && now >= eventUntil) {
+    eventUntil = 0;
+    setText('event', '');
+    $('combo-display').hidden = true;
   }
   requestAnimationFrame(tick);
 }
@@ -209,21 +219,30 @@ function showBoardEvent(player, key) {
   const eventKey = key + ':' + (player?.revision ?? 0);
   if (player?.event && lastEventKey !== eventKey) {
     lastEventKey = eventKey;
-    const { lines, bombs, spin, perfect, combo, attack, ko } = player.event;
+    const { lines, bombs, spin, perfect, combo, attack, ko, clearPoints, comboBonus } = player.event;
+    if (lines || bombs) effects.add(player.event, performance.now());
+    if (lines) {
+      setText('clear-score', '+' + format(clearPoints));
+      setText('combo-caption', combo > 0 ? (combo + 1) + ' 連消 ・ 加成 ' + format(comboBonus) : '消除 ' + lines + ' 行');
+      $('combo-display').hidden = false;
+    }
     const text = [
       ko ? '被 KO，重新出發！' : '',
       perfect ? '全消！' : spin && lines ? 'T 旋突擊' : lines === 4 ? '四行全消！' : lines ? '消除 ' + lines + ' 行' : '',
-      combo > 0 && lines ? combo + ' COMBO' : '',
+      combo > 0 && lines ? (combo + 1) + ' COMBO' : '',
       bombs ? '炸掉 ' + bombs + ' 列' : '',
       attack ? '送出 ' + attack + ' 列' : ''
     ].filter(Boolean).join(' ・ ');
     if (text) {
       setText('event', text);
-      eventUntil = performance.now() + 1600;
-      tone(ko ? 180 : lines === 4 || perfect ? 650 : 420);
+      eventUntil = performance.now() + 1950;
+      tone(ko ? 180 : lines ? 335 + lines * 90 : 370);
     }
   }
-  if (performance.now() >= eventUntil) setText('event', '');
+  if (!eventUntil) {
+    setText('event', '');
+    $('combo-display').hidden = true;
+  }
 }
 
 function renderPlay() {
@@ -236,6 +255,9 @@ function renderPlay() {
   const idleFrame = isSolo ? null : view;
   const pending = player?.incoming?.length ?? 0;
   $('controls').hidden = !playing;
+  document.body.toggleAttribute('data-playing', playing);
+  document.body.toggleAttribute('data-live-duel', !isSolo && Boolean(match && !match.finished));
+  $('mid-duel-leave').hidden = isSolo || !match || match.finished;
   $('action-bar').hidden = !isSolo || !['playing', 'paused'].includes(soloStatus);
   $('solo-stats').hidden = !isSolo;
   $('duel-stats').hidden = isSolo;
@@ -248,7 +270,7 @@ function renderPlay() {
     setText('level', player ? levelOf(player) : 1);
     setText('best', format(best));
     if (soloStatus === 'playing') showOverlay('');
-    if (soloStatus === 'idle') showOverlay('單人無限', '不限時間。消行越多，方塊掉得越快。', '開始遊戲', startSolo);
+    if (soloStatus === 'idle') showOverlay('單人無限', '一次多消，連擊會再加分。', '開始遊戲', startSolo);
     if (soloStatus === 'paused') showOverlay('已暫停', '準備好再繼續。', '繼續遊戲', togglePause);
     if (soloStatus === 'done') showOverlay('本局結算', format(solo.score) + ' 分 ・ 消除 ' + format(solo.lines) + ' 行', '再玩一局', startSolo);
     setText('pause', soloStatus === 'paused' ? '繼續' : '暫停');
@@ -314,6 +336,10 @@ function render() {
   $('play').hidden = mode === 'rank';
   if (mode === 'duel') renderRoom();
   if (mode !== 'rank') renderPlay();
+  else {
+    document.body.removeAttribute('data-playing');
+    document.body.removeAttribute('data-live-duel');
+  }
 }
 
 function tone(frequency) {
@@ -431,7 +457,8 @@ async function showRank() {
 for (const button of modeButtons) button.addEventListener('click', () => setMode(button.dataset.mode));
 $('overlay-action').addEventListener('click', () => {
   overlayAction?.();
-  $('board').focus();
+  $('board').focus({ preventScroll: true });
+  if (matchMedia('(max-width: 700px)').matches) window.scrollTo(0, 0);
 });
 $('board').tabIndex = -1;
 $('help').addEventListener('click', () => {
@@ -460,8 +487,10 @@ $('room-form').addEventListener('submit', event => {
 });
 $('start-match').addEventListener('click', () => {
   room.start();
-  $('board').focus();
+  $('board').focus({ preventScroll: true });
+  if (matchMedia('(max-width: 700px)').matches) window.scrollTo(0, 0);
 });
+$('mid-duel-leave').addEventListener('click', () => $('leave').click());
 $('leave').addEventListener('click', () => {
   room.leave('已離開房間。');
   $('invite-link').hidden = true;
@@ -503,7 +532,8 @@ $('submit-score').addEventListener('click', async () => {
     const result = await submitScore($('score-nickname').value, soloSeed, actions);
     ranking = null;
     if (solo !== finishedGame) return;
-    setText('submit-status', result.saved ? '已上傳。可到歷史排行榜查看。' : '這局已登錄過，或低於已上傳的最佳成績。');
+    const message = result.saved ? '已上榜！目前第 ' + result.rank + ' 名。' : result.reason === 'outside' ? '這局未進入歷史榜前 100 名。' : '這局已登錄過，或低於已上傳的最佳成績。';
+    setText('submit-status', message);
   } catch (error) {
     if (solo !== finishedGame) return;
     setText('submit-status', error.message || '送出失敗，請稍後再試。');

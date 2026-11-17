@@ -1,6 +1,4 @@
-import { makeScoreCode } from './replay.mjs?v=100';
-
-const ENDPOINT = 'https://sanmao-blocks-scores.kzyi0902.chatgpt.site/api/scores';
+const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxd1v4tYJhiYSeHhdYbzfGpegvxC9V0mQINT9llaXTyk3QsXeKFqVjmXKGmLMawwydo0A/exec';
 const IDENTIFIER = 'sanmao-blocks-player-v1';
 let playerId;
 
@@ -15,25 +13,28 @@ function getPlayerId() {
 }
 
 async function scores(options = {}) {
-  let response;
+  let result;
   try {
-    response = await fetch(ENDPOINT, { ...options, signal: AbortSignal.timeout(12000) });
+    const response = await fetch(ENDPOINT, {
+      ...options, credentials: 'omit', signal: AbortSignal.timeout(20_000)
+    });
+    result = await response.json();
+    if (!response.ok) throw new Error();
   } catch {
     throw new Error('公開排行榜服務暫時連不上。');
   }
-  const result = await response.json().catch(() => null);
-  if (!response.ok || !result) throw new Error(result?.error ?? '公開排行榜服務暫時連不上。');
+  if (result?.error) throw new Error(result.error);
   return result;
 }
 
 export async function getRanking() {
-  const result = await scores();
+  const result = await scores({ cache: 'no-store' });
   if (!Array.isArray(result.entries)) throw new Error('暫時讀不到歷史榜。');
   return result.entries;
 }
 
-export async function submitScore(name, seed, actions) {
-  const replay = await makeScoreCode(seed, actions);
-  return scores({ method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, replay, playerId: getPlayerId() }) });
+export function submitScore(name, seed, actions) {
+  if (actions.length > 150_000) throw new Error('本局紀錄過長，無法送出。');
+  return scores({ method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+    body: JSON.stringify({ edition: 2, name, seed, actions: actions.join(''), playerId: getPlayerId() }) });
 }

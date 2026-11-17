@@ -140,15 +140,20 @@ function clearRows(state, landed) {
     while (state.board[row]?.[x] === 9) bombRows.add(row++);
   }
   let lines = 0;
+  const cleared = [];
   const remaining = state.board.filter((row, y) => {
-    if (bombRows.has(y)) return false;
+    if (bombRows.has(y)) {
+      cleared.push({ y, cells: row, bomb: true });
+      return false;
+    }
     if (!row.every(Boolean) || row.includes(9)) return true;
     lines++;
+    cleared.push({ y, cells: row, bomb: false });
     return false;
   });
   while (remaining.length < HEIGHT + HIDDEN) remaining.unshift(emptyRow());
   state.board = remaining;
-  return { lines, bombs: bombRows.size };
+  return { lines, bombs: bombRows.size, cleared };
 }
 
 export function attackRows(lines, combo, spin, backToBack, perfect, bombs = 0) {
@@ -158,11 +163,19 @@ export function attackRows(lines, combo, spin, backToBack, perfect, bombs = 0) {
   return base + chain + comboExtra + (perfect ? 10 : 0) + Math.max(0, bombs - 1);
 }
 
+export function scoreClear({ lines, spin = false, backToBack = false, perfect = false, combo = 0, level = 1 }) {
+  const base = (spin ? [0, 800, 1200, 1600] : [0, 100, 300, 500, 800])[lines] ?? 0;
+  const streak = Math.max(0, combo);
+  const normalPoints = Math.floor(base * (backToBack ? 1.5 : 1)) * level;
+  const comboBonus = Math.floor(normalPoints * streak / 4);
+  return { clearPoints: normalPoints + comboBonus + (perfect ? 2000 * level : 0), comboBonus };
+}
+
 function lock(state) {
   const landed = cellsOf(state.piece);
   const spin = isTSpin(state);
   for (const [x, y] of landed) state.board[y][x] = PIECES.indexOf(state.piece.type) + 1;
-  const { lines, bombs } = clearRows(state, landed);
+  const { lines, bombs, cleared } = clearRows(state, landed);
   const perfect = lines > 0 && state.board.every(row => row.every(cell => !cell));
   const difficult = lines > 0 && (lines === 4 || spin);
   const backToBack = difficult && state.difficult;
@@ -173,12 +186,11 @@ function lock(state) {
   } else if (!bombs) {
     state.combo = -1;
   }
-  const points = (spin ? [0, 800, 1200, 1600] : [0, 100, 300, 500, 800])[lines];
-  state.score += level * (Math.floor(points * (backToBack ? 1.5 : 1)) +
-    (lines ? 50 * Math.max(0, state.combo) : 0) + (perfect ? 2000 : 0));
+  const { clearPoints, comboBonus } = scoreClear({ lines, spin, backToBack, perfect, combo: state.combo, level });
+  state.score += clearPoints;
   state.lines += lines;
   state.revision++;
-  state.event = { lines, bombs, spin, perfect, combo: state.combo, attack: 0 };
+  state.event = { lines, bombs, spin, perfect, combo: state.combo, attack: 0, clearPoints, comboBonus, cleared };
   if (state.duel) {
     const attack = attackRows(lines, state.combo, spin, backToBack, perfect, bombs);
     const cancelled = Math.min(state.incoming.length, attack);

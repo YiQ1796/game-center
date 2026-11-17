@@ -1,4 +1,4 @@
-import { advance, createMatch, finishMatch, playMatch, PLAYER_ACTIONS } from './engine.mjs?v=100';
+import { advance, createMatch, finishMatch, playMatch, PLAYER_ACTIONS } from './engine.mjs?v=110';
 import { PeerRoom } from '../one-a-two-b/peer-room.mjs?v=stack-100';
 
 const STORAGE = 'sanmao-blocks-room-v1';
