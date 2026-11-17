@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyAction, attackRows, createMatch, createPlayer, ENDLESS_MODE, finishMatch, HIDDEN, HEIGHT, KO_LIMIT, MATCH_TIME, playMatch, WIDTH } from '../stack-battle/engine.mjs';
+import { advance, applyAction, attackRows, createMatch, createPlayer, ENDLESS_MODE, finishMatch, HIDDEN, HEIGHT, KO_LIMIT, MATCH_TIME, playMatch, WIDTH } from '../stack-battle/engine.mjs';
 import { eventBanter, FRIEND_TAUNTS, isRoomTaunt, TAUNT_COOLDOWN } from '../stack-battle/banter.mjs';
 import { nicknameChoices, isNickname } from '../stack-battle/names.mjs';
 
@@ -295,4 +295,23 @@ test('Anonymous Apps Script API verifies a replay and stores only the best publi
   assert.equal(post({ ...submission, playerId: crypto.randomUUID() }).reason, 'duplicate');
   assert.deepEqual(context.doGet(), { edition: 2, entries: [{ name: '疾風的工頭', score: player.score, lines: 1 }] });
   assert.equal(post({ ...submission, actions: 'l?h' }).error, '這局成績無法驗證，至少需消除一行。');
+});
+
+test('Both unlimited modes retain constant gravity after many cleared rows, KO remains distinct', () => {
+  const check = (player, expected) => {
+    player.lines = 190;
+    const observed = [];
+    const move = action => {
+      observed.push(action);
+      return applyAction(player, action);
+    };
+    advance(player, expected - 1, move);
+    assert.equal(observed.length, 0);
+    advance(player, 1, move);
+    assert.deepEqual(observed, ['g']);
+  };
+  check(createPlayer(15), 900);
+  check(createMatch(15, 100, ENDLESS_MODE).players[0], 900);
+  check(createMatch(15, 100, ENDLESS_MODE).players[1], 900);
+  check(createPlayer(15, true), 720);
 });

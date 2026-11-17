@@ -1,4 +1,4 @@
-import { advance, applyAction, cellsOf, createPlayer, ENDLESS_MODE, HEIGHT, HIDDEN, levelOf, MATCH_TIME, PIECES, projected, WIDTH } from './engine.mjs?v=120';
+import { advance, applyAction, cellsOf, createPlayer, ENDLESS_MODE, HEIGHT, HIDDEN, levelOf, MATCH_TIME, PIECES, projected, WIDTH } from './engine.mjs?v=132';
 import { eventBanter, FRIEND_TAUNTS, MONKEY_LINES, TAUNT_COOLDOWN, TAUNT_DURATION } from './banter.mjs?v=130';
 import { LineBurst } from './effects.mjs?v=110';
 import { BattleRoom } from './room.mjs?v=130';
@@ -30,12 +30,11 @@ const isMultiplayer = mode => mode === 'duel' || mode === ENDLESS_MODE;
 const query = new URLSearchParams(location.search);
 const inviteCode = /^\d{6}$/.test(query.get('room')) ? query.get('room') : null;
 const requestedMode = query.get('mode');
-let mode = isMultiplayer(requestedMode) ? requestedMode : inviteCode ? 'duel' : 'solo';
+let mode = requestedMode === 'rank' ? 'rank' : isMultiplayer(requestedMode) ? requestedMode : inviteCode ? 'duel' : 'solo';
 let solo = null;
 let soloSeed = 0;
 let actions = [];
 let soloStatus = 'idle';
-let best = 0;
 let view = null;
 let overlayAction = null;
 let lastEventKey = '';
@@ -56,7 +55,6 @@ const chatter = {
   peerKey: '', peerUntil: 0, sendAt: 0, nextPreset: Math.floor(Math.random() * FRIEND_TAUNTS.length)
 };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
-try { best = Math.max(0, Number(localStorage.getItem('sanmao-blocks-best-v1')) || 0); } catch {}
 
 const room = new BattleRoom(value => {
   view = value;
@@ -94,7 +92,7 @@ function showMode(target) {
   mode = target;
   canvasKeys.clear();
   render();
-  if (mode === 'rank' && !ranking) void showRank();
+  if (mode === 'rank') void showRank();
 }
 
 function startSolo() {
@@ -113,8 +111,6 @@ function startSolo() {
 
 function finishSolo() {
   soloStatus = 'done';
-  best = Math.max(best, solo.score);
-  try { localStorage.setItem('sanmao-blocks-best-v1', String(best)); } catch {}
   cancelInputs();
   render();
   void uploadSoloScore(solo);
@@ -448,7 +444,7 @@ function renderPlay() {
   $('mid-duel-reconnect').hidden = !liveRoom || view.host || view.online;
   $('action-bar').hidden = !isSolo || !['playing', 'paused'].includes(soloStatus);
   $('score-stats').hidden = timedDuel;
-  $('solo-best').hidden = !isSolo;
+  $('public-best').hidden = !isSolo;
   $('duel-stats').hidden = !timedDuel;
   $('friend').hidden = isSolo || !other;
   $('submit-panel').hidden = !(isSolo && soloStatus === 'done');
@@ -459,7 +455,6 @@ function renderPlay() {
     setText('level', player ? levelOf(player) : 1);
   }
   if (isSolo) {
-    setText('best', format(best));
     if (soloStatus === 'playing') showOverlay('');
     if (soloStatus === 'idle') showOverlay('單人無限', '一次多消，連擊會再加分。', '開始遊戲', startSolo);
     if (soloStatus === 'paused') showOverlay('已暫停', '準備好再繼續。', '繼續遊戲', togglePause);
@@ -615,6 +610,7 @@ async function showRank() {
   try {
     ranking = await getRanking();
     const top = ranking[0];
+    setText('public-best-score', top ? format(top.score) : '尚無紀錄');
     $('rank-table').hidden = !top;
     $('champion').hidden = !top;
     setText('rank-status', top ? '顯示前 ' + ranking.length + ' 名' : '目前還沒有公開成績。');
@@ -631,6 +627,7 @@ async function showRank() {
       return row;
     }));
   } catch (error) {
+    if (!ranking) setText('public-best-score', '讀取失敗');
     setText('rank-status', error.message + (ranking ? ' 目前顯示上次榜單。' : ' 請稍後重試。'));
   } finally {
     $('rank-refresh').disabled = false;
@@ -697,6 +694,14 @@ $('taunt').addEventListener('click', () => {
   $('board').focus({ preventScroll: true });
 });
 $('rank-refresh').addEventListener('click', showRank);
+$('open-public-rank').addEventListener('click', () => showMode('rank'));
+$('rank-share').addEventListener('click', async () => {
+  // Share the same globally stored leaderboard, never a device-specific result.
+  const url = new URL(location.pathname, location.origin);
+  url.searchParams.set('mode', 'rank');
+  const shared = await copy(url.href, $('ranking-link'));
+  setText('rank-share-status', shared ? '已複製公開排行榜網址，可以傳給朋友！' : '請複製下方的排行榜網址傳給朋友。');
+});
 function selectNickname(name) {
   for (const field of nicknameFields) field.value = name;
   try { localStorage.setItem('sanmao-blocks-nickname-v1', name); } catch {}
@@ -739,7 +744,8 @@ async function uploadSoloScore(finishedGame = solo) {
     if (solo !== finishedGame) return;
     if (result.saved === true && Number.isInteger(result.rank)) {
       ranking = null;
-      setText('submit-status', '已成功上榜！歷史排行榜第 ' + result.rank + ' 名。');
+      setText('submit-status', '已成功上榜！公開歷史榜第 ' + result.rank + ' 名，朋友也能看到。');
+      void showRank();
     } else if (result.reason === 'lower') {
       setText('submit-status', '已經有更高的個人紀錄，這局不會覆蓋原本名次。');
     } else if (result.reason === 'duplicate') {
@@ -761,6 +767,10 @@ $('submit-score').addEventListener('click', () => { void uploadSoloScore(); });
 
 if (isMultiplayer(mode)) $('code').value = inviteCode ?? '';
 render();
-void room.restore(inviteCode).then(restored => { if (restored) showMode(view.mode); });
+void showRank();
+// Shared ranking links always open the board even if this browser has a saved room.
+if (mode !== 'rank') {
+  void room.restore(inviteCode).then(restored => { if (restored) showMode(view.mode); });
+}
 let lastFrame = performance.now();
 requestAnimationFrame(tick);

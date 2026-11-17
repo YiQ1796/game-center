@@ -263,7 +263,8 @@ export function levelOf(state) {
 
 export function advance(state, elapsed, act) {
   if (state.dead) return;
-  const interval = state.duel ? 720 : Math.max(70, 900 * 0.84 ** (levelOf(state) - 1));
+  // Infinite solo/duo keep constant gravity at every level; timed KO remains faster.
+  const interval = state.duel ? 720 : 900;
   if (isGrounded(state)) {
     state.grounded += elapsed;
     if (state.grounded >= 450) act('k');
