@@ -27,7 +27,7 @@ test('Single-player leaderboard auto-submits with retry and strict player ID', (
   assert.match(game, /至少消除一行才能登上公開歷史榜/);
   assert.match(game, /排行榜回傳非預期結果/);
   assert.match(ranking, /const PLAYER_ID_PATTERN = .*4\[a-f0-9\]/);
-  assert.match(html, /結算後自動送出合格成績/);
+  assert.match(html, /結算後自動登錄公開 TOP 100/);
 });
 
 test('Public history is shared via direct URL and rendered from server rather than local best', () => {
