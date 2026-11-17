@@ -54,10 +54,11 @@ window.SANMAO_GAMES = Object.freeze([
   }),
   Object.freeze({
     id: 'stack-battle',
-    name: '猴三毛方塊對戰',
+    name: '方塊派對',
     category: '方塊消除・單人與好友對戰',
     summary: '挑戰單人無限歷史榜，或和好友打五分鐘 KO、送垃圾列、炸彈反攻！',
-    visualType: 'stack-battle-illustration',
+    image: 'assets/block-party-sanmao-cover-v1.webp',
+    imageAlt: '猴三毛開心舉起彩色方塊，與朋友參加繽紛的方塊派對',
     status: 'beta',
     url: 'https://yiq1796.github.io/game-center/stack-battle/'
   })

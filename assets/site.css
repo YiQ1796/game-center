@@ -35,25 +35,11 @@
 .game-one-a-two-b{background:linear-gradient(145deg,#fff4da,#e6eddb);border-color:#e5dcc5}
 .game-one-a-two-b h3{white-space:normal;font-size:clamp(23px,2.15vw,32px)}
 .game-one-a-two-b .game-card-detail{padding-left:13px}
-.game-one-a-two-b .game-entry{color:#fffaf0;background:#214a3e;box-shadow:0 3px 0 #15352c35}
+
 .game-aqua-world .game-illustration,.game-one-a-two-b .game-illustration{object-position:center center}
 @media(max-width:890px){.game-aqua-world .game-illustration,.game-one-a-two-b .game-illustration{object-position:center 43%}}
 
-.stack-battle-showcase {
-  position: relative; height: 100%; width: 100%; min-height: 138px; overflow: hidden;
-  background: radial-gradient(ellipse at 48% 12%, #fff4d1, #f0e9c8 40%, #c9dfbd 100%);
-}
-.game-card .stack-battle-mascot {
-  position: absolute; left: 10%; top: 6%; width: auto; height: 89%; object-fit: contain;
-  filter: drop-shadow(0 5px 3px #23513039);
-}
-.stack-battle-blocks {
-  position: absolute; bottom: 10%; right: 9%; display: grid; grid-template-columns: repeat(4, 1fr);
-  width: 45%; aspect-ratio: 4 / 3; gap: 3px; transform: rotate(-7deg);
-}
-.stack-battle-blocks i { border-radius: 5px; background: #7aaf87; box-shadow: inset 0 0 0 2px #fff5d263; }
-.stack-battle-blocks i:nth-child(1) { grid-column: 3; background: #df9b69; }
-.stack-battle-blocks i:nth-child(2) { background: #df9b69; }
-.stack-battle-blocks i:nth-child(3), .stack-battle-blocks i:nth-child(4) { background: #9d88c3; }
-.stack-battle-blocks i:nth-child(5), .stack-battle-blocks i:nth-child(6) { background: #e9bf60; }
-.stack-battle-blocks i:nth-child(9), .stack-battle-blocks i:nth-child(10) { background: #6ca9b8; }
+/* V0.8.7 方塊派對：完整猴三毛插畫取代舊頭像與 CSS 假方塊。 */
+.game-stack-battle{background:linear-gradient(125deg,#fce9c8,#d9ebc9);border-color:#e7d6b5}
+.game-stack-battle .game-illustration{object-position:center center}
+/* 1A2B 已移除獨立綠色按鈕：沿用全站 .game-entry 橘色。 */

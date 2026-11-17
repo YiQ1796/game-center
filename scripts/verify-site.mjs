@@ -47,9 +47,11 @@ for (const game of games) {
     assert.ok(existsSync(resolve(root, game.image)), 'Missing 1A2B cover');
   } else if (game.id === 'stack-battle') {
     assert.equal(game.status, 'beta');
-    assert.equal(game.visualType, 'stack-battle-illustration');
-    assert.match(read('stack-battle/index.html'), /猴三毛方塊對戰/);
-    assert.ok(existsSync(resolve(root, 'one-a-two-b/sanmao-full-body.webp')));
+    assert.equal(game.name, '方塊派對');
+    assert.equal(game.image, 'assets/block-party-sanmao-cover-v1.webp');
+    assert.match(game.imageAlt, /猴三毛/);
+    assert.match(read('stack-battle/index.html'), /猴三毛方塊對戰/); // 遊戲本體名稱保留，首頁只更名卡片
+    assert.ok(existsSync(resolve(root, game.image)), 'Block Party cover missing');
   } else {
     assert.match(game.image, /^assets\/[\w-]+\.webp$/, 'Image path invalid');
     assert.ok(existsSync(resolve(root, game.image)), `Missing ${game.image}`);
@@ -57,13 +59,17 @@ for (const game of games) {
 }
 assert.match(html, /猴三毛遊戲中心/);
 assert.match(html, /https:\/\/yiq1796\.github\.io\/game-center\//);
-assert.match(html, /V0\.8\.6/);
+assert.match(html, /V0\.8\.7/);
 assert.ok(!html.includes('utm_source='), 'Do not include tracking parameters');
 const styleSource = read('assets/site.css');
 const uiSource = read('assets/site.js');
 assert.ok(uiSource.includes("game.status === 'beta' ? '進入測試版 →' : '立即進入 →'"), 'Card buttons must follow approved game status');
 assert.ok(styleSource.includes('.rummikub-showcase'), 'Rummikub illustration styles missing');
-assert.ok(styleSource.includes('.stack-battle-showcase') && uiSource.includes('stack-battle-showcase'));
+assert.ok(styleSource.includes('.game-stack-battle'), 'Block Party cover layout missing');
+assert.ok(!uiSource.includes('stack-battle-showcase'), 'Old block avatar/render must be disabled');
+assert.ok(!styleSource.includes('.stack-battle-showcase'), 'Old block CSS must be removed');
+assert.ok(!styleSource.includes('.game-one-a-two-b .game-entry{'), '1A2B must use shared orange entry button');
+assert.ok(styleSource.includes('background:var(--orange)'), 'Shared orange button missing');
 assert.ok(uiSource.includes("rummikub-showcase"), 'Rummikub illustration render missing');
 assert.ok(styleSource.includes('.game-aqua-world'), 'Aqua World image card styles missing');
 assert.ok(!uiSource.includes('aqua-world-showcase'), 'Old Aqua World placeholder render remains');
