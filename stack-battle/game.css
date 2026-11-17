@@ -574,6 +574,27 @@ body[data-live-duel] footer { display: none; }
 body[data-playing] .top, body[data-live-duel] .top { margin-bottom: 10px; }
 body[data-playing] .party-art, body[data-live-duel] .party-art { opacity: .55; }
 
+/*
+ * iOS Safari can long-press-select the monkey dialogue and score text above
+ * the controller. Protect the whole *active gameplay* area, not only buttons.
+ * Forms, leaderboard, help, and non-playing pages retain normal selection.
+ */
+body[data-playing] .top, body[data-playing] .top *,
+body[data-playing] .play, body[data-playing] .play *,
+body[data-live-duel] .top, body[data-live-duel] .top *,
+body[data-live-duel] .play, body[data-live-duel] .play * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+body[data-playing] .play input, body[data-playing] .play textarea,
+body[data-live-duel] .play input, body[data-live-duel] .play textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+
 @media (pointer: coarse), (max-width: 750px) {
   /* Five large touch targets: left/right/hard drop on top, slow drop/rotate below. */
   .controls {

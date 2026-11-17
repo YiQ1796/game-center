@@ -577,6 +577,7 @@ for (const button of document.querySelectorAll('[data-action]')) {
   button.addEventListener('pointerdown', event => {
     if (event.button !== 0) return;
     event.preventDefault();
+    clearGameplaySelection();
     button.setPointerCapture(event.pointerId);
     startInput(event.pointerId, action);
   });
@@ -584,9 +585,46 @@ for (const button of document.querySelectorAll('[data-action]')) {
     button.addEventListener(name, event => stopInput(event.pointerId));
   button.addEventListener('click', event => { if (event.detail === 0) gameInput(action); });
 }
-// Prevent iOS text selection/callouts without disabling selection elsewhere on the page.
-for (const eventName of ['selectstart', 'contextmenu'])
-  $('controls').addEventListener(eventName, event => event.preventDefault());
+// Safari may select text in the monkey dialogue just above the control pad.
+// Suppress selection only while a game is actively being played; keep normal
+// text selection in leaderboard, instructions, and editable fields.
+const gameplayIsActive = () =>
+  document.body.hasAttribute('data-playing') || document.body.hasAttribute('data-live-duel');
+
+function clearGameplaySelection() {
+  if (!gameplayIsActive() || $('help-dialog').open) return;
+  const selection = window.getSelection();
+  if (selection?.rangeCount) selection.removeAllRanges();
+}
+
+const gameplaySurface = eventTarget =>
+  eventTarget instanceof Node &&
+  ($('play').contains(eventTarget) || document.querySelector('.top').contains(eventTarget));
+
+for (const eventName of ['selectstart', 'contextmenu']) {
+  document.addEventListener(eventName, event => {
+    if (!gameplayIsActive() || $('help-dialog').open ||
+        !gameplaySurface(event.target)) return;
+    if (event.target instanceof Element &&
+        event.target.closest('input, textarea, select, [contenteditable]')) return;
+    event.preventDefault();
+    clearGameplaySelection();
+  });
+}
+document.addEventListener('selectionchange', () => {
+  if (!gameplayIsActive() || $('help-dialog').open) return;
+  const selection = window.getSelection();
+  if (selection?.rangeCount && gameplaySurface(selection.anchorNode))
+    selection.removeAllRanges();
+});
+
+// WebKit may still synthesize a long-press callout during rapid repeated taps.
+$('controls').addEventListener('touchstart', event => {
+  if (event.target instanceof Element &&
+      event.target.closest('button[data-action]') && event.cancelable)
+    event.preventDefault();
+  clearGameplaySelection();
+}, { passive: false });
 window.addEventListener('pointerup', event => stopInput(event.pointerId));
 window.addEventListener('pointercancel', event => stopInput(event.pointerId));
 

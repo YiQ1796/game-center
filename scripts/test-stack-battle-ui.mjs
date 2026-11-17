@@ -47,3 +47,20 @@ test('Multiplayer loads the same new endless gravity engine without stale cache'
   assert.match(game, /room.mjs\?v=132/);
   assert.match(room, /engine.mjs\?v=132/);
 });
+
+test('Active gameplay blocks Safari long-press text selection outside control buttons', () => {
+  // Screenshot regression: iOS selected the monkey dialogue above the controller.
+  assert.match(css, /body\[data-playing\] \.play \*/);
+  assert.match(css, /body\[data-live-duel\] \.play \*/);
+  assert.match(css, /body\[data-playing\] \.top \*/);
+  assert.match(css, /-webkit-touch-callout: none/);
+  assert.match(game, /document\.addEventListener\('selectionchange'/);
+  assert.match(game, /document\.addEventListener\(eventName/);
+  assert.match(game, /\$\('controls'\)\.addEventListener\('touchstart'/);
+  assert.match(game, /\{ passive: false \}/);
+  assert.match(game, /function clearGameplaySelection\(\)/);
+  assert.match(game, /selection\?\.rangeCount/);
+  assert.match(game, /gameplaySurface\(selection\.anchorNode\)/);
+  assert.match(game, /\$\('help-dialog'\)\.open/);
+  assert.match(html, /V1\.3\.3/);
+});
