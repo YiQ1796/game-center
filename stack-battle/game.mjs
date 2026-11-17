@@ -1,13 +1,14 @@
 import { advance, applyAction, cellsOf, createPlayer, ENDLESS_MODE, HEIGHT, HIDDEN, levelOf, MATCH_TIME, PIECES, projected, WIDTH } from './engine.mjs?v=120';
+import { eventBanter, FRIEND_TAUNTS, MONKEY_LINES, TAUNT_COOLDOWN, TAUNT_DURATION } from './banter.mjs?v=130';
 import { LineBurst } from './effects.mjs?v=110';
-import { BattleRoom } from './room.mjs?v=120';
+import { BattleRoom } from './room.mjs?v=130';
 import { getRanking, submitScore } from './ranking.mjs?v=110';
 import { isNickname, nicknameChoices } from './names.mjs?v=100';
 
 const $ = id => document.getElementById(id);
 const numberFormat = new Intl.NumberFormat('zh-TW');
 const format = value => numberFormat.format(value ?? 0);
-const colors = ['#213a30', '#6cc6ce', '#7198e1', '#eea069', '#efce69', '#87c184', '#b79bd9', '#e9858b', '#68776e', '#c24337'];
+const colors = ['#242a34', '#59c6bc', '#84a8e7', '#f0a26e', '#f6ce66', '#91c66f', '#bc9ce7', '#eb7b8f', '#7a7f88', '#e66355'];
 const effects = new LineBurst($('effects'), colors);
 const inputMap = {
   ArrowLeft: 'l', ArrowRight: 'r', ArrowDown: 'd', ArrowUp: 's',
@@ -15,6 +16,15 @@ const inputMap = {
 };
 const repeating = 'lrd';
 const boards = Object.fromEntries(['board', 'opponent', 'hold', 'next'].map(id => [id, $(id).getContext('2d')]));
+const boardBackdrops = Object.fromEntries(['board', 'opponent'].map(id => {
+  const context = boards[id];
+  const gradient = context.createLinearGradient(0, 0, context.canvas.width, context.canvas.height);
+  gradient.addColorStop(0, '#333644');
+  gradient.addColorStop(.6, colors[0]);
+  gradient.addColorStop(1, '#272430');
+  return [id, gradient];
+}));
+const tileImages = new Map();
 const modeButtons = [...document.querySelectorAll('[data-mode]')];
 const isMultiplayer = mode => mode === 'duel' || mode === ENDLESS_MODE;
 const query = new URLSearchParams(location.search);
@@ -40,10 +50,16 @@ if (isNickname(savedNickname)) nicknames = [savedNickname, ...nicknames.slice(0,
 let ranking = null;
 let rankingLoading = false;
 const canvasKeys = new Map();
+const chatter = {
+  phase: '', line: '', choices: new Map(), reaction: '', reactionUntil: 0, highStack: false,
+  peerKey: '', peerUntil: 0, sendAt: 0, nextPreset: Math.floor(Math.random() * FRIEND_TAUNTS.length)
+};
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 try { best = Math.max(0, Number(localStorage.getItem('sanmao-blocks-best-v1')) || 0); } catch {}
 
 const room = new BattleRoom(value => {
   view = value;
+  if (!view) chatter.sendAt = 0;
   if (!isMultiplayer(mode)) return;
   if (view && view.mode !== mode) showMode(view.mode);
   else render();
@@ -128,25 +144,54 @@ function tick(now) {
     setText('event', '');
     $('combo-display').hidden = true;
   }
+  if (mode !== 'rank') renderTalk(now);
   requestAnimationFrame(tick);
 }
 
+function tilePath(context, x, y, width, height, radius) {
+  context.beginPath();
+  if (typeof context.roundRect === 'function') context.roundRect(x, y, width, height, radius);
+  else context.rect(x, y, width, height);
+}
+
+function tileImage(unit, color) {
+  const key = unit + ':' + color;
+  if (tileImages.has(key)) return tileImages.get(key);
+  const tile = document.createElement('canvas');
+  tile.width = tile.height = Math.ceil(unit);
+  const ctx = tile.getContext('2d');
+  const radius = unit * .17;
+  tilePath(ctx, 1, 2.4, unit - 2, unit - 3, radius);
+  ctx.fillStyle = '#14101e9e';
+  ctx.fill();
+  tilePath(ctx, 1, 1, unit - 2, unit - 3.5, radius);
+  ctx.fillStyle = color;
+  ctx.fill();
+  const glaze = ctx.createLinearGradient(0, 0, unit * .38, unit);
+  glaze.addColorStop(0, '#fff9dfb2');
+  glaze.addColorStop(.47, '#fff9df00');
+  glaze.addColorStop(1, '#4d223371');
+  ctx.fillStyle = glaze;
+  ctx.fill();
+  ctx.strokeStyle = '#fff9e266';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  tileImages.set(key, tile);
+  return tile;
+}
+
 function paintCell(context, x, y, unit, color, ghost = false) {
-  const size = unit - 2;
-  const left = x + 1;
-  const top = y + 1;
   if (ghost) {
+    context.save();
+    context.globalAlpha = .8;
     context.strokeStyle = color;
-    context.lineWidth = Math.max(1, unit / 10);
-    context.strokeRect(left + 1.5, top + 1.5, size - 3, size - 3);
+    context.lineWidth = Math.max(1, unit / 15);
+    tilePath(context, x + 3, y + 3, unit - 6, unit - 6, unit * .13);
+    context.stroke();
+    context.restore();
     return;
   }
-  context.fillStyle = color;
-  context.fillRect(left, top, size, size);
-  context.fillStyle = '#ffffff44';
-  context.fillRect(left, top, size, Math.max(1, unit * .12));
-  context.fillStyle = '#00000032';
-  context.fillRect(left, top + size - Math.max(1, unit * .12), size, Math.max(1, unit * .12));
+  context.drawImage(tileImage(unit, color), x, y);
 }
 
 function drawBoard(key, state) {
@@ -159,9 +204,10 @@ function drawBoard(key, state) {
   canvasKeys.set(key, frame);
   const context = boards[key];
   const unit = context.canvas.width / WIDTH;
-  context.fillStyle = colors[0];
+  context.fillStyle = boardBackdrops[key];
   context.fillRect(0, 0, context.canvas.width, context.canvas.height);
-  context.strokeStyle = '#ffffff13';
+  context.strokeStyle = '#fff2d317';
+  context.setLineDash([1, 3]);
   context.lineWidth = 1;
   context.beginPath();
   for (let col = 1; col < WIDTH; col++) {
@@ -173,6 +219,7 @@ function drawBoard(key, state) {
     context.lineTo(WIDTH * unit, row * unit + .5);
   }
   context.stroke();
+  context.setLineDash([]);
   if (!state) return;
   for (let row = 0; row < HEIGHT; row++) {
     for (let col = 0; col < WIDTH; col++) {
@@ -233,11 +280,81 @@ const setText = (id, value) => {
   if (element.textContent !== text) element.textContent = text;
 };
 
-function showBoardEvent(player, key) {
+function chooseLine(situation) {
+  const lines = MONKEY_LINES[situation];
+  const last = chatter.choices.get(situation);
+  const index = last === undefined ? Math.floor(Math.random() * lines.length) : (last + 1) % lines.length;
+  chatter.choices.set(situation, index);
+  return lines[index];
+}
+
+function syncTalkPhase(match, player, seat) {
+  let situation = 'playing';
+  if (mode === 'solo') {
+    if (soloStatus === 'done') situation = player.dead ? 'topout' : 'soloEnd';
+    else if (soloStatus === 'idle') situation = 'intro';
+    else if (soloStatus === 'paused') situation = 'paused';
+  } else if (!match) {
+    situation = 'lobby';
+  } else if (match.finished) {
+    if (mode === ENDLESS_MODE) situation = 'settled';
+    else situation = match.winner === null ? 'tie' : match.winner === seat ? 'win' : 'loss';
+  } else if (player.dead) {
+    situation = 'topout';
+  }
+  const round = mode === 'solo' ? soloSeed : match?.starts ?? view?.code ?? '-';
+  const phase = mode + ':' + round + ':' + situation;
+  if (chatter.phase === phase) return;
+  chatter.phase = phase;
+  chatter.line = chooseLine(situation);
+  chatter.reactionUntil = 0;
+  chatter.highStack = false;
+}
+
+function renderTalk(now) {
+  const connected = isMultiplayer(mode) && view?.online && view.supportsTaunts;
+  const taunt = connected ? view.taunt : null;
+  const peerKey = taunt ? view.code + ':' + taunt.seat + ':' + taunt.at : '';
+  if (peerKey && peerKey !== chatter.peerKey) {
+    chatter.peerKey = peerKey;
+    chatter.peerUntil = now + Math.max(0, TAUNT_DURATION - Math.max(0, view.now - taunt.at));
+  }
+  const peerTalking = peerKey && now < chatter.peerUntil;
+  const reacting = now < chatter.reactionUntil;
+  const speaker = peerTalking ? (taunt.seat === (view.host ? 0 : 1) ? '你' : view.names[taunt.seat] || '好友') : '猴三毛';
+  const line = peerTalking ? FRIEND_TAUNTS[taunt.index] : reacting ? chatter.reaction : chatter.line;
+  const tone = peerTalking ? 'player' : reacting ? 'reaction' : 'monkey';
+  const talk = $('talk');
+  if (talk.dataset.tone !== tone) talk.dataset.tone = tone;
+  setText('talk-speaker', speaker);
+  if ($('talk-line').textContent !== line) {
+    setText('talk-line', line);
+    if (!reduceMotion.matches && tone !== 'monkey')
+      $('talk-line').animate([{ opacity: .55, transform: 'translateY(3px)' }, { opacity: 1, transform: 'none' }], { duration: 180 });
+  }
+  const button = $('taunt');
+  const showButton = Boolean(connected && view.match);
+  if (button.hidden === showButton) button.hidden = !showButton;
+  if (!showButton) return;
+  const seconds = Math.max(0, Math.ceil((chatter.sendAt - now) / 1000));
+  if (button.disabled !== (seconds > 0)) button.disabled = seconds > 0;
+  setText('taunt', seconds ? seconds + ' 秒' : '放話');
+}
+
+function showBoardEvent(player, key, playing) {
   const eventKey = key + ':' + (player?.revision ?? 0);
   if (player?.event && lastEventKey !== eventKey) {
     lastEventKey = eventKey;
     const { lines, bombs, spin, perfect, combo, attack, ko, clearPoints, comboBonus } = player.event;
+    if (playing) {
+      const highStack = player.board.slice(HIDDEN, HIDDEN + 4).some(row => row.some(Boolean));
+      const situation = eventBanter(player.event, highStack && !chatter.highStack);
+      chatter.highStack = highStack;
+      if (situation) {
+        chatter.reaction = chooseLine(situation);
+        chatter.reactionUntil = performance.now() + 3300;
+      }
+    }
     if (lines || bombs) effects.add(player.event, performance.now());
     if (lines) {
       setText('clear-score', '+' + format(clearPoints));
@@ -353,7 +470,9 @@ function renderPlay() {
   drawBoard('board', player);
   drawPreview('hold', player?.dead ? null : player?.hold);
   drawPreview('next', player?.dead ? null : player?.queue[0]);
-  showBoardEvent(player, isSolo ? soloSeed : match?.starts);
+  syncTalkPhase(match, player, seat);
+  showBoardEvent(player, isSolo ? soloSeed : match?.starts, playing);
+  renderTalk(performance.now());
 }
 
 let lastSeats = '';
@@ -562,6 +681,14 @@ $('invite').addEventListener('click', async () => {
   url.searchParams.set('room', view.code);
   if (view.mode === ENDLESS_MODE) url.searchParams.set('mode', ENDLESS_MODE);
   $('room-status').textContent = await copy(url.href, $('invite-link')) ? '已複製邀請連結。' : '請複製上方邀請連結。';
+});
+$('taunt').addEventListener('click', () => {
+  const now = performance.now();
+  if (now < chatter.sendAt || !room.sendTaunt(chatter.nextPreset)) return;
+  chatter.nextPreset = (chatter.nextPreset + 1) % FRIEND_TAUNTS.length;
+  chatter.sendAt = now + TAUNT_COOLDOWN;
+  renderTalk(now);
+  $('board').focus({ preventScroll: true });
 });
 $('rank-refresh').addEventListener('click', showRank);
 function selectNickname(name) {

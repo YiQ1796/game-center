@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { applyAction, attackRows, createMatch, createPlayer, ENDLESS_MODE, finishMatch, HIDDEN, HEIGHT, KO_LIMIT, MATCH_TIME, playMatch, WIDTH } from '../stack-battle/engine.mjs';
+import { eventBanter, FRIEND_TAUNTS, isRoomTaunt, TAUNT_COOLDOWN } from '../stack-battle/banter.mjs';
 import { nicknameChoices, isNickname } from '../stack-battle/names.mjs';
 
 function sampleReplay() {
@@ -188,6 +189,59 @@ test('The room synchronizes the host mode and keeps KO compatibility with older 
   host.play(0, 'h');
   assert.ok(host.state.match.players[0].score > 0);
   assert.deepEqual(host.state.match.players[1], guestBoard);
+});
+
+test('The mascot reacts to meaningful clears and danger without repeating a normal single clear', () => {
+  assert.equal(eventBanter({ lines: 1, combo: 0 }, false), null);
+  assert.equal(eventBanter({ lines: 1, combo: 1 }, false), 'combo');
+  assert.equal(eventBanter({ lines: 4, perfect: true, combo: 3 }, false), 'perfect');
+  assert.equal(eventBanter({ lines: 0 }, true), 'danger');
+  assert.equal(eventBanter({ lines: 0, bombs: 2 }, false), 'bomb');
+  assert.equal(eventBanter({ ko: true }, false), 'knockout');
+  assert.equal(isRoomTaunt({ seat: 2, index: 1, at: 100 }), false);
+  assert.equal(isRoomTaunt({ seat: 1, index: FRIEND_TAUNTS.length, at: 100 }), false);
+  assert.equal(isRoomTaunt({ seat: 1, index: 1, at: 100 }), true);
+});
+
+test('Room taunts use presets, rate limit each sender and preserve the board', async () => {
+  const { BattleRoom } = await import('../stack-battle/room.mjs');
+  const host = Object.create(BattleRoom.prototype);
+  const guest = Object.create(BattleRoom.prototype);
+  const seat = {};
+  let hostView;
+  let guestView;
+  host.state = { role: 'host', mode: ENDLESS_MODE, code: '123456', name: '房主', guest: { name: '好友', supportsTaunts: true } };
+  host.guest = seat;
+  host.onView = value => { hostView = value; };
+  host.onStatus = () => {};
+  guest.state = { role: 'guest', code: '123456' };
+  guest.onView = value => { guestView = value; };
+  guest.onStatus = () => {};
+  host.transport = { sendHost(_source, snapshot) { guest.receiveGuest(structuredClone(snapshot)); } };
+  guest.transport = {
+    confirmJoined() {},
+    sendGuest(message) { host.receiveHost(message, seat); return true; }
+  };
+  assert.equal(host.sendTaunt(0), false);
+  host.start();
+  const board = structuredClone(host.state.match);
+  host.receiveHost({ type: 'taunt', index: 2 }, {});
+  assert.equal(host.state.taunt, null);
+  assert.equal(host.sendTaunt('自由輸入'), false);
+  assert.equal(host.publishTaunt(0, 1, 1000), true);
+  assert.equal(host.publishTaunt(0, 2, 1000 + TAUNT_COOLDOWN - 1), false);
+  assert.deepEqual(guestView.taunt, { seat: 0, index: 1, at: 1000 });
+  assert.equal(guest.sendTaunt(3), true);
+  assert.equal(hostView.taunt.seat, 1);
+  assert.equal(hostView.taunt.index, 3);
+  assert.deepEqual(hostView.taunt, guestView.taunt);
+  assert.equal(host.publishTaunt(0, 4, 1000 + TAUNT_COOLDOWN), true);
+  assert.deepEqual(host.state.match, board);
+  host.state.match.finished = true;
+  host.start();
+  assert.equal(guestView.taunt, null);
+  host.state.guest.supportsTaunts = false;
+  assert.equal(host.sendTaunt(1), false);
 });
 
 test('Multi-line clears increase base points and each consecutive clear adds 25%', async () => {

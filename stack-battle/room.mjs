@@ -1,4 +1,5 @@
 import { advance, createMatch, ENDLESS_MODE, finishMatch, playMatch, PLAYER_ACTIONS } from './engine.mjs?v=120';
+import { isRoomTaunt, isTauntIndex, TAUNT_COOLDOWN } from './banter.mjs?v=130';
 import { PeerRoom } from '../one-a-two-b/peer-room.mjs?v=stack-100';
 
 const STORAGE = 'sanmao-blocks-room-v1';
@@ -16,7 +17,7 @@ export class BattleRoom {
       onHostMessage: (message, source) => this.receiveHost(message, source),
       onGuestMessage: message => this.receiveGuest(message),
       onGuestOpen: () => this.transport.sendGuest({
-        type: 'hello', name: this.state.name, token: this.state.token, supportsEndless: true
+        type: 'hello', name: this.state.name, token: this.state.token, supportsEndless: true, supportsTaunts: true
       }),
       onConnectionClosed: source => this.disconnectGuest(source),
       onStatus: (state, detail) => {
@@ -132,14 +133,20 @@ export class BattleRoom {
       this.guest = source;
       this.actionWindow = { second: 0, count: 0 };
       this.state.guest = {
-        token: message.token, name: nameFor(message.name, '好友'), supportsEndless: message.supportsEndless === true
+        token: message.token, name: nameFor(message.name, '好友'), supportsEndless: message.supportsEndless === true,
+        supportsTaunts: message.supportsTaunts === true
       };
       this.sendView();
       this.status('好友已入座。');
       this.save();
       return;
     }
-    if (this.guest !== source || message.type !== 'input' || typeof message.action !== 'string' ||
+    if (this.guest !== source) return;
+    if (message.type === 'taunt') {
+      this.publishTaunt(1, message.index);
+      return;
+    }
+    if (message.type !== 'input' || typeof message.action !== 'string' ||
         message.action.length !== 1 || !PLAYER_ACTIONS.includes(message.action)) return;
     const second = Math.floor(Date.now() / 1000);
     if (this.actionWindow.second !== second) this.actionWindow = { second, count: 0 };
@@ -169,9 +176,10 @@ export class BattleRoom {
   }
 
   sendView() {
-    const { name, guest, match, mode } = this.state;
+    const { name, guest, match, mode, taunt } = this.state;
     this.transport.sendHost(this.guest, {
-      type: 'state', mode: roomMode(mode), names: [name, guest?.name ?? ''], match, now: Date.now()
+      type: 'state', mode: roomMode(mode), names: [name, guest?.name ?? ''], match, taunt,
+      supportsTaunts: true, now: Date.now()
     });
   }
 
@@ -184,6 +192,7 @@ export class BattleRoom {
     }
     this.state.mode = nextMode;
     this.state.match = null;
+    this.state.taunt = null;
     this.status('');
     this.save();
     this.sendView();
@@ -194,6 +203,7 @@ export class BattleRoom {
     if (this.state?.role !== 'host' || !this.guest ||
         (this.state.match && !this.state.match.finished)) return;
     this.state.match = createMatch(freshSeed(), Date.now(), roomMode(this.state.mode));
+    this.state.taunt = null;
     this.status('');
     this.save();
     this.sendView();
@@ -204,6 +214,27 @@ export class BattleRoom {
     else if (this.state?.role === 'guest' && this.remoteReady && this.remote?.match &&
         !this.remote.match.finished && !this.remote.match.players[1].dead)
       this.transport.sendGuest({ type: 'input', action });
+  }
+
+  sendTaunt(index) {
+    if (!isTauntIndex(index)) return false;
+    if (this.state?.role === 'host') return this.publishTaunt(0, index);
+    if (this.state?.role === 'guest' && this.remoteReady && this.remote?.match && this.remote.supportsTaunts === true)
+      return this.transport.sendGuest({ type: 'taunt', index });
+    return false;
+  }
+
+  publishTaunt(seat, index, now = Date.now()) {
+    const state = this.state;
+    if (!state?.match || !this.guest || !state.guest?.supportsTaunts || !isTauntIndex(index)) return false;
+    state.tauntAt ??= [null, null];
+    if (state.tauntAt[seat] !== null && now - state.tauntAt[seat] < TAUNT_COOLDOWN) return false;
+    state.tauntAt[seat] = now;
+    state.taunt = { seat, index, at: now };
+    this.sendView();
+    this.emit();
+    this.save();
+    return true;
   }
 
   play(seat, action) {
@@ -222,11 +253,15 @@ export class BattleRoom {
     const state = this.state;
     if (!state) return this.onView(null);
     const host = state.role === 'host';
+    const taunt = host ? state.taunt : this.remote?.taunt;
     this.onView({
       host, code: state.code, mode: roomMode(state.mode), ready: host ? this.hostReady : Boolean(this.remoteReady),
       online: host ? Boolean(this.guest) : Boolean(this.remoteReady),
       names: host ? [state.name, state.guest?.name ?? ''] : this.remote?.names ?? ['', state.name],
-      match: host ? state.match : this.remote?.match, now: Date.now() + (host ? 0 : this.clockOffset || 0)
+      match: host ? state.match : this.remote?.match,
+      taunt: isRoomTaunt(taunt) ? taunt : null,
+      supportsTaunts: (host ? state.guest : this.remote)?.supportsTaunts === true,
+      now: Date.now() + (host ? 0 : this.clockOffset || 0)
     });
   }
 
