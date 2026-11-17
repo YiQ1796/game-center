@@ -7,6 +7,7 @@ const html = read('index.html');
 const game = read('game.mjs');
 const css = read('game.css');
 const ranking = read('ranking.mjs');
+const room = read('room.mjs');
 
 test('Mobile gamepad has one rotation, no hold and five large actions', () => {
   const controls = html.split('<div class="controls"')[1].split('<div id="room-quick-actions"')[0];
@@ -40,4 +41,9 @@ test('Public history is shared via direct URL and rendered from server rather th
   assert.match(html, /id="rank-share-status"/);
   assert.match(html, /id="public-best-score"/);
   assert.match(html, /所有朋友共用雲端歷史 TOP 100/);
+});
+
+test('Multiplayer loads the same new endless gravity engine without stale cache', () => {
+  assert.match(game, /room.mjs\?v=132/);
+  assert.match(room, /engine.mjs\?v=132/);
 });
