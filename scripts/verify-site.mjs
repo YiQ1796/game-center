@@ -17,6 +17,7 @@ const expected = new Map([
   ['rummikub', 'https://yiq1796.github.io/Rummikub_Web/'],
   ['aqua-world', 'https://yiq1796.github.io/game-center/aqua-world/'],
   ['one-a-two-b', 'https://yiq1796.github.io/game-center/one-a-two-b/'],
+  ['stack-battle', 'https://yiq1796.github.io/game-center/stack-battle/'],
 ]);
 assert.equal(games.length, expected.size, 'Expected one card per game');
 const approvedGames = new Set(['big-two', 'rummikub', 'one-a-two-b']);
@@ -44,6 +45,11 @@ for (const game of games) {
     assert.match(game.imageAlt, /猴三毛/);
     assert.equal(game.status, 'available', '1A2B passed user acceptance');
     assert.ok(existsSync(resolve(root, game.image)), 'Missing 1A2B cover');
+  } else if (game.id === 'stack-battle') {
+    assert.equal(game.status, 'beta');
+    assert.equal(game.visualType, 'stack-battle-illustration');
+    assert.match(read('stack-battle/index.html'), /猴三毛方塊對戰/);
+    assert.ok(existsSync(resolve(root, 'one-a-two-b/sanmao-full-body.webp')));
   } else {
     assert.match(game.image, /^assets\/[\w-]+\.webp$/, 'Image path invalid');
     assert.ok(existsSync(resolve(root, game.image)), `Missing ${game.image}`);
@@ -51,12 +57,13 @@ for (const game of games) {
 }
 assert.match(html, /猴三毛遊戲中心/);
 assert.match(html, /https:\/\/yiq1796\.github\.io\/game-center\//);
-assert.match(html, /V0\.8\.5/);
+assert.match(html, /V0\.8\.6/);
 assert.ok(!html.includes('utm_source='), 'Do not include tracking parameters');
 const styleSource = read('assets/site.css');
 const uiSource = read('assets/site.js');
 assert.ok(uiSource.includes("game.status === 'beta' ? '進入測試版 →' : '立即進入 →'"), 'Card buttons must follow approved game status');
 assert.ok(styleSource.includes('.rummikub-showcase'), 'Rummikub illustration styles missing');
+assert.ok(styleSource.includes('.stack-battle-showcase') && uiSource.includes('stack-battle-showcase'));
 assert.ok(uiSource.includes("rummikub-showcase"), 'Rummikub illustration render missing');
 assert.ok(styleSource.includes('.game-aqua-world'), 'Aqua World image card styles missing');
 assert.ok(!uiSource.includes('aqua-world-showcase'), 'Old Aqua World placeholder render remains');
@@ -69,6 +76,7 @@ assert.ok(styleSource.includes('.game-one-a-two-b'), '1A2B image card styles mis
 assert.ok(!uiSource.includes('one-a-two-b-showcase'), 'Old 1A2B placeholder render remains');
 assert.ok(uiSource.includes('game-illustration'), 'Shared image renderer missing');
 await import('./verify-one-a-two-b.mjs');
+execFileSync(process.execPath, ['--test', resolve(root, 'scripts/test-stack-battle.mjs')], { stdio: 'inherit' });
 // Prepare the assets served by Pages and exercise the current aquarium before upload.
 await import('./prepare-aqua-world.mjs');
 execFileSync(process.execPath, ['--test', resolve(root, 'scripts/test-aqua-world.mjs')], { stdio: 'inherit' });

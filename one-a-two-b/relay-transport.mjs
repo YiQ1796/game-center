@@ -70,7 +70,7 @@ function parse(raw) {
     return str.length <= MAX_ENVELOPE_LENGTH ? JSON.parse(str) : null;
   } catch { return null; }
 }
-function topic(code) { return TOPIC_PREFIX + code; }
+function topic(code, namespace) { return (namespace ? namespace + '/relay-v1/' : TOPIC_PREFIX) + code; }
 function clientOptions() {
   return { clientId:'sanmao12-'+randomHex(10), clean:true, protocolVersion:4,
     keepalive:20, reconnectPeriod:2300, connectTimeout:6000 };
@@ -152,7 +152,7 @@ function makeEmitter() {
 }
 
 /** Host may listen on 1 or 2 independent test brokers for greater coverage. */
-export async function createRelayHost(code, onConnection, onStatus = () => {}) {
+export async function createRelayHost(code, onConnection, onStatus = () => {}, namespace) {
   const mqtt = await loadMqtt();
   const clients = [], sessions = new Map(), negotiating = new Set();
   let stopped = false;
@@ -188,7 +188,7 @@ export async function createRelayHost(code, onConnection, onStatus = () => {}) {
             entry.sendQueue = entry.sendQueue.then(async () => {
               const packet = await encrypt(secret, payload);
               if (!stopped && conn.open)
-                emitMessage(client, topic(code)+'/to/'+id, { ...packet, session:entry.session });
+                emitMessage(client, topic(code, namespace)+'/to/'+id, { ...packet, session:entry.session });
             }).catch(() => { conn.close(); });
           };
           conn.close = () => {
@@ -204,7 +204,7 @@ export async function createRelayHost(code, onConnection, onStatus = () => {}) {
         finally { negotiating.delete(sessionKey); }
       }
       try {
-        emitMessage(client, topic(code)+'/to/'+id, {
+        emitMessage(client, topic(code, namespace)+'/to/'+id, {
           type:'welcome', pub:session.publicPart, session:session.session
         });
       } catch { /* Another broker may still be available. */ }
@@ -222,7 +222,7 @@ export async function createRelayHost(code, onConnection, onStatus = () => {}) {
     }).catch(() => { /* bad ciphertext is ignored */ });
   }
   const attempts = RELAY_BROKERS.map(async url => {
-    const client = await openClient(mqtt, url, topic(code)+'/from/+');
+    const client = await openClient(mqtt, url, topic(code, namespace)+'/from/+');
     if (stopped) { client.end(true); return; }
     client.on('message', (address, raw) => { void receive(client, address, raw); });
     clients.push(client);
@@ -243,10 +243,10 @@ export async function createRelayHost(code, onConnection, onStatus = () => {}) {
   };
 }
 
-async function guestBroker(mqtt, broker, code, handlers, signal) {
+async function guestBroker(mqtt, broker, code, handlers, signal, namespace) {
   const id = randomHex(), session = randomHex(), pair = await generatePair();
   const guestPub = await publicKey(pair);
-  const outgoing = topic(code)+'/from/'+id, incoming = topic(code)+'/to/'+id;
+  const outgoing = topic(code, namespace)+'/from/'+id, incoming = topic(code, namespace)+'/to/'+id;
   let client = null, secret = null, connected = false, stopped = false, lastHostSeen = Date.now();
   let sending = Promise.resolve(), receiving = Promise.resolve(), pulse = null, heartbeat = null;
   let timeout;
@@ -349,11 +349,11 @@ async function guestBroker(mqtt, broker, code, handlers, signal) {
 }
 
 /** Try the two brokers in parallel. Losing connection attempts are disposed. */
-export async function connectRelayGuest(code, handlers = {}) {
+export async function connectRelayGuest(code, handlers = {}, namespace) {
   const mqtt = await loadMqtt();
   const controllers = RELAY_BROKERS.map(() => new AbortController());
   const results = RELAY_BROKERS.map((url, index) =>
-    guestBroker(mqtt, url, code, handlers, controllers[index].signal)
+    guestBroker(mqtt, url, code, handlers, controllers[index].signal, namespace)
   );
   let winner;
   try { winner = await Promise.any(results); }

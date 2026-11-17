@@ -51,5 +51,14 @@ window.SANMAO_GAMES = Object.freeze([
     imageAlt: '猴三毛正在思考數字謎題，猜測 1A2B 密碼',
     status: 'available',
     url: 'https://yiq1796.github.io/game-center/one-a-two-b/'
+  }),
+  Object.freeze({
+    id: 'stack-battle',
+    name: '猴三毛方塊對戰',
+    category: '方塊消除・單人與好友對戰',
+    summary: '挑戰單人無限歷史榜，或和好友打五分鐘 KO、送垃圾列、炸彈反攻！',
+    visualType: 'stack-battle-illustration',
+    status: 'beta',
+    url: 'https://yiq1796.github.io/game-center/stack-battle/'
   })
 ]);

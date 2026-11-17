@@ -1,6 +1,6 @@
 /** Small PeerJS/WebRTC signaling wrapper. Game rules stay outside the transport. */
 import { validRoomCode } from './duel-core.mjs?v=3';
-import { createRelayHost, connectRelayGuest } from './relay-transport.mjs?v=3';
+import { createRelayHost, connectRelayGuest } from './relay-transport.mjs?v=4';
 
 const PREFIX = 'sanmao-1a2b-v2-';
 const RETRY_DELAYS = [800, 1500, 3000, 5000, 8000, 12000];
@@ -13,8 +13,10 @@ function checkMessage(value) {
 }
 
 export class PeerRoom {
-  constructor(handlers = {}) {
+  constructor(handlers = {}, { namespace } = {}) {
     this.handlers = handlers;
+    this.namespace = namespace;
+    this.peerPrefix = namespace ? namespace + '-' : PREFIX;
     this.peer = null;
     this.connection = null;
     this.connections = new Set();
@@ -113,7 +115,7 @@ export class PeerRoom {
     conn.on('error', () => { try { conn.close(); } catch {} });
   }
   async startPeerHost(code, generation) {
-    const peer = this.makePeer(PREFIX + code);
+    const peer = this.makePeer(this.peerPrefix + code);
     this.peer = peer;
     return new Promise((resolve, reject) => {
       let settled = false;
@@ -153,7 +155,7 @@ export class PeerRoom {
       detail => {
         if (!this.stopped && this.generation === generation)
           this.emitStatus('connected', detail);
-      }
+      }, this.namespace
     );
     if (this.stopped || this.generation !== generation) { relay.close(); return; }
     this.relayHost = relay;
@@ -208,7 +210,7 @@ export class PeerRoom {
           if (!this.stopped && this.generation === generation && checkMessage(msg))
             this.handlers.onGuestMessage?.(msg);
         }
-      });
+      }, this.namespace);
       if (this.stopped || this.generation !== generation) { conn.close(); return; }
       this.connection = conn;
       this.relayGuest = conn;
@@ -242,7 +244,7 @@ export class PeerRoom {
     }, P2P_TIMEOUT_MS);
     peer.on('open', () => {
       if (this.stopped || this.generation !== generation) return;
-      const conn = peer.connect(PREFIX + this.code,
+      const conn = peer.connect(this.peerPrefix + this.code,
         { reliable:true, serialization:'json' });
       this.connection = conn;
       conn.on('open', () => {

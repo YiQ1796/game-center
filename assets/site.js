@@ -37,6 +37,19 @@
       board.append(rack);
       artwork.append(mascot, board);
       visual.append(artwork);
+    } else if (game.visualType === 'stack-battle-illustration') {
+      const artwork = element('div', 'stack-battle-showcase');
+      const mascot = element('img', 'stack-battle-mascot');
+      mascot.src = 'one-a-two-b/sanmao-full-body.webp';
+      mascot.alt = '猴三毛與彩色方塊';
+      mascot.loading = 'lazy';
+      mascot.width = 321;
+      mascot.height = 468;
+      const blocks = element('div', 'stack-battle-blocks');
+      blocks.setAttribute('aria-hidden', 'true');
+      for (let index = 0; index < 10; index++) blocks.append(element('i'));
+      artwork.append(mascot, blocks);
+      visual.append(artwork);
     } else {
       const picture = element('img', 'game-illustration');
       picture.src = game.image;
