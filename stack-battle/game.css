@@ -335,7 +335,7 @@ dd { margin: 0; font-weight: 850; text-align: right; }
 
 .previews {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
   text-align: center;
 }
@@ -571,44 +571,54 @@ body[data-playing] .top, body[data-live-duel] .top { margin-bottom: 10px; }
 body[data-playing] .party-art, body[data-live-duel] .party-art { opacity: .55; }
 
 @media (pointer: coarse), (max-width: 750px) {
+  /* Five large touch targets: move, move, rotate / slow drop, hard drop. */
   .controls {
     position: sticky;
     bottom: max(2px, env(safe-area-inset-bottom));
     z-index: 3;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: clamp(9px, 4vw, 19px);
-    width: min(100%, 535px);
-    margin: 7px auto 1px;
-    padding: 6px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(76px, auto));
+    gap: 8px;
+    width: min(100%, 560px);
+    margin: 9px auto 1px;
+    padding: 8px;
     border: 1px solid #b38d74;
     border-radius: 15px;
     background: linear-gradient(145deg, #f3d8bc, #e4bea6);
     box-shadow: 0 4px 0 #8a625e8c, 0 5px 10px #4f333226;
   }
 
-  .move-pad, .piece-pad { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+  .move-pad, .piece-pad { display: contents; }
+
+  /* On iOS the descendants also need -webkit-user-select, not just the button. */
+  .controls, .controls * {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
 
   .controls button {
     display: grid;
     align-content: center;
     justify-items: center;
-    gap: 0;
-    min-height: 48px;
-    padding: 2px;
-    user-select: none;
+    gap: 2px;
+    min-width: 0;
+    min-height: 76px;
+    padding: 6px 2px;
     touch-action: none;
-    -webkit-touch-callout: none;
   }
 
   .controls button:active { transform: translateY(2px); background: #ffedb9; }
-  .controls button span { font-size: 1.31rem; line-height: 1.03; }
-  .controls button small { font-size: .68rem; font-weight: 900; line-height: 1.12; }
-  .move-pad [data-action="l"], .move-pad [data-action="r"] { background: #fff0d0; border-color: #a88852; }
-  .move-pad [data-action="d"] { grid-column: span 2; width: 68%; justify-self: center; background: #f5db9d; }
-  .piece-pad [data-action="s"], .piece-pad [data-action="z"] { background: #e9eacc; border-color: #889569; }
-  .piece-pad [data-action="c"] { background: #f5e6f3; border-color: #a27b9b; }
-  .controls .hard-drop { background: #af5946; border-color: #923d37; color: #fff9e6; }
+  .controls button span { font-size: clamp(1.85rem, 7vw, 2.4rem); line-height: 1; }
+  .controls button small { font-size: clamp(.78rem, 3vw, .94rem); font-weight: 900; line-height: 1.12; }
+
+  .move-pad [data-action="l"] { grid-area: 1 / 1 / 2 / 3; background: #fff0d0; border-color: #a88852; }
+  .move-pad [data-action="r"] { grid-area: 1 / 3 / 2 / 5; background: #fff0d0; border-color: #a88852; }
+  .piece-pad [data-action="s"] { grid-area: 1 / 5 / 2 / 7; background: #e9eacc; border-color: #889569; }
+  .move-pad [data-action="d"] { grid-area: 2 / 1 / 3 / 4; background: #f5db9d; }
+  .piece-pad [data-action="h"] { grid-area: 2 / 4 / 3 / 7; background: #af5946; border-color: #923d37; color: #fff9e6; }
   .controls .hard-drop:active { background: #913e34; }
 }
 

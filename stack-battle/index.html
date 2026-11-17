@@ -8,9 +8,9 @@
   <title>猴三毛方塊對戰</title>
   <link rel="icon" href="../favicon.ico">
   <link rel="canonical" href="https://yiq1796.github.io/game-center/stack-battle/">
-  <link rel="stylesheet" href="./game.css?v=130">
+  <link rel="stylesheet" href="./game.css?v=131">
   <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js" integrity="sha512-XEKeWX+mI3Ov+tg2evDlVQFzVOIp4T8J3cNcCEPaEUGpxJV3eZaN8rHuvnFPvQpGJBHPmrozJDMpm2xcDvtmyQ==" crossorigin="anonymous"></script>
-  <script type="module" src="./game.mjs?v=130"></script>
+  <script type="module" src="./game.mjs?v=131"></script>
 </head>
 <body>
   <div class="party-art" aria-hidden="true">
@@ -92,7 +92,7 @@
         <aside class="side right-rail" aria-label="方塊預覽與好友資訊">
           <div class="side-card previews">
             <div><span class="caption">下一顆</span><canvas id="next" width="100" height="64" aria-label="下一顆方塊"></canvas></div>
-            <div><span class="caption">暫存</span><canvas id="hold" width="100" height="64" aria-label="暫存方塊"></canvas></div>
+            
           </div>
           <div class="side-card friend" id="friend" hidden>
             <span id="friend-name" class="caption">好友棋盤</span>
@@ -120,9 +120,7 @@
           <button type="button" data-action="d" aria-label="慢降"><span>↓</span><small>慢降</small></button>
         </div>
         <div class="piece-pad" aria-label="操作方塊">
-          <button type="button" data-action="z" aria-label="向左旋轉"><span>↶</span><small>左旋</small></button>
-          <button type="button" data-action="s" aria-label="向右旋轉"><span>↷</span><small>右旋</small></button>
-          <button type="button" data-action="c" aria-label="暫存"><span>▣</span><small>暫存</small></button>
+          <button type="button" data-action="s" aria-label="順時針旋轉"><span>↻</span><small>旋轉</small></button>
           <button type="button" class="hard-drop" data-action="h" aria-label="快速落下"><span>⇊</span><small>快落</small></button>
         </div>
       </div>
@@ -132,7 +130,7 @@
       </div>
       <section id="submit-panel" class="panel submit" aria-labelledby="submit-title" hidden>
         <h2 id="submit-title">登上歷史排行榜</h2>
-        <p>選個暱稱即可登錄。公開榜會保留這個瀏覽器的最高成績。</p>
+        <p>單人無限結算後自動送出合格成績（至少消除一行）。若送出失敗，可按下方按鈕重試；公開榜保留每位玩家的最高分。</p>
         <div class="nickname-actions"><label>榜上暱稱<select id="score-nickname"></select></label>
           <button type="button" data-reroll>換一批</button>
           <button type="button" id="submit-score" class="primary">送出成績</button>
@@ -149,7 +147,7 @@
 
     </section>
   </main>
-  <footer><a href="../#games">回遊戲中心</a><small>V1.3.0</small></footer>
+  <footer><a href="../#games">回遊戲中心</a><small>V1.3.1</small></footer>
 
   <dialog id="help-dialog">
     <div class="heading-line"><h2>玩法與按鍵</h2><form method="dialog"><button type="submit" aria-label="關閉玩法">✕</button></form></div>
@@ -158,7 +156,7 @@
     <h3>好友 KO 對戰</h3><p>限時五分鐘，先拿三次 KO 提前獲勝。時間到先比 KO，再比送出的垃圾列，同分判平手。被 KO 會清盤繼續。</p>
     <p>普通消 1／2／3／4 行，攻擊量為 0／1／2／4 列。連擊、T 旋和全消會加碼。攻擊先抵銷待升起的垃圾列。未消行且未引爆炸彈的回合，垃圾列會從底部升起。將方塊落在炸彈上即可清除那一列。</p>
     <p>好友對局中可以按「放話」，送一則預設台詞給對方。每人每 5 秒可送一次。</p>
-    <dl class="key-guide"><div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>左右移動</dd></div><div><dt><kbd>↓</kbd></dt><dd>軟降</dd></div><div><dt><kbd>↑</kbd> <kbd>X</kbd> / <kbd>Z</kbd></dt><dd>順／逆時針旋轉</dd></div><div><dt><kbd>空白鍵</kbd></dt><dd>直接落下</dd></div><div><dt><kbd>C</kbd></dt><dd>暫存</dd></div><div><dt><kbd>Esc</kbd></dt><dd>單人暫停／繼續</dd></div></dl>
+    <dl class="key-guide"><div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>左右移動</dd></div><div><dt><kbd>↓</kbd></dt><dd>軟降</dd></div><div><dt><kbd>↑</kbd> <kbd>X</kbd></dt><dd>順時針旋轉</dd></div><div><dt><kbd>空白鍵</kbd></dt><dd>直接落下</dd></div><div><dt><kbd>Esc</kbd></dt><dd>單人暫停／繼續</dd></div></dl>
   </dialog>
 </body>
 </html>

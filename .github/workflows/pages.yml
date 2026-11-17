@@ -37,6 +37,7 @@ jobs:
           node --check assets/games.js
           node scripts/verify-site.mjs
           node scripts/verify-icons.mjs
+          node --test scripts/test-stack-battle.mjs scripts/test-stack-battle-ui.mjs
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:

@@ -2,7 +2,7 @@ import { advance, applyAction, cellsOf, createPlayer, ENDLESS_MODE, HEIGHT, HIDD
 import { eventBanter, FRIEND_TAUNTS, MONKEY_LINES, TAUNT_COOLDOWN, TAUNT_DURATION } from './banter.mjs?v=130';
 import { LineBurst } from './effects.mjs?v=110';
 import { BattleRoom } from './room.mjs?v=130';
-import { getRanking, submitScore } from './ranking.mjs?v=110';
+import { getRanking, submitScore } from './ranking.mjs?v=131';
 import { isNickname, nicknameChoices } from './names.mjs?v=100';
 
 const $ = id => document.getElementById(id);
@@ -12,10 +12,10 @@ const colors = ['#242a34', '#59c6bc', '#84a8e7', '#f0a26e', '#f6ce66', '#91c66f'
 const effects = new LineBurst($('effects'), colors);
 const inputMap = {
   ArrowLeft: 'l', ArrowRight: 'r', ArrowDown: 'd', ArrowUp: 's',
-  KeyX: 's', KeyZ: 'z', KeyC: 'c', Space: 'h'
+  KeyX: 's', Space: 'h'
 };
 const repeating = 'lrd';
-const boards = Object.fromEntries(['board', 'opponent', 'hold', 'next'].map(id => [id, $(id).getContext('2d')]));
+const boards = Object.fromEntries(['board', 'opponent', 'next'].map(id => [id, $(id).getContext('2d')]));
 const boardBackdrops = Object.fromEntries(['board', 'opponent'].map(id => {
   const context = boards[id];
   const gradient = context.createLinearGradient(0, 0, context.canvas.width, context.canvas.height);
@@ -49,6 +49,7 @@ let nicknames = nicknameChoices(savedNickname && isNickname(savedNickname) ? [sa
 if (isNickname(savedNickname)) nicknames = [savedNickname, ...nicknames.slice(0, 4)];
 let ranking = null;
 let rankingLoading = false;
+const uploadingScores = new WeakSet();
 const canvasKeys = new Map();
 const chatter = {
   phase: '', line: '', choices: new Map(), reaction: '', reactionUntil: 0, highStack: false,
@@ -116,6 +117,7 @@ function finishSolo() {
   try { localStorage.setItem('sanmao-blocks-best-v1', String(best)); } catch {}
   cancelInputs();
   render();
+  void uploadSoloScore(solo);
 }
 
 function soloInput(action) {
@@ -449,7 +451,7 @@ function renderPlay() {
   $('solo-best').hidden = !isSolo;
   $('duel-stats').hidden = !timedDuel;
   $('friend').hidden = isSolo || !other;
-  $('submit-panel').hidden = !(isSolo && soloStatus === 'done' && solo.lines > 0);
+  $('submit-panel').hidden = !(isSolo && soloStatus === 'done');
   $('board-frame').toggleAttribute('data-alert', timedDuel && Boolean(player?.incoming.length));
   if (!timedDuel) {
     setText('score', format(player?.score));
@@ -468,7 +470,6 @@ function renderPlay() {
   }
   if (!playing && held.size) cancelInputs();
   drawBoard('board', player);
-  drawPreview('hold', player?.dead ? null : player?.hold);
   drawPreview('next', player?.dead ? null : player?.queue[0]);
   syncTalkPhase(match, player, seat);
   showBoardEvent(player, isSolo ? soloSeed : match?.starts, playing);
@@ -588,6 +589,11 @@ for (const button of document.querySelectorAll('[data-action]')) {
     button.addEventListener(name, event => stopInput(event.pointerId));
   button.addEventListener('click', event => { if (event.detail === 0) gameInput(action); });
 }
+// Prevent iOS text selection/callouts without disabling selection elsewhere on the page.
+for (const eventName of ['selectstart', 'contextmenu'])
+  $('controls').addEventListener(eventName, event => event.preventDefault());
+window.addEventListener('pointerup', event => stopInput(event.pointerId));
+window.addEventListener('pointercancel', event => stopInput(event.pointerId));
 
 async function copy(value, field) {
   try {
@@ -712,22 +718,46 @@ for (const button of document.querySelectorAll('[data-reroll]')) {
 }
 renderNicknames();
 
-$('submit-score').addEventListener('click', async () => {
-  const finishedGame = solo;
+// Score history stays server-backed; one finished solo round is submitted once at a time.
+async function uploadSoloScore(finishedGame = solo) {
+  if (solo !== finishedGame || soloStatus !== 'done' || uploadingScores.has(finishedGame)) return;
+  if (finishedGame.lines < 1) {
+    setText('submit-status', '這局沒有消除行數；至少消除一行才能登上公開歷史榜。');
+    $('submit-score').disabled = true;
+    return;
+  }
+
+  uploadingScores.add(finishedGame);
   $('submit-score').disabled = true;
+  setText('submit-status', '正在自動登錄公開排行榜…');
+  // Snapshot the replay so a new round cannot change the record being uploaded.
+  const replaySeed = soloSeed;
+  const replayActions = [...actions];
+  const nickname = $('score-nickname').value;
   try {
-    setText('submit-status', '正在送出…');
-    const result = await submitScore($('score-nickname').value, soloSeed, actions);
-    ranking = null;
+    const result = await submitScore(nickname, replaySeed, replayActions);
     if (solo !== finishedGame) return;
-    const message = result.saved ? '已上榜！目前第 ' + result.rank + ' 名。' : result.reason === 'outside' ? '這局未進入歷史榜前 100 名。' : '這局已登錄過，或低於已上傳的最佳成績。';
-    setText('submit-status', message);
+    if (result.saved === true && Number.isInteger(result.rank)) {
+      ranking = null;
+      setText('submit-status', '已成功上榜！歷史排行榜第 ' + result.rank + ' 名。');
+    } else if (result.reason === 'lower') {
+      setText('submit-status', '已經有更高的個人紀錄，這局不會覆蓋原本名次。');
+    } else if (result.reason === 'duplicate') {
+      setText('submit-status', '這局的方塊紀錄已登錄過，不會重複計分。');
+    } else if (result.reason === 'outside') {
+      setText('submit-status', '這局沒有進入公開歷史榜前 100 名。');
+    } else {
+      throw new Error('排行榜回傳非預期結果，請確認榜單或重試。');
+    }
   } catch (error) {
     if (solo !== finishedGame) return;
-    setText('submit-status', error.message || '送出失敗，請稍後再試。');
+    setText('submit-status', (error.message || '送出失敗。') + ' 成績是否寫入尚未確認；可先查看公開榜，再按「送出成績」重試。');
     $('submit-score').disabled = false;
+  } finally {
+    uploadingScores.delete(finishedGame);
   }
-});
+}
+$('submit-score').addEventListener('click', () => { void uploadSoloScore(); });
 
 if (isMultiplayer(mode)) $('code').value = inviteCode ?? '';
 render();

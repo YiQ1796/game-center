@@ -1,11 +1,13 @@
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxd1v4tYJhiYSeHhdYbzfGpegvxC9V0mQINT9llaXTyk3QsXeKFqVjmXKGmLMawwydo0A/exec';
 const IDENTIFIER = 'sanmao-blocks-player-v1';
+// Match the backend's strict UUID v4 validation to avoid permanently rejected IDs.
+const PLAYER_ID_PATTERN = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 let playerId;
 
 function getPlayerId() {
   if (playerId) return playerId;
   try { playerId = localStorage.getItem(IDENTIFIER); } catch {}
-  if (!/^[a-f0-9-]{36}$/i.test(playerId ?? '')) {
+  if (!PLAYER_ID_PATTERN.test(playerId ?? '')) {
     playerId = crypto.randomUUID();
     try { localStorage.setItem(IDENTIFIER, playerId); } catch {}
   }
