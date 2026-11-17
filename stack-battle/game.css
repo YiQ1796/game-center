@@ -67,7 +67,7 @@ h1 {
 }
 h1 span { margin-left: .14em; color: #4b6240; }
 .modes { display: flex; gap: 5px; justify-content: center; margin: 0 auto 10px; }
-.modes button { border-radius: 12px 12px 7px 7px; min-width: min(29%, 145px); background: #fbefd7; }
+.modes button { border-radius: 12px 12px 7px 7px; min-width: min(23%, 145px); background: #fbefd7; }
 .modes button[aria-pressed="true"] { background: #375c45; border-color: #23402f; color: #fff7e5; }
 .panel {
   border: 1px solid var(--line); border-radius: 15px; background: #fff8e8f5;
@@ -147,7 +147,7 @@ dd { margin: 0; font-weight: 850; text-align: right; }
 .combo-display strong { font-size: clamp(1rem, 3.4vw, 1.55rem); font-weight: 950; }
 .combo-display span { font-size: .69rem; font-weight: 840; }
 .action-bar { display: flex; justify-content: center; gap: 7px; margin: 5px auto; }
-.controls, .mid-duel-leave { display: none; }
+.controls, .room-quick-actions { display: none; }
 .submit { margin-top: 10px; }
 .submit p { margin: 6px 0; }
 .heading-line { display: flex; justify-content: space-between; align-items: center; gap: 7px; }
@@ -189,7 +189,6 @@ kbd { background: #f1e4c8; padding: .11rem .3rem; border-radius: 4px; border: 1p
   .piece-pad button[data-action="s"], .piece-pad button[data-action="z"] { background: #e6eedc; border-color: #829c70; }
   .controls .hard-drop { background: #356146; border-color: #234731; color: #fff5db; }
   .controls .hard-drop:active { background: #487657; }
-  .mid-duel-leave { display: block; margin: 6px auto; min-height: 34px; font-size: .78rem; }
 }
 @media (max-width: 700px) {
   :root { --board-width: clamp(158px, min(68vw, calc((100svh - 246px) / 2)), 317px); }
@@ -202,7 +201,7 @@ kbd { background: #f1e4c8; padding: .11rem .3rem; border-radius: 4px; border: 1p
   .top button { font-size: .74rem; min-height: 35px; padding-inline: .39rem; }
   .intro { margin: 8px 0 8px; }
   .modes { gap: 4px; margin-bottom: 9px; }
-  .modes button { flex: 1; min-height: 39px; font-size: .8rem; padding: .31rem .2rem; }
+  .modes button { flex: 1; min-width: 0; min-height: 39px; font-size: .8rem; padding: .31rem .2rem; }
   .play-layout { grid-template-columns: var(--board-width) minmax(0, min(24vw, 114px)); justify-content: center; gap: 6px; }
   .board-area { grid-column: 1; grid-row: 1 / span 2; }
   .stats { grid-column: 2; grid-row: 1; width: 100%; justify-self: stretch; align-self: start; }
@@ -225,6 +224,8 @@ kbd { background: #f1e4c8; padding: .11rem .3rem; border-radius: 4px; border: 1p
   .room form button { min-width: 0; font-size: .73rem; padding-inline: .18rem; }
   .action-bar { margin-top: 0; }
   .action-bar button { min-height: 35px; padding: .3rem .65rem; font-size: .8rem; }
+  .room-quick-actions { display: flex; justify-content: center; gap: 7px; margin: 6px auto; }
+  .room-quick-actions button { min-height: 34px; font-size: .78rem; }
   .play-event { min-height: 15px; font-size: .72rem; margin-top: 5px; }
   body[data-playing] .intro, body[data-playing] .modes, body[data-playing] footer,
   body[data-live-duel] .intro, body[data-live-duel] .modes, body[data-live-duel] #room,
@@ -234,5 +235,6 @@ kbd { background: #f1e4c8; padding: .11rem .3rem; border-radius: 4px; border: 1p
 @media (max-width: 355px) {
   .top .brand { font-size: .74rem; }
   .top button { padding-inline: .3rem; }
+  .modes button { font-size: .73rem; }
   .side-card dl div { font-size: .61rem; }
 }

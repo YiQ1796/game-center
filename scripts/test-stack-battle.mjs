@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyAction, attackRows, createMatch, createPlayer, finishMatch, HIDDEN, HEIGHT, KO_LIMIT, MATCH_TIME, playMatch, WIDTH } from '../stack-battle/engine.mjs';
+import { applyAction, attackRows, createMatch, createPlayer, ENDLESS_MODE, finishMatch, HIDDEN, HEIGHT, KO_LIMIT, MATCH_TIME, playMatch, WIDTH } from '../stack-battle/engine.mjs';
 import { nicknameChoices, isNickname } from '../stack-battle/names.mjs';
 
 function sampleReplay() {
@@ -84,6 +84,49 @@ test('Top-out clears the loser board and the third KO ends the battle', () => {
   assert.equal(match.winner, 1);
 });
 
+test('Dual endless starts immediately, shares a bag and sends no garbage after a four-line clear', () => {
+  const match = createMatch(93, 100, ENDLESS_MODE);
+  const [first, second] = match.players;
+  assert.equal(match.starts, 100);
+  assert.equal(match.ends, null);
+  assert.equal(first.piece.type, second.piece.type);
+  assert.deepEqual(first.queue, second.queue);
+  assert.equal(first.duel, false);
+  assert.equal(second.duel, false);
+  const opponentBefore = structuredClone(second);
+  first.piece = { type: 'I', x: 3, y: 1, angle: 1 };
+  for (let offset = 1; offset <= 4; offset++) {
+    first.board[HEIGHT + HIDDEN - offset] = Array.from({ length: WIDTH }, (_, x) => x === 5 ? 0 : 1);
+  }
+  assert.equal(playMatch(match, 0, 'h', match.starts + MATCH_TIME + 1), true);
+  assert.equal(first.lines, 4);
+  assert.equal(first.event.attack, 0);
+  assert.equal(first.sent, 0);
+  assert.deepEqual(second, opponentBefore);
+  assert.equal(match.finished, false);
+});
+
+test('A topped-out endless board freezes until the second player finishes, including after serialization', () => {
+  let match = createMatch(32, 100, ENDLESS_MODE);
+  for (let moves = 0; moves < HEIGHT && !match.players[0].dead; moves++) {
+    assert.equal(playMatch(match, 0, 'h', 101 + moves), true);
+  }
+  assert.equal(match.players[0].dead, true);
+  assert.equal(match.finished, false);
+  assert.ok(match.players[0].board.some(row => row.some(Boolean)));
+  match = JSON.parse(JSON.stringify(match));
+  const frozen = structuredClone(match.players[0]);
+  assert.equal(playMatch(match, 0, 'h', 200), false);
+  for (let moves = 0; moves < HEIGHT && !match.finished; moves++) {
+    assert.equal(playMatch(match, 1, 'h', 201 + moves), true);
+  }
+  assert.equal(match.players[1].dead, true);
+  assert.equal(match.finished, true);
+  assert.equal(match.winner, null);
+  assert.deepEqual(match.players[0], frozen);
+  assert.deepEqual(match.players.map(player => player.ko), [0, 0]);
+});
+
 test('Generated nicknames are valid, distinct and refresh to a different set', () => {
   const first = nicknameChoices();
   const second = nicknameChoices(first);
@@ -108,6 +151,43 @@ test('Host opens a room and a guest connects through the join transport', async 
   room.state = { role: 'guest', code: '123456' };
   await room.open();
   assert.deepEqual(calls, [['host', '123456'], ['join', '123456']]);
+});
+
+test('The room synchronizes the host mode and keeps KO compatibility with older clients', async () => {
+  const { BattleRoom } = await import('../stack-battle/room.mjs');
+  const host = Object.create(BattleRoom.prototype);
+  const guest = Object.create(BattleRoom.prototype);
+  const client = { open: true };
+  const token = crypto.randomUUID();
+  const sent = [];
+  guest.state = { role: 'guest', code: '123456', name: '好友', mode: ENDLESS_MODE };
+  guest.onView = () => {};
+  guest.onStatus = () => {};
+  guest.transport = { confirmJoined() {} };
+  host.state = { role: 'host', code: '123456', name: '房主', match: null };
+  host.status = () => {};
+  host.save = () => {};
+  host.transport = { sendHost(_client, message) { sent.push(message); guest.receiveGuest(message); } };
+
+  guest.receiveGuest({ type: 'state', names: ['房主', '好友'], match: null, now: Date.now() });
+  assert.equal(guest.state.mode, 'duel');
+  host.receiveHost({ type: 'hello', token, name: '好友' }, client);
+  assert.equal(host.guest, client);
+  assert.equal(host.selectMode(ENDLESS_MODE), false);
+  host.receiveHost({ type: 'hello', token, name: '好友', supportsEndless: true }, client);
+  assert.equal(host.selectMode(ENDLESS_MODE), true);
+  assert.equal(guest.state.mode, ENDLESS_MODE);
+  host.start();
+  assert.equal(sent.at(-1).match.ends, null);
+  assert.equal(host.selectMode('duel'), false);
+  assert.equal(host.state.match.mode, ENDLESS_MODE);
+
+  host.guest = null;
+  const guestBoard = structuredClone(host.state.match.players[1]);
+  host.emit = () => {};
+  host.play(0, 'h');
+  assert.ok(host.state.match.players[0].score > 0);
+  assert.deepEqual(host.state.match.players[1], guestBoard);
 });
 
 test('Multi-line clears increase base points and each consecutive clear adds 25%', async () => {

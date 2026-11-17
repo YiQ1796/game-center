@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#f8ecda">
-  <meta name="description" content="和猴三毛一起堆方塊，挑戰單人無限歷史榜，或約好友打五分鐘 KO 對戰。">
+  <meta name="description" content="和猴三毛一起堆方塊，挑戰單人無限歷史榜，或約好友玩雙人無限與五分鐘 KO 對戰。">
   <title>猴三毛方塊對戰</title>
   <link rel="icon" href="../favicon.ico">
   <link rel="canonical" href="https://yiq1796.github.io/game-center/stack-battle/">
-  <link rel="stylesheet" href="./game.css?v=110">
+  <link rel="stylesheet" href="./game.css?v=120">
   <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js" integrity="sha512-XEKeWX+mI3Ov+tg2evDlVQFzVOIp4T8J3cNcCEPaEUGpxJV3eZaN8rHuvnFPvQpGJBHPmrozJDMpm2xcDvtmyQ==" crossorigin="anonymous"></script>
-  <script type="module" src="./game.mjs?v=110"></script>
+  <script type="module" src="./game.mjs?v=120"></script>
 </head>
 <body>
   <header class="top">
@@ -28,12 +28,14 @@
     </section>
     <nav class="modes" aria-label="遊戲模式">
       <button type="button" data-mode="solo" aria-pressed="true">單人無限</button>
+      <button type="button" data-mode="endless" aria-pressed="false">雙人無限</button>
       <button type="button" data-mode="duel" aria-pressed="false">好友 KO 對戰</button>
       <button type="button" data-mode="rank" aria-pressed="false">歷史排行榜</button>
     </nav>
 
     <section id="room" class="panel room" aria-labelledby="room-title" hidden>
       <h2 id="room-title">好友房</h2>
+      <p id="endless-rules" class="notice" hidden>不限時間，各自消行。兩人都堆到頂後一起結算。</p>
       <form id="room-form" autocomplete="off">
         <label>你的暱稱<select id="room-nickname"></select></label><button type="button" data-reroll>換一批</button>
         <button type="button" id="create-room" class="primary">建立房間</button>
@@ -56,9 +58,9 @@
     <section class="play" id="play" aria-label="方塊棋盤">
       <div class="play-layout">
         <aside class="side stats" aria-label="遊戲資訊">
-          <div class="side-card" id="solo-stats">
+          <div class="side-card" id="score-stats">
             <span class="caption">本局分數</span><strong id="score">0</strong>
-            <dl><div><dt>消除行數</dt><dd id="lines">0</dd></div><div><dt>等級</dt><dd id="level">1</dd></div><div><dt>本機最佳</dt><dd id="best">0</dd></div></dl>
+            <dl><div><dt>消除行數</dt><dd id="lines">0</dd></div><div><dt>等級</dt><dd id="level">1</dd></div><div id="solo-best"><dt>本機最佳</dt><dd id="best">0</dd></div></dl>
           </div>
           <div class="side-card" id="duel-stats" hidden>
             <span class="caption">對戰倒數</span><strong id="timer">05:00</strong>
@@ -111,7 +113,10 @@
           <button type="button" class="hard-drop" data-action="h" aria-label="快速落下"><span>⇊</span><small>快落</small></button>
         </div>
       </div>
-      <button type="button" id="mid-duel-leave" class="mid-duel-leave" hidden>離開對戰</button>
+      <div id="room-quick-actions" class="room-quick-actions" hidden>
+        <button type="button" id="mid-duel-reconnect" hidden>重新連線</button>
+        <button type="button" id="mid-duel-leave">離開房間</button>
+      </div>
       <section id="submit-panel" class="panel submit" aria-labelledby="submit-title" hidden>
         <h2 id="submit-title">登上歷史排行榜</h2>
         <p>選個暱稱即可登錄。公開榜會保留這個瀏覽器的最高成績。</p>
@@ -131,11 +136,12 @@
 
     </section>
   </main>
-  <footer><a href="../#games">回遊戲中心</a><small>V1.1.0</small></footer>
+  <footer><a href="../#games">回遊戲中心</a><small>V1.2.0</small></footer>
 
   <dialog id="help-dialog">
     <div class="heading-line"><h2>玩法與按鍵</h2><form method="dialog"><button type="submit" aria-label="關閉玩法">✕</button></form></div>
     <h3>單人無限</h3><p>一直堆、一直消，每累計消 10 行升一級。一次消 1／2／3／4 行基礎得 100／300／500／800 分。連續消行從第二手起，每多一連擊加 25% 消行分。新方塊無法進入棋盤時結算，也可自行結束結算。</p>
+    <h3>雙人無限</h3><p>開好友房後，兩人用相同的方塊順序各自消行。不限時間，也沒有攻擊。一方的棋盤放不下新方塊時，另一方可繼續玩。兩人都堆到頂後，會顯示各自的分數和消除行數。</p>
     <h3>好友 KO 對戰</h3><p>限時五分鐘，先拿三次 KO 提前獲勝。時間到先比 KO，再比送出的垃圾列，同分判平手。被 KO 會清盤繼續。</p>
     <p>普通消 1／2／3／4 行，攻擊量為 0／1／2／4 列。連擊、T 旋和全消會加碼。攻擊先抵銷待升起的垃圾列。未消行且未引爆炸彈的回合，垃圾列會從底部升起。將方塊落在炸彈上即可清除那一列。</p>
     <dl class="key-guide"><div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>左右移動</dd></div><div><dt><kbd>↓</kbd></dt><dd>軟降</dd></div><div><dt><kbd>↑</kbd> <kbd>X</kbd> / <kbd>Z</kbd></dt><dd>順／逆時針旋轉</dd></div><div><dt><kbd>空白鍵</kbd></dt><dd>直接落下</dd></div><div><dt><kbd>C</kbd></dt><dd>暫存</dd></div><div><dt><kbd>Esc</kbd></dt><dd>單人暫停／繼續</dd></div></dl>

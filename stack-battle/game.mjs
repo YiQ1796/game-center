@@ -1,6 +1,6 @@
-import { advance, applyAction, cellsOf, createPlayer, HEIGHT, HIDDEN, levelOf, MATCH_TIME, PIECES, projected, WIDTH } from './engine.mjs?v=110';
+import { advance, applyAction, cellsOf, createPlayer, ENDLESS_MODE, HEIGHT, HIDDEN, levelOf, MATCH_TIME, PIECES, projected, WIDTH } from './engine.mjs?v=120';
 import { LineBurst } from './effects.mjs?v=110';
-import { BattleRoom } from './room.mjs?v=110';
+import { BattleRoom } from './room.mjs?v=120';
 import { getRanking, submitScore } from './ranking.mjs?v=110';
 import { isNickname, nicknameChoices } from './names.mjs?v=100';
 
@@ -16,8 +16,11 @@ const inputMap = {
 const repeating = 'lrd';
 const boards = Object.fromEntries(['board', 'opponent', 'hold', 'next'].map(id => [id, $(id).getContext('2d')]));
 const modeButtons = [...document.querySelectorAll('[data-mode]')];
-const inviteCode = new URL(location.href).searchParams.get('room');
-let mode = /^\d{6}$/.test(inviteCode) ? 'duel' : 'solo';
+const isMultiplayer = mode => mode === 'duel' || mode === ENDLESS_MODE;
+const query = new URLSearchParams(location.search);
+const inviteCode = /^\d{6}$/.test(query.get('room')) ? query.get('room') : null;
+const requestedMode = query.get('mode');
+let mode = isMultiplayer(requestedMode) ? requestedMode : inviteCode ? 'duel' : 'solo';
 let solo = null;
 let soloSeed = 0;
 let actions = [];
@@ -41,14 +44,29 @@ try { best = Math.max(0, Number(localStorage.getItem('sanmao-blocks-best-v1')) |
 
 const room = new BattleRoom(value => {
   view = value;
-  if (mode === 'duel') render();
+  if (!isMultiplayer(mode)) return;
+  if (view && view.mode !== mode) showMode(view.mode);
+  else render();
 }, message => { $('room-status').textContent = message; });
 
 function setMode(target) {
-  if (target !== 'duel' && mode === 'duel' && view?.match && !view.match.finished) {
+  const matchInProgress = view?.match && !view.match.finished;
+  if (target !== mode && isMultiplayer(mode) && matchInProgress) {
     $('room-status').textContent = '對局仍在進行，要切換模式請先離開房間。';
     return;
   }
+  if (isMultiplayer(target) && view && target !== view.mode) {
+    if (matchInProgress || !view.host) {
+      showMode(view.mode);
+      $('room-status').textContent = '目前房間的模式由房主選擇。';
+      return;
+    }
+    if (!room.selectMode(target)) return;
+  }
+  showMode(target);
+}
+
+function showMode(target) {
   if (mode !== target) {
     if (soloStatus === 'playing') soloStatus = 'paused';
     cancelInputs();
@@ -228,7 +246,7 @@ function showBoardEvent(player, key) {
     }
     const text = [
       ko ? '被 KO，重新出發！' : '',
-      perfect ? '全消！' : spin && lines ? 'T 旋突擊' : lines === 4 ? '四行全消！' : lines ? '消除 ' + lines + ' 行' : '',
+      perfect ? '全消！' : spin && lines ? (mode === ENDLESS_MODE ? 'T 旋消除' : 'T 旋突擊') : lines === 4 ? '四行全消！' : lines ? '消除 ' + lines + ' 行' : '',
       combo > 0 && lines ? (combo + 1) + ' COMBO' : '',
       bombs ? '炸掉 ' + bombs + ' 列' : '',
       attack ? '送出 ' + attack + ' 列' : ''
@@ -245,29 +263,83 @@ function showBoardEvent(player, key) {
   }
 }
 
+function canPlayRoom() {
+  const match = view?.match;
+  if (!match || match.finished || view.now < match.starts) return false;
+  const player = match.players[view.host ? 0 : 1];
+  return !player.dead && (view.online || (view.host && match.mode === ENDLESS_MODE));
+}
+
+const scoreAndLines = player => format(player.score) + ' 分 ・ ' + format(player.lines) + ' 行';
+
+function renderRoomPlay(match, player, other, seat) {
+  const endless = mode === ENDLESS_MODE;
+  const title = endless ? '雙人無限' : '好友 KO 對戰';
+  const canRestart = view?.host && view.online;
+  if (!endless) {
+    const time = match ? Math.min(MATCH_TIME, Math.max(0, match.ends - view.now)) : MATCH_TIME;
+    const seconds = Math.ceil(time / 1000);
+    setText('timer', String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0'));
+    setText('ko', (player?.ko ?? 0) + ' ・ ' + (other?.ko ?? 0));
+    setText('sent', format(player?.sent));
+    setText('pending', format(player?.incoming.length));
+  }
+  if (other) {
+    setText('friend-name', view.names[1 - seat] || '好友');
+    const score = endless ? scoreAndLines(other) : 'KO ' + other.ko + ' ・ 送出 ' + other.sent + ' 列';
+    const status = other.dead ? ' ・ 已堆到頂' : !view.online && !match.finished ? ' ・ 離線' : '';
+    setText('friend-stat', score + status);
+    drawBoard('opponent', other);
+  }
+  if (!match) {
+    showOverlay(title, view ? '好友入座後，由房主開始遊戲。' : '建立房間，或輸入好友的房號。');
+  } else if (match.finished && endless) {
+    showOverlay('雙人無限結算', '你 ' + scoreAndLines(player) + ' ／ 好友 ' + scoreAndLines(other),
+      canRestart ? '再玩一局' : null, () => room.start());
+  } else if (match.finished) {
+    const result = match.winner === null ? '平手' : match.winner === seat ? '你贏了！' : '好友獲勝';
+    showOverlay(result, player.ko + '：' + other.ko + ' KO ・ 送出 ' + player.sent + '：' + other.sent + ' 列',
+      canRestart ? '再戰一局' : null, () => room.start());
+  } else if (endless && player.dead) {
+    const status = view.online ? '好友繼續遊玩中。' : '等候好友重新連線。';
+    showOverlay('你已堆到頂', scoreAndLines(player) + '。' + status);
+  } else if (!view.online && !(endless && view.host)) {
+    const status = endless ? '棋盤已保留，連線後繼續。' : '倒數繼續，重新入座後恢復棋盤。';
+    showOverlay('等候重新連線', status);
+  } else if (match.starts > view.now) {
+    showOverlay(String(Math.ceil((match.starts - view.now) / 1000)), '準備開戰！');
+  } else {
+    showOverlay('');
+  }
+}
+
 function renderPlay() {
   const isSolo = mode === 'solo';
+  const timedDuel = mode === 'duel';
   const match = view?.match;
   const seat = view?.host ? 0 : 1;
   const player = isSolo ? solo : match?.players[seat];
   const other = !isSolo && match?.players[1 - seat];
-  const playing = isSolo ? soloStatus === 'playing' : Boolean(match && match.starts <= view.now && !match.finished && view.online);
-  const idleFrame = isSolo ? null : view;
-  const pending = player?.incoming?.length ?? 0;
+  const playing = isSolo ? soloStatus === 'playing' : canPlayRoom();
+  const liveRoom = !isSolo && Boolean(match && !match.finished);
   $('controls').hidden = !playing;
   document.body.toggleAttribute('data-playing', playing);
-  document.body.toggleAttribute('data-live-duel', !isSolo && Boolean(match && !match.finished));
-  $('mid-duel-leave').hidden = isSolo || !match || match.finished;
+  document.body.toggleAttribute('data-live-duel', liveRoom);
+  $('room-quick-actions').hidden = !liveRoom;
+  $('mid-duel-reconnect').hidden = !liveRoom || view.host || view.online;
   $('action-bar').hidden = !isSolo || !['playing', 'paused'].includes(soloStatus);
-  $('solo-stats').hidden = !isSolo;
-  $('duel-stats').hidden = isSolo;
+  $('score-stats').hidden = timedDuel;
+  $('solo-best').hidden = !isSolo;
+  $('duel-stats').hidden = !timedDuel;
   $('friend').hidden = isSolo || !other;
   $('submit-panel').hidden = !(isSolo && soloStatus === 'done' && solo.lines > 0);
-  $('board-frame').toggleAttribute('data-alert', !isSolo && pending > 0);
-  if (isSolo) {
+  $('board-frame').toggleAttribute('data-alert', timedDuel && Boolean(player?.incoming.length));
+  if (!timedDuel) {
     setText('score', format(player?.score));
     setText('lines', format(player?.lines));
     setText('level', player ? levelOf(player) : 1);
+  }
+  if (isSolo) {
     setText('best', format(best));
     if (soloStatus === 'playing') showOverlay('');
     if (soloStatus === 'idle') showOverlay('單人無限', '一次多消，連擊會再加分。', '開始遊戲', startSolo);
@@ -275,34 +347,20 @@ function renderPlay() {
     if (soloStatus === 'done') showOverlay('本局結算', format(solo.score) + ' 分 ・ 消除 ' + format(solo.lines) + ' 行', '再玩一局', startSolo);
     setText('pause', soloStatus === 'paused' ? '繼續' : '暫停');
   } else {
-    const time = match ? Math.min(MATCH_TIME, Math.max(0, match.ends - view.now)) : MATCH_TIME;
-    const seconds = Math.ceil(time / 1000);
-    setText('timer', String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0'));
-    setText('ko', (player?.ko ?? 0) + ' ・ ' + (other?.ko ?? 0));
-    setText('sent', format(player?.sent));
-    setText('pending', format(pending));
-    if (other) {
-      setText('friend-name', view.names[1 - seat] || '好友');
-      setText('friend-stat', 'KO ' + other.ko + ' ・ 送出 ' + other.sent + ' 列');
-      drawBoard('opponent', other);
-    }
-    if (!match) showOverlay('好友 KO 對戰', idleFrame ? '好友入座後，由房主開始對戰。' : '建立房間，或輸入好友的房號。');
-    else if (match.finished) {
-      const result = match.winner === null ? '平手' : match.winner === seat ? '你贏了！' : '好友獲勝';
-      showOverlay(result, player.ko + '：' + other.ko + ' KO ・ 送出 ' + player.sent + '：' + other.sent + ' 列',
-        view.host && view.online ? '再戰一局' : null, () => room.start());
-    } else if (!view.online) showOverlay('等候重新連線', '倒數繼續，重新入座後恢復棋盤。');
-    else if (match.starts > view.now) showOverlay(String(Math.ceil((match.starts - view.now) / 1000)), '準備開戰！');
-    else showOverlay('');
+    renderRoomPlay(match, player, other, seat);
   }
+  if (!playing && held.size) cancelInputs();
   drawBoard('board', player);
-  drawPreview('hold', player?.hold);
-  drawPreview('next', player?.queue[0]);
+  drawPreview('hold', player?.dead ? null : player?.hold);
+  drawPreview('next', player?.dead ? null : player?.queue[0]);
   showBoardEvent(player, isSolo ? soloSeed : match?.starts);
 }
 
 let lastSeats = '';
 function renderRoom() {
+  const endless = mode === ENDLESS_MODE;
+  setText('room-title', endless ? '雙人無限房' : '好友房');
+  $('endless-rules').hidden = !endless;
   $('room-form').hidden = Boolean(view);
   $('room-info').hidden = !view;
   if (!view) {
@@ -324,17 +382,18 @@ function renderRoom() {
   }
   $('start-match').hidden = !view.host;
   $('start-match').disabled = !view.online || Boolean(view.match && !view.match.finished);
-  setText('start-match', view.match?.finished ? '再戰一局' : '開始對戰');
+  const labels = endless ? ['開始遊戲', '再玩一局'] : ['開始對戰', '再戰一局'];
+  setText('start-match', labels[view.match?.finished ? 1 : 0]);
   $('invite').disabled = !view.ready;
   $('reconnect').hidden = view.host || view.online;
 }
 
 function render() {
   for (const button of modeButtons) button.setAttribute('aria-pressed', String(mode === button.dataset.mode));
-  $('room').hidden = mode !== 'duel';
+  $('room').hidden = !isMultiplayer(mode);
   $('ranking').hidden = mode !== 'rank';
   $('play').hidden = mode === 'rank';
-  if (mode === 'duel') renderRoom();
+  if (isMultiplayer(mode)) renderRoom();
   if (mode !== 'rank') renderPlay();
   else {
     document.body.removeAttribute('data-playing');
@@ -359,7 +418,7 @@ function gameInput(action) {
   if (mode === 'solo' && soloStatus === 'playing') {
     soloInput(action);
     renderPlay();
-  } else if (mode === 'duel') room.input(action);
+  } else if (isMultiplayer(mode) && canPlayRoom()) room.input(action);
 }
 
 const held = new Map();
@@ -388,7 +447,7 @@ document.addEventListener('keydown', event => {
       event.metaKey || event.altKey || event.ctrlKey) return;
   if (event.code === 'Escape') return togglePause();
   const action = inputMap[event.code];
-  const active = mode === 'solo' ? soloStatus === 'playing' : mode === 'duel' && view?.match && !view.match.finished;
+  const active = mode === 'solo' ? soloStatus === 'playing' : isMultiplayer(mode) && canPlayRoom();
   if (!action || !active || (event.code === 'Space' && event.target.closest('button, a') && event.target.matches(':focus-visible'))) return;
   event.preventDefault();
   if (!event.repeat) startInput(event.code, action);
@@ -480,10 +539,10 @@ $('sound').addEventListener('click', async () => {
 
 $('pause').addEventListener('click', togglePause);
 $('end').addEventListener('click', finishSolo);
-$('create-room').addEventListener('click', () => room.enter('host', $('room-nickname').value));
+$('create-room').addEventListener('click', () => room.enter('host', $('room-nickname').value, null, mode));
 $('room-form').addEventListener('submit', event => {
   event.preventDefault();
-  void room.enter('guest', $('room-nickname').value, $('code').value.trim());
+  void room.enter('guest', $('room-nickname').value, $('code').value.trim(), mode);
 });
 $('start-match').addEventListener('click', () => {
   room.start();
@@ -496,10 +555,12 @@ $('leave').addEventListener('click', () => {
   $('invite-link').hidden = true;
 });
 $('reconnect').addEventListener('click', () => room.transport.reconnect());
+$('mid-duel-reconnect').addEventListener('click', () => room.transport.reconnect());
 $('invite').addEventListener('click', async () => {
   const url = new URL(location.href);
   url.search = '';
   url.searchParams.set('room', view.code);
+  if (view.mode === ENDLESS_MODE) url.searchParams.set('mode', ENDLESS_MODE);
   $('room-status').textContent = await copy(url.href, $('invite-link')) ? '已複製邀請連結。' : '請複製上方邀請連結。';
 });
 $('rank-refresh').addEventListener('click', showRank);
@@ -541,8 +602,8 @@ $('submit-score').addEventListener('click', async () => {
   }
 });
 
-if (mode === 'duel') $('code').value = inviteCode;
+if (isMultiplayer(mode)) $('code').value = inviteCode ?? '';
 render();
-void room.restore(mode === 'duel' ? inviteCode : null).then(restored => { if (restored) setMode('duel'); });
+void room.restore(inviteCode).then(restored => { if (restored) showMode(view.mode); });
 let lastFrame = performance.now();
 requestAnimationFrame(tick);

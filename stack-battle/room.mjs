@@ -1,4 +1,4 @@
-import { advance, createMatch, finishMatch, playMatch, PLAYER_ACTIONS } from './engine.mjs?v=110';
+import { advance, createMatch, ENDLESS_MODE, finishMatch, playMatch, PLAYER_ACTIONS } from './engine.mjs?v=120';
 import { PeerRoom } from '../one-a-two-b/peer-room.mjs?v=stack-100';
 
 const STORAGE = 'sanmao-blocks-room-v1';
@@ -6,6 +6,7 @@ const ROOM = /^\d{6}$/;
 const TOKEN = /^[a-f0-9-]{36}$/;
 const nameFor = (value, fallback) => typeof value === 'string' ? value.trim().slice(0, 16) || fallback : fallback;
 const freshSeed = () => crypto.getRandomValues(new Uint32Array(1))[0] || 1;
+const roomMode = (value) => value === ENDLESS_MODE ? ENDLESS_MODE : 'duel';
 
 export class BattleRoom {
   constructor(onView, onStatus) {
@@ -14,7 +15,9 @@ export class BattleRoom {
     this.transport = new PeerRoom({
       onHostMessage: (message, source) => this.receiveHost(message, source),
       onGuestMessage: message => this.receiveGuest(message),
-      onGuestOpen: () => this.transport.sendGuest({ type: 'hello', name: this.state.name, token: this.state.token }),
+      onGuestOpen: () => this.transport.sendGuest({
+        type: 'hello', name: this.state.name, token: this.state.token, supportsEndless: true
+      }),
       onConnectionClosed: source => this.disconnectGuest(source),
       onStatus: (state, detail) => {
         if (this.state?.role === 'guest' && state !== 'connected') {
@@ -60,7 +63,7 @@ export class BattleRoom {
     return Boolean(this.state);
   }
 
-  async enter(role, name, code) {
+  async enter(role, name, code, mode) {
     if (this.state) return;
     if (role === 'host') code = String(100000 + freshSeed() % 900000);
     if (!ROOM.test(code)) {
@@ -69,7 +72,7 @@ export class BattleRoom {
     }
     this.state = {
       role, code, token: crypto.randomUUID(), name: nameFor(name, role === 'host' ? '房主' : '好友'),
-      guest: null, match: null
+      mode: roomMode(mode), guest: null, match: null
     };
     this.save();
     await this.open();
@@ -117,6 +120,10 @@ export class BattleRoom {
         this.transport.sendHost(source, { type: 'occupied' });
         return;
       }
+      if (this.state.mode === ENDLESS_MODE && message.supportsEndless !== true) {
+        this.transport.sendHost(source, { type: 'update' });
+        return;
+      }
       if (this.guest && this.guest !== source) {
         const previous = this.guest;
         this.guest = null;
@@ -124,7 +131,9 @@ export class BattleRoom {
       }
       this.guest = source;
       this.actionWindow = { second: 0, count: 0 };
-      this.state.guest = { token: message.token, name: nameFor(message.name, '好友') };
+      this.state.guest = {
+        token: message.token, name: nameFor(message.name, '好友'), supportsEndless: message.supportsEndless === true
+      };
       this.sendView();
       this.status('好友已入座。');
       this.save();
@@ -143,11 +152,16 @@ export class BattleRoom {
       this.leave('這間房已有兩位玩家。');
       return;
     }
+    if (message?.type === 'update') {
+      this.leave('請重新整理到最新版，再加入雙人無限。');
+      return;
+    }
     if (message?.type !== 'state' || !Array.isArray(message.names) || message.names.length !== 2 ||
         !Number.isFinite(message.now)) return;
     if (message.match && !Array.isArray(message.match.players)) return;
     this.transport.confirmJoined();
     this.remote = message;
+    this.state.mode = roomMode(message.mode);
     this.remoteReady = true;
     this.clockOffset = message.now - Date.now();
     this.onStatus('');
@@ -155,14 +169,31 @@ export class BattleRoom {
   }
 
   sendView() {
-    const { name, guest, match } = this.state;
-    this.transport.sendHost(this.guest, { type: 'state', names: [name, guest?.name ?? ''], match, now: Date.now() });
+    const { name, guest, match, mode } = this.state;
+    this.transport.sendHost(this.guest, {
+      type: 'state', mode: roomMode(mode), names: [name, guest?.name ?? ''], match, now: Date.now()
+    });
+  }
+
+  selectMode(mode) {
+    if (this.state?.role !== 'host' || (this.state.match && !this.state.match.finished)) return false;
+    const nextMode = roomMode(mode);
+    if (nextMode === ENDLESS_MODE && this.guest && !this.state.guest?.supportsEndless) {
+      this.status('請好友重新整理到最新版，就能切換到雙人無限。');
+      return false;
+    }
+    this.state.mode = nextMode;
+    this.state.match = null;
+    this.status('');
+    this.save();
+    this.sendView();
+    return true;
   }
 
   start() {
     if (this.state?.role !== 'host' || !this.guest ||
         (this.state.match && !this.state.match.finished)) return;
-    this.state.match = createMatch(freshSeed(), Date.now());
+    this.state.match = createMatch(freshSeed(), Date.now(), roomMode(this.state.mode));
     this.status('');
     this.save();
     this.sendView();
@@ -170,13 +201,14 @@ export class BattleRoom {
 
   input(action) {
     if (this.state?.role === 'host') this.play(0, action);
-    else if (this.state?.role === 'guest' && this.remoteReady && this.remote?.match && !this.remote.match.finished)
+    else if (this.state?.role === 'guest' && this.remoteReady && this.remote?.match &&
+        !this.remote.match.finished && !this.remote.match.players[1].dead)
       this.transport.sendGuest({ type: 'input', action });
   }
 
   play(seat, action) {
     const match = this.state.match;
-    if (!match || !this.guest) return;
+    if (!match || (!this.guest && match.mode !== ENDLESS_MODE)) return;
     const wasFinished = match.finished;
     const accepted = playMatch(match, seat, action, Date.now());
     if (accepted || (!wasFinished && match.finished)) this.emit();
@@ -191,7 +223,7 @@ export class BattleRoom {
     if (!state) return this.onView(null);
     const host = state.role === 'host';
     this.onView({
-      host, code: state.code, ready: host ? this.hostReady : Boolean(this.remoteReady),
+      host, code: state.code, mode: roomMode(state.mode), ready: host ? this.hostReady : Boolean(this.remoteReady),
       online: host ? Boolean(this.guest) : Boolean(this.remoteReady),
       names: host ? [state.name, state.guest?.name ?? ''] : this.remote?.names ?? ['', state.name],
       match: host ? state.match : this.remote?.match, now: Date.now() + (host ? 0 : this.clockOffset || 0)
@@ -211,9 +243,9 @@ export class BattleRoom {
     if (!match || match.finished) return;
     const wallTime = Date.now();
     finishMatch(match, wallTime);
-    if (!match.finished && this.guest && wallTime >= match.starts) {
-      for (const seat of [0, 1]) {
-        if (match.finished) break;
+    const seats = this.guest ? 2 : match.mode === ENDLESS_MODE ? 1 : 0;
+    if (wallTime >= match.starts) {
+      for (let seat = 0; seat < seats && !match.finished; seat++) {
         advance(match.players[seat], elapsed, action => playMatch(match, seat, action, wallTime));
       }
     }

@@ -277,17 +277,26 @@ export function advance(state, elapsed, act) {
   }
 }
 
-export function createMatch(seed, now) {
+export const ENDLESS_MODE = 'endless';
+
+export function createMatch(seed, now, mode = 'duel') {
+  const endless = mode === ENDLESS_MODE;
+  const starts = endless ? now : now + 3000;
   return {
-    players: [createPlayer(seed, true), createPlayer(seed, true)],
+    mode,
+    players: [createPlayer(seed, !endless), createPlayer(seed, !endless)],
     random: (seed ^ 0x71af019e) >>> 0 || 1,
-    starts: now + 3000, ends: now + 3000 + MATCH_TIME, winner: null, finished: false
+    starts, ends: endless ? null : starts + MATCH_TIME, winner: null, finished: false
   };
 }
 
 export function finishMatch(match, now) {
   if (match.finished) return;
   const [first, second] = match.players;
+  if (match.mode === ENDLESS_MODE) {
+    match.finished = first.dead && second.dead;
+    return;
+  }
   if (now < match.ends && first.ko < KO_LIMIT && second.ko < KO_LIMIT) return;
   const result = first.ko - second.ko || first.sent - second.sent;
   match.winner = result === 0 ? null : result > 0 ? 0 : 1;
@@ -298,9 +307,13 @@ export function playMatch(match, seat, action, now) {
   finishMatch(match, now);
   if (match.finished || now < match.starts) return false;
   const own = match.players[seat];
-  const opponent = match.players[1 - seat];
   const revision = own.revision;
   if (!applyAction(own, action)) return false;
+  if (match.mode === ENDLESS_MODE) {
+    finishMatch(match, now);
+    return true;
+  }
+  const opponent = match.players[1 - seat];
   if (own.revision !== revision) {
     for (let row = 0; row < own.event.attack; row += 2) {
       match.random = nextRandom(match.random);
