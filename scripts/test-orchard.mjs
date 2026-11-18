@@ -2,7 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { advance, buildView, choose, finish, gearAction, newGame, setMove } from '../orchard-survival/arena.mjs';
-import { CLASSES, EVOLUTIONS, PASSIVES, SKILLS, SLOTS } from '../orchard-survival/content.mjs';
+import { CLASSES, EVOLUTIONS, PASSIVES, SKILLS, SLOTS, THRESHOLD } from '../orchard-survival/content.mjs';
+import { ADVANCEMENTS, ADVANCEMENT_LEVEL } from '../orchard-survival/advancement.mjs';
 import { Squad } from '../orchard-survival/squad.mjs';
 
 const seats = (...jobs) => jobs.map((job,i)=>({id:'player-'+i,name:'隊員 '+(i+1),job}));
@@ -10,7 +11,7 @@ const tick = (game,count) => { for(let i=0;i<count;i++) advance(game); };
 
 test('opening loadouts, bounded movement and world positions',()=>{
   assert.equal(Object.keys(SKILLS).length,12);
-  assert.equal(Object.keys(PASSIVES).length,8);
+  assert.equal(Object.keys(PASSIVES).length,10);
   assert.equal(SLOTS.length,8);
   const game=newGame(seats('staff','mage','scout'),27);
   game.players.forEach(player=>assert.equal(player.skills[CLASSES[player.job].skill],1));
@@ -45,6 +46,49 @@ test('shared experience opens three different offers, solo pauses and stale choi
   assert.equal(choose(game,player,0,player.offerId),false);
   advance(game);
   assert.ok(game.elapsed>time);
+});
+
+
+test('level eight offers two class advancement tracks, one selection and visible stat changes',()=>{
+  assert.equal(ADVANCEMENT_LEVEL,8);
+  assert.equal(Object.values(ADVANCEMENTS).flat().length,6);
+  const game=newGame(seats('staff'),518);
+  const player=game.players[0];
+  game.spawnClock=999;
+  game.level=7;
+  game.xp=THRESHOLD(7)-1;
+  game.gems.push({x:player.x,y:player.y,value:1});
+  advance(game);
+  assert.equal(game.level,8);
+  assert.equal(player.offers.length,2);
+  assert.ok(player.offers.every(item=>item.type==='promotion'));
+  const version=player.offerId;
+  const before=player.maxHp;
+  assert.equal(choose(game,player,1,version),true);
+  assert.equal(player.promotion,'guardian');
+  assert.ok(player.maxHp>before,'guardian must increase actual maximum health');
+  assert.equal(choose(game,player,0,version),false);
+  const visible=buildView(game,player.id);
+  assert.equal(visible.players[0].promotion,'guardian');
+  assert.equal(visible.own.promotion,'guardian');
+  assert.ok(visible.players[0].maxHp>before);
+});
+
+test('new regeneration and wisdom perks work without losing fractional gem experience',()=>{
+  const game=newGame(seats('staff'),519);
+  const player=game.players[0];
+  game.spawnClock=999;
+  game.level=5; // Avoid levelling and solo choice pause during the fractional-XP test.
+  player.passive.regen=4;
+  player.passive.wisdom=2;
+  player.hp=30;
+  tick(game,30);
+  assert.ok(player.hp>31,'regeneration did not heal');
+  for(let i=0;i<10;i++){
+    game.gems.push({x:player.x,y:player.y,value:1});
+    advance(game);
+  }
+  assert.ok(game.xp>=11,'experience bonus was lost to per-gem rounding');
 });
 
 test('co-op keeps advancing, automatically chooses after timeout and revives a nearby friend',()=>{
