@@ -1,8 +1,13 @@
-import { advance, createMatch, ENDLESS_MODE, finishMatch, playMatch, PLAYER_ACTIONS } from './engine.mjs?v=132';
+import { advance, applyAction, createMatch, ENDLESS_MODE, finishMatch, playMatch, PLAYER_ACTIONS } from './engine.mjs?v=132';
 import { isRoomTaunt, isTauntIndex, TAUNT_COOLDOWN } from './banter.mjs?v=130';
 import { PeerRoom } from '../one-a-two-b/peer-room.mjs?v=stack-100';
 
 const STORAGE = 'sanmao-blocks-room-v1';
+const SNAPSHOT_INTERVAL_MS = 125;
+const GUEST_CLOCK_REFRESH_MS = 250;
+const ROOM_SAVE_INTERVAL_MS = 1000;
+const MAX_PENDING_GUEST_ACTIONS = 96;
+const PENDING_GUEST_TIMEOUT_MS = 2500;
 const ROOM = /^\d{6}$/;
 const TOKEN = /^[a-f0-9-]{36}$/;
 const nameFor = (value, fallback) => typeof value === 'string' ? value.trim().slice(0, 16) || fallback : fallback;
@@ -17,18 +22,25 @@ export class BattleRoom {
       onHostMessage: (message, source) => this.receiveHost(message, source),
       onGuestMessage: message => this.receiveGuest(message),
       onGuestOpen: () => this.transport.sendGuest({
-        type: 'hello', name: this.state.name, token: this.state.token, supportsEndless: true, supportsTaunts: true
+        type: 'hello', name: this.state.name, token: this.state.token, supportsEndless: true, supportsTaunts: true, supportsPrediction: true
       }),
       onConnectionClosed: source => this.disconnectGuest(source),
       onStatus: (state, detail) => {
         if (this.state?.role === 'guest' && state !== 'connected') {
           this.remoteReady = false;
+          this.resetGuestPrediction();
         }
         if (this.state?.role === 'host' && this.hostReady) return;
         this.status(detail);
       }
     }, { namespace: 'sanmao-blocks-v1' });
     this.lastUpdate = performance.now();
+    this.lastSnapshotSentAt = 0;
+    this.snapshotNumber = 0;
+    this.lastGuestUiTick = 0;
+    this.lastRoomSaveAt = 0;
+    this.lastGuestInputSequence = 0;
+    this.resetGuestPrediction();
     this.interval = setInterval(() => this.tick(), 65);
     window.addEventListener('pagehide', () => {
       this.save();
@@ -40,6 +52,13 @@ export class BattleRoom {
         void this.open();
       }
     });
+  }
+
+  resetGuestPrediction() {
+    this.pendingGuestActions = [];
+    this.predictedMatch = null;
+    this.nextGuestInputSequence = 0;
+    this.lastSnapshotNumberSeen = 0;
   }
 
   status(detail) {
@@ -103,6 +122,7 @@ export class BattleRoom {
     this.state = this.guest = this.remote = null;
     this.clockOffset = 0;
     this.remoteReady = false;
+    this.resetGuestPrediction();
     this.save();
     this.status(detail);
   }
@@ -132,9 +152,11 @@ export class BattleRoom {
       }
       this.guest = source;
       this.actionWindow = { second: 0, count: 0 };
+      this.lastGuestInputSequence = 0;
       this.state.guest = {
         token: message.token, name: nameFor(message.name, '好友'), supportsEndless: message.supportsEndless === true,
-        supportsTaunts: message.supportsTaunts === true
+        supportsTaunts: message.supportsTaunts === true,
+        supportsPrediction: message.supportsPrediction === true
       };
       this.sendView();
       this.status('好友已入座。');
@@ -148,6 +170,13 @@ export class BattleRoom {
     }
     if (message.type !== 'input' || typeof message.action !== 'string' ||
         message.action.length !== 1 || !PLAYER_ACTIONS.includes(message.action)) return;
+    if (this.state.guest?.supportsPrediction) {
+      const previous = this.lastGuestInputSequence || 0;
+      if (!Number.isSafeInteger(message.sequence) || message.sequence <= previous ||
+          message.sequence > previous + MAX_PENDING_GUEST_ACTIONS) return;
+      // Acknowledge even rate-limited commands: otherwise local prediction persists indefinitely.
+      this.lastGuestInputSequence = message.sequence;
+    }
     const second = Math.floor(Date.now() / 1000);
     if (this.actionWindow.second !== second) this.actionWindow = { second, count: 0 };
     if (++this.actionWindow.count <= 60) this.play(1, message.action);
@@ -165,22 +194,55 @@ export class BattleRoom {
     }
     if (message?.type !== 'state' || !Array.isArray(message.names) || message.names.length !== 2 ||
         !Number.isFinite(message.now)) return;
-    if (message.match && !Array.isArray(message.match.players)) return;
+    if (message.match && (!Array.isArray(message.match.players) || message.match.players.length !== 2)) return;
+    if (Number.isSafeInteger(message.snapshotNumber)) {
+      if (message.snapshotNumber <= (this.lastSnapshotNumberSeen || 0)) return;
+      this.lastSnapshotNumberSeen = message.snapshotNumber;
+    }
     this.transport.confirmJoined();
+    const newRound = this.remote?.match?.starts !== message.match?.starts;
     this.remote = message;
     this.state.mode = roomMode(message.mode);
     this.remoteReady = true;
     this.clockOffset = message.now - Date.now();
+    if (newRound) {
+      this.pendingGuestActions = [];
+      this.predictedMatch = null;
+    }
+    const ack = message.inputAcknowledged;
+    if (Number.isSafeInteger(ack) && ack >= 0 && message.match && !message.match.finished) {
+      this.nextGuestInputSequence = Math.max(this.nextGuestInputSequence || 0, ack);
+      this.pendingGuestActions = (this.pendingGuestActions || []).filter(p =>
+        p.sequence > ack && Date.now() - p.sentAt < PENDING_GUEST_TIMEOUT_MS);
+      // Reconcile against authoritative state: replay only unacknowledged inputs.
+      this.predictedMatch = this.pendingGuestActions.length ? structuredClone(message.match) : null;
+      for (const pending of this.pendingGuestActions) {
+        if (this.predictedMatch?.players[1]?.dead) break;
+        applyAction(this.predictedMatch.players[1], pending.action);
+      }
+    } else {
+      this.pendingGuestActions = [];
+      this.predictedMatch = null;
+    }
     this.onStatus('');
     this.emit();
   }
 
-  sendView() {
+  sendView(urgent = true) {
+    if (!this.state || !this.guest) return;
+    const now = performance.now();
+    if (!urgent && now - (this.lastSnapshotSentAt || 0) < SNAPSHOT_INTERVAL_MS) return;
     const { name, guest, match, mode, taunt } = this.state;
-    this.transport.sendHost(this.guest, {
-      type: 'state', mode: roomMode(mode), names: [name, guest?.name ?? ''], match, taunt,
-      supportsTaunts: true, now: Date.now()
-    });
+    const snapshotNumber = (this.snapshotNumber || 0) + 1;
+    const message = {
+      type: 'state', mode: roomMode(mode), names: [name, guest?.name ?? ''],
+      match, taunt, supportsTaunts: true, now: Date.now(), snapshotNumber
+    };
+    if (guest?.supportsPrediction) message.inputAcknowledged = this.lastGuestInputSequence || 0;
+    if (this.transport.sendHost(this.guest, message) !== false) {
+      this.snapshotNumber = snapshotNumber;
+      this.lastSnapshotSentAt = now;
+    }
   }
 
   selectMode(mode) {
@@ -210,10 +272,24 @@ export class BattleRoom {
   }
 
   input(action) {
-    if (this.state?.role === 'host') this.play(0, action);
-    else if (this.state?.role === 'guest' && this.remoteReady && this.remote?.match &&
-        !this.remote.match.finished && !this.remote.match.players[1].dead)
+    if (this.state?.role === 'host') { this.play(0, action); return; }
+    if (this.state?.role !== 'guest' || !this.remoteReady || !this.remote?.match ||
+        this.remote.match.finished || this.remote.match.players[1].dead) return;
+    // Fall back to the old protocol when the host has not advertised acknowledgements.
+    if (!Number.isSafeInteger(this.remote.inputAcknowledged)) {
       this.transport.sendGuest({ type: 'input', action });
+      return;
+    }
+    const sequence = (this.nextGuestInputSequence || 0) + 1;
+    if (!this.transport.sendGuest({ type: 'input', action, sequence })) return;
+    this.nextGuestInputSequence = sequence;
+    this.pendingGuestActions ??= [];
+    this.pendingGuestActions.push({ sequence, action, sentAt: Date.now() });
+    if (this.pendingGuestActions.length > MAX_PENDING_GUEST_ACTIONS)
+      this.pendingGuestActions.splice(0, this.pendingGuestActions.length - MAX_PENDING_GUEST_ACTIONS);
+    this.predictedMatch ??= structuredClone(this.remote.match);
+    if (!this.predictedMatch.players[1].dead) applyAction(this.predictedMatch.players[1], action);
+    this.emit();
   }
 
   sendTaunt(index) {
@@ -258,7 +334,7 @@ export class BattleRoom {
       host, code: state.code, mode: roomMode(state.mode), ready: host ? this.hostReady : Boolean(this.remoteReady),
       online: host ? Boolean(this.guest) : Boolean(this.remoteReady),
       names: host ? [state.name, state.guest?.name ?? ''] : this.remote?.names ?? ['', state.name],
-      match: host ? state.match : this.remote?.match,
+      match: host ? state.match : this.predictedMatch ?? this.remote?.match,
       taunt: isRoomTaunt(taunt) ? taunt : null,
       supportsTaunts: (host ? state.guest : this.remote)?.supportsTaunts === true,
       now: Date.now() + (host ? 0 : this.clockOffset || 0)
@@ -271,7 +347,12 @@ export class BattleRoom {
     this.lastUpdate = now;
     if (!this.state) return;
     if (this.state.role === 'guest') {
-      if (this.remote?.match && !this.remote.match.finished) this.emit();
+      // Network snapshots and local input already draw the board.
+      if (this.remote?.match && !this.remote.match.finished &&
+          now - (this.lastGuestUiTick || 0) >= GUEST_CLOCK_REFRESH_MS) {
+        this.lastGuestUiTick = now;
+        this.emit();
+      }
       return;
     }
     const match = this.state.match;
@@ -285,7 +366,10 @@ export class BattleRoom {
       }
     }
     this.emit();
-    if (this.guest) this.sendView();
-    this.save();
+    if (this.guest) this.sendView(match.finished);
+    if (match.finished || now - (this.lastRoomSaveAt || 0) >= ROOM_SAVE_INTERVAL_MS) {
+      this.lastRoomSaveAt = now;
+      this.save();
+    }
   }
 }

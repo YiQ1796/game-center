@@ -1,7 +1,7 @@
 import { advance, applyAction, cellsOf, createPlayer, ENDLESS_MODE, HEIGHT, HIDDEN, levelOf, MATCH_TIME, PIECES, projected, WIDTH } from './engine.mjs?v=132';
 import { eventBanter, FRIEND_TAUNTS, MONKEY_LINES, TAUNT_COOLDOWN, TAUNT_DURATION } from './banter.mjs?v=130';
 import { LineBurst } from './effects.mjs?v=110';
-import { BattleRoom } from './room.mjs?v=132';
+import { BattleRoom } from './room.mjs?v=140';
 import { getRanking, submitScore } from './ranking.mjs?v=131';
 import { isNickname, nicknameChoices } from './names.mjs?v=100';
 

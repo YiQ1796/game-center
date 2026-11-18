@@ -44,7 +44,7 @@ test('Public history is shared via direct URL and rendered from server rather th
 });
 
 test('Multiplayer loads the same new endless gravity engine without stale cache', () => {
-  assert.match(game, /room.mjs\?v=132/);
+  assert.match(game, /room.mjs\?v=140/);
   assert.match(room, /engine.mjs\?v=132/);
 });
 
@@ -63,4 +63,20 @@ test('Active gameplay blocks Safari long-press text selection outside control bu
   assert.match(game, /gameplaySurface\(selection\.anchorNode\)/);
   assert.match(game, /\$\('help-dialog'\)\.open/);
   assert.match(html, /V1\.3\.3/);
+});
+
+test('Guest input prediction and snapshot throttling are present', () => {
+  assert.match(room, /supportsPrediction: true/);
+  assert.match(room, /this\.pendingGuestActions\.push/);
+  assert.match(room, /inputAcknowledged/);
+  assert.match(room, /applyAction\(this\.predictedMatch\.players\[1\]/);
+  assert.match(room, /snapshotNumber <= \(this\.lastSnapshotNumberSeen \|\| 0\)/);
+  assert.match(room, /SNAPSHOT_INTERVAL_MS = 125/);
+  assert.match(room, /GUEST_CLOCK_REFRESH_MS = 250/);
+});
+test('WSS relay coalesces Stack Battle snapshots without changing other games', () => {
+  const relay = readFileSync(new URL('../one-a-two-b/relay-transport.mjs', import.meta.url), 'utf8');
+  assert.match(relay, /namespace === 'sanmao-blocks-v1' && payload\?\.type === 'state'/);
+  assert.match(relay, /entry\.latestState = payload/);
+  assert.match(relay, /sendEncrypted\(latest, 0\)/);
 });

@@ -75,9 +75,9 @@ function clientOptions() {
   return { clientId:'sanmao12-'+randomHex(10), clean:true, protocolVersion:4,
     keepalive:20, reconnectPeriod:2300, connectTimeout:6000 };
 }
-function emitMessage(client, path, message) {
+function emitMessage(client, path, message, qos = 1) {
   if (!client?.connected) throw new Error('WSS 中繼已中斷');
-  client.publish(path, JSON.stringify(message), { qos:1, retain:false });
+  client.publish(path, JSON.stringify(message), { qos, retain:false });
 }
 function loadMqtt() {
   if (typeof window === 'undefined') return Promise.reject(new Error('需要瀏覽器 WebSocket'));
@@ -183,13 +183,34 @@ export async function createRelayHost(code, onConnection, onStatus = () => {}, n
               try { conn.send({type:'relay-heartbeat'}); } catch { conn.close(); }
             }
           }, HEARTBEAT_INTERVAL_MS);
+          const relayPath = topic(code, namespace) + '/to/' + id;
+          async function sendEncrypted(payload, qos = 1) {
+            const packet = await encrypt(secret, payload);
+            if (stopped || !conn.open || !client.connected) return;
+            // Drop stale transient states under socket backpressure; the next wins.
+            if (qos === 0 && (client.stream?.writableLength || 0) > 32000) return;
+            emitMessage(client, relayPath, { ...packet, session:entry.session }, qos);
+          }
           conn.send = payload => {
             if (!conn.open || !client.connected) throw new Error('中繼通道未連接');
-            entry.sendQueue = entry.sendQueue.then(async () => {
-              const packet = await encrypt(secret, payload);
-              if (!stopped && conn.open)
-                emitMessage(client, topic(code, namespace)+'/to/'+id, { ...packet, session:entry.session });
-            }).catch(() => { conn.close(); });
+            if (namespace === 'sanmao-blocks-v1' && payload?.type === 'state') {
+              // Coalesce only Stack Battle state snapshots, not other games' messages.
+              entry.latestState = payload;
+              if (entry.stateQueued) return;
+              entry.stateQueued = true;
+              entry.sendQueue = entry.sendQueue.then(async () => {
+                const latest = entry.latestState;
+                entry.latestState = null;
+                if (latest) await sendEncrypted(latest, 0);
+              }).catch(() => { conn.close(); }).finally(() => {
+                entry.stateQueued = false;
+                if (entry.latestState && conn.open && client.connected)
+                  conn.send(entry.latestState);
+              });
+              return;
+            }
+            entry.sendQueue = entry.sendQueue.then(() => sendEncrypted(payload))
+              .catch(() => { conn.close(); });
           };
           conn.close = () => {
             if (!conn.open) return;

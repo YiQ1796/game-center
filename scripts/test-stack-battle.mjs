@@ -315,3 +315,84 @@ test('Both unlimited modes retain constant gravity after many cleared rows, KO r
   check(createMatch(15, 100, ENDLESS_MODE).players[1], 900);
   check(createPlayer(15, true), 720);
 });
+
+test('Guest predicts immediately and reconciles acknowledged actions without duplicate movement', async () => {
+  const { BattleRoom } = await import('../stack-battle/room.mjs');
+  const host = Object.create(BattleRoom.prototype);
+  const guest = Object.create(BattleRoom.prototype);
+  const seat = { open: true };
+  const upstream = [];
+  const received = [];
+  host.state = { role: 'host', mode: ENDLESS_MODE, code: '123456', name: '房主', guest: null, match: null };
+  host.onView = () => {};
+  host.onStatus = () => {};
+  host.status = () => {};
+  host.save = () => {};
+  host.transport = {
+    sendHost(_conn, message) {
+      const snapshot = structuredClone(message);
+      received.push(snapshot);
+      guest.receiveGuest(snapshot);
+      return true;
+    }
+  };
+  guest.state = { role: 'guest', mode: ENDLESS_MODE, code: '123456', name: '好友' };
+  guest.onStatus = () => {};
+  let displayed = null;
+  guest.onView = value => { displayed = value; };
+  guest.remoteReady = false;
+  guest.resetGuestPrediction();
+  guest.transport = { confirmJoined() {}, sendGuest(value) { upstream.push(value); return true; } };
+  host.receiveHost({
+    type: 'hello', token: crypto.randomUUID(), name: '好友',
+    supportsEndless: true, supportsPrediction: true
+  }, seat);
+  host.start();
+  const originalX = host.state.match.players[1].piece.x;
+  guest.input('r');
+  guest.input('r');
+  assert.deepEqual(upstream.map(item => item.sequence), [1, 2]);
+  assert.equal(displayed.match.players[1].piece.x, originalX + 2);
+  assert.equal(host.state.match.players[1].piece.x, originalX);
+  upstream.forEach(item => host.receiveHost(item, seat));
+  const authoritative = structuredClone(host.state.match);
+  host.receiveHost(upstream[0], seat);
+  assert.equal(host.state.match.players[1].piece.x, originalX + 2);
+  host.sendView();
+  assert.equal(received.at(-1).inputAcknowledged, 2);
+  assert.equal(guest.pendingGuestActions.length, 0);
+  assert.deepEqual(displayed.match, authoritative);
+  const previous = received.at(-1);
+  guest.input('l');
+  assert.equal(displayed.match.players[1].piece.x, originalX + 1);
+  guest.receiveGuest({ ...previous, snapshotNumber: previous.snapshotNumber - 1 });
+  assert.equal(displayed.match.players[1].piece.x, originalX + 1);
+  host.receiveHost(upstream.at(-1), seat);
+  host.sendView();
+  assert.equal(guest.pendingGuestActions.length, 0);
+  assert.deepEqual(displayed.match, host.state.match);
+});
+test('Host supports legacy players without prediction and unchanged KO attack', async () => {
+  const { BattleRoom } = await import('../stack-battle/room.mjs');
+  const host = Object.create(BattleRoom.prototype);
+  const seat = { open: true };
+  const sent = [];
+  host.guest = seat;
+  host.state = { role:'host', mode:'duel', name:'房主', guest:null, match:createMatch(123, Date.now()-4000, 'duel') };
+  host.transport = { sendHost() { return true; } };
+  host.status = () => {};
+  host.onView = () => {};
+  host.save = () => {};
+  host.receiveHost({ type:'hello', token:crypto.randomUUID(), name:'好友' }, seat);
+  assert.equal(host.state.guest.supportsPrediction, false);
+  const initialX = host.state.match.players[1].piece.x;
+  host.receiveHost({ type:'input', action:'r' }, seat);
+  assert.equal(host.state.match.players[1].piece.x, initialX + 1);
+  const guest = Object.create(BattleRoom.prototype);
+  guest.state = { role:'guest', mode:'duel', code:'123456' };
+  guest.remoteReady = true;
+  guest.remote = { match: host.state.match };
+  guest.transport = { sendGuest(input) { sent.push(input); return true; } };
+  guest.input('l');
+  assert.deepEqual(sent, [{ type:'input', action:'l' }]);
+});
