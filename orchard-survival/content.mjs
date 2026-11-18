@@ -1,5 +1,5 @@
 
-export const BUILD = '0.2.0';
+export const BUILD = '0.2.1';
 export const FIELD = { width: 2700, height: 1900 };
 export const STEP = 1 / 30;
 export const SLOTS = ['武器','帽子','外套','手套','鞋子','項鍊','左戒指','右戒指'];
@@ -37,7 +37,9 @@ export const PASSIVES = {
   boots:['草地快鞋','移動速度 +6%'],
   guard:['硬殼背心','受到的傷害降低'],
   heart:['猴三毛便當','最大生命 +18，並回復 18 生命'],
-  crit:['好運小鈴鐺','暴擊率 +6%']
+  crit:['好運小鈴鐺','暴擊率 +6%'],
+  regen:['療癒香蕉','每秒回復 0.45 生命，最多升 4 級'],
+  wisdom:['果園見習筆記','拾取果籽的經驗增加 8%']
 };
 export const EVOLUTIONS = {
   sweep: ['金箍風暴','reach'], fire:['焦糖流星','power'], seed:['千籽穿林','crit']
@@ -55,7 +57,8 @@ export const ENEMIES = {
 export const PERKS = {
   power:['攻擊', 0.035], haste:['冷卻', 0.022], reach:['範圍', 0.033],
   magnet:['拾取', 8], boots:['跑速', 0.018], guard:['防禦', 0.024],
-  heart:['生命', 7], crit:['暴擊', 0.025]
+  heart:['生命', 7], crit:['暴擊', 0.025],
+  regen:['再生', 0.13], wisdom:['經驗', 0.023]
 };
 export const TAUNTS = [
   '我就採根香蕉，怎麼整座果園都追來了？',

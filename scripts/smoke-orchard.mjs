@@ -19,8 +19,8 @@ async function exercise() {
   };
   await until(()=>el('jobs')?.children.length===3,'class selection never loaded');
   await el('mascot').decode();
-  const {adventurer,creature}=await import('./actors.mjs?v=020');
-  const {spellFlashes,airborne}=await import('./spells.mjs?v=020');
+  const {adventurer,creature}=await import('./actors.mjs?v=021');
+  const {spellFlashes,airborne}=await import('./spells.mjs?v=021');
   const target=document.createElement('canvas');target.width=290;target.height=240;
   const ink=target.getContext('2d',{willReadFrequently:true});
   function pixels(draw){
@@ -51,6 +51,22 @@ async function exercise() {
     airborne(ink,view,(id,x,y)=>[x,y],false);spellFlashes(ink,view,false);
   }));
   for(let i=0;i<3;i++)expect(difference(ultimateFrames[i],ultimateFrames[(i+1)%3])>350,'ultimate frames match');
+  // 檢查等級門檻、雙轉職選項、不可重複選擇與多人檢視資料。
+  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=021');
+  const {THRESHOLD}=await import('./content.mjs?v=021');
+  const progression=newGame([{id:'promotion-test',job:'staff',name:'猴三毛'}],1234);
+  const adventurerState=progression.players[0];
+  progression.level=7;
+  progression.xp=THRESHOLD(7)-1;
+  progression.gems.push({id:991,x:adventurerState.x,y:adventurerState.y,value:1});
+  advance(progression);
+  expect(progression.level===8,'level eight was not reached');
+  expect(adventurerState.offers.length===2&&adventurerState.offers.every(offer=>offer.type==='promotion'),'two promotion tracks were not offered');
+  const offerVersion=adventurerState.offerId;
+  expect(choose(progression,adventurerState,0,offerVersion),'promotion choice failed');
+  expect(adventurerState.promotion==='king','promotion state not applied');
+  expect(!choose(progression,adventurerState,0,offerVersion),'promotion double-choice accepted');
+  expect(buildView(progression,adventurerState.id).players[0].promotion==='king','promotion omitted from multiplayer view');
   el('jobs').children[1].click();el('solo').click();
   await until(()=>!el('play').hidden&&el('clock').textContent!=='0:00','battle never started');
   el('burst').click();
@@ -123,24 +139,24 @@ try {
   let current=false;
   for(let i=0;i<(publicPage?15:1);i++){
     try{
-      const response=await fetch(address+'?ci=020-'+Date.now(),{signal:AbortSignal.timeout(7000)});
-      if(response.ok&&(await response.text()).includes('data-build="0.2.0"')){current=true;break;}
+      const response=await fetch(address+'?ci=021-'+Date.now(),{signal:AbortSignal.timeout(7000)});
+      if(response.ok&&(await response.text()).includes('data-build="0.2.1"')){current=true;break;}
     }catch(error){console.log('Waiting for Pages:',error.message);}
     if(publicPage)await delay(3000);
   }
-  assert.ok(current,'Orchard v0.2.0 entry not available at '+address);
+  assert.ok(current,'Orchard v0.2.1 entry not available at '+address);
   for(const [width,height] of [[1440,860],[390,844]]){
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
-    await call('Page.navigate',{url:address+'?ci=020-'+width+'-'+Date.now()});
+    await call('Page.navigate',{url:address+'?ci=021-'+width+'-'+Date.now()});
     let loaded=false;
     for(let i=0;i<180;i++){
-      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.2.0' && !!document.getElementById('jobs')?.firstElementChild"});
+      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.2.1' && !!document.getElementById('jobs')?.firstElementChild"});
       if(state.result.value===true){loaded=true;break;}await delay(100);
     }
     assert.ok(loaded,'Game modules failed to initialise: '+JSON.stringify(exceptions));
     const checked=await call('Runtime.evaluate',{expression:'('+exercise.toString()+')()',awaitPromise:true,returnByValue:true});
     assert.equal(checked.result.value,'PASS',checked.exceptionDetails?.exception?.description||JSON.stringify(exceptions));
-    console.log('Orchard Chrome '+width+'x'+height+' PASS: 3 jobs, weapon levels 1–5 + evolution, 8 equipment slots, 8 monsters, 3 ultimates, radar, normal solo entry and equipment panel');
+    console.log('Orchard Chrome '+width+'x'+height+' PASS: 3 jobs + level-8 advancement, weapon levels 1–5 + evolution, 8 equipment slots, 8 monsters, 3 ultimates, radar, normal solo entry and equipment panel');
   }
   assert.deepEqual(exceptions,[]);
 } finally {

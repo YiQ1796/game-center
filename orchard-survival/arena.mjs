@@ -1,5 +1,6 @@
 
-import { CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, isClass } from './content.mjs?v=020';
+import { CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, isClass } from './content.mjs?v=021';
+import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=021';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -28,7 +29,7 @@ function newPlayer(seat, i) {
     id: seat.id, name: seat.name, job, x: FIELD.width / 2 + (i % 2) * 39 - 20,
     y: FIELD.height / 2 + Math.floor(i / 2) * 39 - 20, face: 1, walk: false,
     hp:type.hp, maxHp:type.hp, inv:0, down:false, rescue:0, burst:0, burstPending:false,
-    strikeAt:-5, aim:0, move:{x:0,y:0}, skills:{[type.skill]:1}, passive:{}, evolution:{}, timers:{},
+    strikeAt:-5, aim:0, promotion:null, move:{x:0,y:0}, skills:{[type.skill]:1}, passive:{}, evolution:{}, timers:{},
     gear:Array(SLOTS.length).fill(null), loot:[], crumbs:0, pending:0, offers:[], deadline:0, offerId:0,
     kills:0, damage:0, bosses:0, rescues:0, limit:0
   };
@@ -37,7 +38,7 @@ function newPlayer(seat, i) {
 export function newGame(seats, seed = 1) {
   if (!Array.isArray(seats) || seats.length < 1 || seats.length > 4) throw new Error('需要 1～4 位玩家');
   return {
-    seed:(seed >>> 0) || 1, serial:0, players:seats.map(newPlayer),
+    seed:(seed >>> 0) || 1, serial:0, players:seats.map(newPlayer), bonusXpCarry:0,
     enemies:[], gems:[], shots:[], zones:[], fx:[], cells:new Map(),
     elapsed:0, level:1, xp:0, eliteAt:52, bossAt:105, bossCycle:0, spawnClock:0.2,
     modifiers:seats.length, ended:false, reason:'', paused:false,
@@ -62,15 +63,18 @@ function stats(player) {
   }
   const bonus = key => gear[key] || 0;
   const rank = key => points[key] || 0;
+  const promotion = getAdvancement(player.job,player.promotion);
+  const promoted = key => promotion?.[key] || 0;
   return {
-    power:(1 + rank('power')*.12 + bonus('power')) * (1 + .3 * Math.log1p(player.limit/5)),
-    haste:Math.max(.45, 1-rank('haste')*.075-bonus('haste')),
-    reach:Math.min(1.8, 1+rank('reach')*.09+bonus('reach')),
+    power:(1 + rank('power')*.12 + bonus('power')) * (1 + .3 * Math.log1p(player.limit/5)) * (1+promoted('power')),
+    haste:Math.max(.35, 1-rank('haste')*.075-bonus('haste')-promoted('haste')),
+    reach:Math.min(2.1, 1+rank('reach')*.09+bonus('reach')+promoted('reach')),
     magnet:Math.min(255, 57+rank('magnet')*24+bonus('magnet')),
-    speed:CLASSES[player.job].speed*Math.min(1.60,1+rank('boots')*.06+bonus('boots')),
-    resist:Math.max(.36, 1-rank('guard')*.08-bonus('guard')),
-    hp:CLASSES[player.job].hp+rank('heart')*18+bonus('heart'),
-    crit:Math.min(.55,.05+rank('crit')*.06+bonus('crit'))
+    speed:CLASSES[player.job].speed*Math.min(1.82,1+rank('boots')*.06+bonus('boots')+promoted('speed')),
+    resist:Math.max(.26, 1-rank('guard')*.08-bonus('guard')-promoted('guard')),
+    hp:(CLASSES[player.job].hp+rank('heart')*18+bonus('heart'))*(1+promoted('health')),
+    crit:Math.min(.75,.05+rank('crit')*.06+bonus('crit')+promoted('crit')),
+    regen:rank('regen')*.45+bonus('regen')
   };
 }
 
@@ -89,6 +93,16 @@ function shuffled(game, options) {
 }
 
 function makeOffers(game, player) {
+  // 職業突破是獨立里程碑，不與三選一的隨機技能池混合。
+  if (game.level >= ADVANCEMENT_LEVEL && !player.promotion) {
+    player.offers = (ADVANCEMENTS[player.job] || []).map(track=>({
+      type:'promotion', key:track.id, name:track.name,
+      text:track.role+'・'+track.description
+    }));
+    player.offerId += 1;
+    player.deadline = game.elapsed + 25;
+    return;
+  }
   const activeCount = Object.keys(player.skills).length;
   const passiveCount = Object.keys(player.passive).length;
   const active = Object.entries(SKILLS).flatMap(([key,skill]) => {
@@ -137,6 +151,17 @@ export function choose(game, player, index, version) {
     updateMaxHp(player, key === 'heart');
   }
   if (type === 'evolution') player.evolution[key] = true;
+  if (type === 'promotion') {
+    const track = getAdvancement(player.job,key);
+    if (!track || player.promotion) return false;
+    player.promotion=key;
+    updateMaxHp(player,true);
+    player.hp=Math.min(player.maxHp,player.hp+player.maxHp*.22);
+    player.burst=0;
+    game.notice=player.name+'轉職成功：'+track.name+'！';
+    game.noticeAt=game.elapsed+6;
+    effect(game,player.x,player.y,124,track.color,1.5,'upgrade',0,0,track.name);
+  }
   if (type === 'limit') player.limit += 1;
   if (type === 'heal') player.hp = Math.min(player.maxHp,player.hp+player.maxHp*.45);
   if (type === 'crumbs') player.crumbs += 8;
@@ -352,18 +377,19 @@ function useSkill(game, player, key, level, config) {
 function burst(game, player, config) {
   const {x,y} = player;
   const type=CLASSES[player.job];
-  player.burst=22;
-  effect(game,x,y,110,type.color,1.0,'cast-'+player.job,0,0,type.burst);
+  const promotion=getAdvancement(player.job,player.promotion);
+  player.burst=promotion ? 18 : 22;
+  effect(game,x,y,promotion ? 150 : 110,promotion?.color||type.color,1.0,'cast-'+player.job,0,0,promotion ? promotion.name+' · '+type.burst : type.burst);
   if (player.job==='staff') {
-    blast(game,player,x,y,230,125*config.power,type.color,config.crit,105,0,'cyclone');
+    blast(game,player,x,y,230*config.reach,125*config.power,type.color,config.crit,105,0,'cyclone');
     player.inv=Math.max(1.15,player.inv);
   } else if (player.job==='mage') {
     for (const angle of headings) {
       const distance=95+random(game)*120;
-      zone(game,player,'meteor',x+Math.cos(angle)*distance,y+Math.sin(angle)*distance,111,67*config.power,type.color,config.crit,.48+random(game)*.82);
+      zone(game,player,'meteor',x+Math.cos(angle)*distance,y+Math.sin(angle)*distance,111*config.reach,67*config.power,type.color,config.crit,.48+random(game)*.82);
     }
   } else {
-    for (let i=0;i<18;i++) shoot(game,player,i/18*TAU,{amount:54*config.power,color:type.color,crit:config.crit,reach:560,kind:'starArrow',pierce:5,tier:6});
+    for (let i=0;i<(promotion?24:18);i++) shoot(game,player,i/(promotion?24:18)*TAU,{amount:54*config.power,color:type.color,crit:config.crit,reach:560*config.reach,kind:'starArrow',pierce:5,tier:6});
     player.inv=Math.max(.78,player.inv);
   }
 }
@@ -547,7 +573,12 @@ function collect(game) {
   }
   if (value) {
     game.gems=game.gems.filter(gem=>gem.value>0);
-    gainXp(game,value);
+    // 小額果籽也能累積經驗加成；餘數保留到下次拾取。
+    const teamWisdom=Math.max(0,...game.players.filter(player=>!player.down).map(player=>player.passive.wisdom||0));
+    const adjusted=value*(1+teamWisdom*.08)+game.bonusXpCarry;
+    const gained=Math.floor(adjusted);
+    game.bonusXpCarry=adjusted-gained;
+    if(gained>0)gainXp(game,gained);
   }
 }
 
@@ -589,6 +620,7 @@ export function advance(game) {
     player.pickup=config.magnet;
     player.inv=Math.max(0,player.inv-STEP);
     player.burst=Math.max(0,player.burst-STEP);
+    if (config.regen>0) player.hp=Math.min(player.maxHp,player.hp+config.regen*STEP);
     const {x,y}=player.move;
     player.walk=Boolean(x||y);
     player.x=clamp(player.x+x*config.speed*STEP,21,FIELD.width-21);
@@ -631,11 +663,11 @@ export function buildView(game, focusId) {
     radar:radarContacts(game.enemies), t:game.elapsed,l:game.level,xp:game.xp,xpMax:THRESHOLD(game.level),done:game.ended,reason:game.reason,
     notice:game.elapsed<game.noticeAt ? game.notice : '', nextBoss:game.bossAt, paused:game.paused,
     players:game.players.map(p=>({
-      id:p.id,name:p.name,job:p.job,x:n(p.x),y:n(p.y),face:p.face,walk:p.walk,down:p.down,
+      id:p.id,name:p.name,job:p.job,promotion:p.promotion,x:n(p.x),y:n(p.y),face:p.face,walk:p.walk,down:p.down,
       look:{ level:p.skills[CLASSES[p.job].skill], evolved:Boolean(p.evolution[CLASSES[p.job].skill]), slots:p.gear.map(item=>item ? 1+item.rarity+item.rank*6 : 0), swing:n(Math.max(0,1-(game.elapsed-p.strikeAt)/.4)*100), aim:n(p.aim*100)/100 },
       hp:n(p.hp),maxHp:p.maxHp,rev:p.rescue,inv:p.inv>0,kills:p.kills,damage:n(p.damage),bosses:p.bosses,rescues:p.rescues
     })),
-    own:{id:focus.id,burst:focus.burst,offers:focus.offers,offerId:focus.offerId,deadline:focus.deadline,
+    own:{id:focus.id,promotion:focus.promotion,burst:focus.burst,offers:focus.offers,offerId:focus.offerId,deadline:focus.deadline,
       gear:focus.gear,loot:focus.loot,crumbs:focus.crumbs,skills:focus.skills,passive:focus.passive,evolution:focus.evolution},
     enemies:game.enemies.filter(see).map(e=>[e.id,e.kind,n(e.x),n(e.y),e.radius,n(100*e.hp/e.maxHp),e.flash>0,e.face,n(e.wind*100),e.mode,n(e.tx),n(e.ty),n(e.aim*100)/100]),
     gems:game.gems.filter(see).map(g=>[n(g.x),n(g.y),g.value]),

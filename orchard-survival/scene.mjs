@@ -1,9 +1,9 @@
-import { TAU } from './paint.mjs?v=020';
-import { FIELD } from './content.mjs?v=020';
-import { adventurer, creature } from './actors.mjs?v=020';
-import { Garden } from './garden.mjs?v=020';
-import { Radar } from './radar.mjs?v=020';
-import { airborne, groundSpells, spellFlashes } from './spells.mjs?v=020';
+import { TAU } from './paint.mjs?v=021';
+import { FIELD } from './content.mjs?v=021';
+import { adventurer, creature } from './actors.mjs?v=021';
+import { Garden } from './garden.mjs?v=021';
+import { Radar } from './radar.mjs?v=021';
+import { airborne, groundSpells, spellFlashes } from './spells.mjs?v=021';
 const LIMIT=(v,min,max)=>Math.max(min,Math.min(max,v));
 function ellipse(ctx,x,y,rx,ry,color) {
   ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,TAU);ctx.fillStyle=color;ctx.fill();

@@ -1,9 +1,10 @@
 
-import { advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=020';
-import { CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=020';
-import { adventurer } from './actors.mjs?v=020';
-import { Scene } from './scene.mjs?v=020';
-import { Squad } from './squad.mjs?v=020';
+import { advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=021';
+import { CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=021';
+import { adventurer } from './actors.mjs?v=021';
+import { Scene } from './scene.mjs?v=021';
+import { Squad } from './squad.mjs?v=021';
+import { getAdvancement } from './advancement.mjs?v=021';
 
 const $ = id => document.getElementById(id);
 const ui = Object.fromEntries([
@@ -172,7 +173,7 @@ function leaveBattle() {
 function summaryPanel(view,self,content,actions) {
   const stats=element('dl','summary');
   for(const [name,value] of [
-    ['生存時間',clock(view.t)],['擊退',self.kills],['總傷害',self.damage.toLocaleString('zh-TW')],
+    ['生存時間',clock(view.t)],['職業',getAdvancement(self.job,self.promotion)?.name||CLASSES[self.job].name],['擊退',self.kills],['總傷害',self.damage.toLocaleString('zh-TW')],
     ['首領',self.bosses],['場次等級',view.l],['救援',self.rescues]
   ]) {
     const pair=element('div','');
@@ -208,7 +209,7 @@ function equipmentPanel(view,content,actions) {
   const self=view.players.find(player=>player.id===owned.id)||view.players[0];
   const look=self.look||{level:owned.skills[CLASSES[self.job].skill]||1,evolved:Boolean(owned.evolution[CLASSES[self.job].skill]),slots:owned.gear.map(item=>item?1+item.rarity+item.rank*6:0)};
   const fitting=element('div','dressing');
-  fitting.append(outfitPreview(self,look),element('strong','',CLASSES[self.job].name+' · '+(look.evolved?EVOLUTIONS[CLASSES[self.job].skill][0]:SKILLS[CLASSES[self.job].skill][0])+' Lv.'+look.level));
+  fitting.append(outfitPreview(self,look),element('strong','',(getAdvancement(self.job,self.promotion)?.name||CLASSES[self.job].name)+' · '+(look.evolved?EVOLUTIONS[CLASSES[self.job].skill][0]:SKILLS[CLASSES[self.job].skill][0])+' Lv.'+look.level));
   content.append(fitting);
   const wrap=element('div','inventory');
   const equipped=element('section','');
@@ -283,9 +284,10 @@ function modal(view,self) {
     title='果園日報';copy=view.reason||TAUNTS[3];
     summaryPanel(view,self,content,actions);
   } else if(mode==='choose') {
-    title='升級了，選一項！';
-    copy=game?'挑好技能再繼續。':'剩 '+Math.ceil(Math.max(0,view.own.deadline-view.t))+' 秒。逾時會選第一項。';
-    const choices=element('div','choices');
+    const isPromotion=offers[0]?.type==='promotion';
+    title=isPromotion?'Lv.8 突破轉職！':'升級了，選一項！';
+    copy=isPromotion?'選擇猴三毛的進階路線。轉職後本局不能更換。':game?'挑好技能再繼續。':'剩 '+Math.ceil(Math.max(0,view.own.deadline-view.t))+' 秒。逾時會選第一項。';
+    const choices=element('div',isPromotion?'choices promotions':'choices');
     offers.forEach((offer,i)=>{
       const choice=button('','choice',()=>action('choose',i,view.own.offerId));
       choice.dataset.type=offer.type;
@@ -317,7 +319,7 @@ function updateHud(view,self,now) {
   setText(ui.clock,clock(view.t));
   setText(ui.wave,view.enemies.some(enemy=>enemy[1]==='boss'||enemy[1]==='queen')?'首領出沒':'下波首領 '+clock(Math.max(0,view.nextBoss-view.t)));
   setText(ui.life,self.hp+' / '+Math.round(self.maxHp)+' 生命');
-  setText(ui.level,'Lv. '+view.l+' · '+view.xp+' / '+view.xpMax+' 果籽');
+  setText(ui.level,'Lv. '+view.l+' · '+view.xp+' / '+view.xpMax+' 果籽'+(self.promotion?' · '+(getAdvancement(self.job,self.promotion)?.name||'已轉職'):''));
   ui['life-bar'].style.transform='scaleX('+Math.max(0,Math.min(1,self.hp/self.maxHp))+')';
   ui['xp-bar'].style.transform='scaleX('+Math.max(0,Math.min(1,view.xp/view.xpMax))+')';
   const countdown=Math.ceil(view.own.burst);
