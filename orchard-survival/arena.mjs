@@ -1,6 +1,6 @@
 
-import { CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, isClass } from './content.mjs?v=021';
-import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=021';
+import { CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=030';
+import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=030';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -30,6 +30,7 @@ function newPlayer(seat, i) {
     y: FIELD.height / 2 + Math.floor(i / 2) * 39 - 20, face: 1, walk: false,
     hp:type.hp, maxHp:type.hp, inv:0, down:false, rescue:0, burst:0, burstPending:false,
     strikeAt:-5, aim:0, promotion:null, move:{x:0,y:0}, skills:{[type.skill]:1}, passive:{}, evolution:{}, timers:{},
+    attributes:{str:5,agi:5,vit:5,int:5,dex:5,luk:5},statPoints:0,legendaryTokens:0,
     gear:Array(SLOTS.length).fill(null), loot:[], crumbs:0, pending:0, offers:[], deadline:0, offerId:0,
     kills:0, damage:0, bosses:0, rescues:0, limit:0
   };
@@ -65,19 +66,30 @@ function stats(player) {
   const rank = key => points[key] || 0;
   const promotion = getAdvancement(player.job,player.promotion);
   const promoted = key => promotion?.[key] || 0;
+  const attr = key => Math.max(0,player.attributes?.[key] || 0);
+  const mainAttribute=player.job==='staff'?'str':player.job==='mage'?'int':'dex';
+  const baseAttack=(attr(mainAttribute)-5)*.027;
   return {
-    power:(1 + rank('power')*.12 + bonus('power')) * (1 + .3 * Math.log1p(player.limit/5)) * (1+promoted('power')),
-    haste:Math.max(.35, 1-rank('haste')*.075-bonus('haste')-promoted('haste')),
-    reach:Math.min(2.1, 1+rank('reach')*.09+bonus('reach')+promoted('reach')),
+    power:(1 + rank('power')*.12 + bonus('power')) * (1 + .3 * Math.log1p(player.limit/5)) * (1+promoted('power')+baseAttack), 
+    haste:Math.max(.35, 1-rank('haste')*.075-bonus('haste')-promoted('haste')-(attr('agi')-5)*.003),
+    reach:Math.min(2.3, 1+rank('reach')*.09+bonus('reach')+promoted('reach')+(attr('dex')-5)*.003),
     magnet:Math.min(255, 57+rank('magnet')*24+bonus('magnet')),
-    speed:CLASSES[player.job].speed*Math.min(1.82,1+rank('boots')*.06+bonus('boots')+promoted('speed')),
-    resist:Math.max(.26, 1-rank('guard')*.08-bonus('guard')-promoted('guard')),
-    hp:(CLASSES[player.job].hp+rank('heart')*18+bonus('heart'))*(1+promoted('health')),
-    crit:Math.min(.75,.05+rank('crit')*.06+bonus('crit')+promoted('crit')),
+    speed:CLASSES[player.job].speed*Math.min(1.82,1+rank('boots')*.06+bonus('boots')+promoted('speed')+(attr('agi')-5)*.006),
+    resist:Math.max(.26, 1-rank('guard')*.08-bonus('guard')-promoted('guard')-(attr('vit')-5)*.002),
+    hp:(CLASSES[player.job].hp+rank('heart')*18+bonus('heart')+(attr('vit')-5)*7)*(1+promoted('health')),
+    crit:Math.min(.75,.05+rank('crit')*.06+bonus('crit')+promoted('crit')+(attr('luk')-5)*.006),
     regen:rank('regen')*.45+bonus('regen')
   };
 }
 
+export function allocateAttribute(game,player,key) {
+  if(game.ended||player?.down||!Object.hasOwn(ATTRIBUTES,key) ||
+     !Number.isInteger(player.statPoints)||player.statPoints<1||player.attributes[key]>=99) return false;
+  player.attributes[key] += 1;
+  player.statPoints -= 1;
+  updateMaxHp(player,key==='vit');
+  return true;
+}
 function updateMaxHp(player, heal = false) {
   const maxHp = stats(player).hp;
   player.hp = clamp(player.hp + (heal ? Math.max(0,maxHp-player.maxHp) : 0),0,maxHp);
@@ -107,16 +119,20 @@ function makeOffers(game, player) {
   const passiveCount = Object.keys(player.passive).length;
   const active = Object.entries(SKILLS).flatMap(([key,skill]) => {
     const level = player.skills[key] || 0;
-    if (level >= 5 || (!level && activeCount >= 6)) return [];
-    return [{ type:'skill', key, name:skill[0], text:level ? '等級 ' + (level+1) + ' ・傷害與冷卻改善' : skill[1] }];
+    if (level >= SKILL_CAP || (!level && activeCount >= 6)) return [];
+    const rankGain=Math.min(2,SKILL_CAP-level);
+    return [{ type:'skill', key, name:skill[0],
+      rankGain:1, text:level ? 'Lv.'+level+' → '+(level+1)+'｜'+skill[1] : skill[1],
+      detail:'傷害 '+skill[2]+'｜冷卻 '+skill[4].toFixed(1)+' 秒｜最高 Lv.'+SKILL_CAP }];
   });
   const passive = Object.entries(PASSIVES).flatMap(([key,perk]) => {
     const level = player.passive[key] || 0;
-    if (level >= 4 || (!level && passiveCount >= 6)) return [];
-    return [{ type:'passive', key, name:perk[0], text:'等級 ' + (level+1) + ' ・' + perk[1] }];
+    if (level >= PASSIVE_CAP || (!level && passiveCount >= 6)) return [];
+    return [{ type:'passive', key, name:perk[0], text:'Lv.'+level+' → '+(level+1)+'｜'+perk[1],
+      detail:'被動技能｜最高 Lv.'+PASSIVE_CAP }];
   });
   const evolutions = Object.entries(EVOLUTIONS).flatMap(([key,[name,perk]]) =>
-    player.skills[key] === 5 && player.passive[perk] && !player.evolution[key]
+    player.skills[key] >= 5 && player.passive[perk] && !player.evolution[key]
       ? [{ type:'evolution', key, name, text:'傷害大幅提高，範圍擴張，普攻變為進化版' }] : []);
   shuffled(game, active);
   const primary = CLASSES[player.job].skill;
@@ -136,6 +152,17 @@ function makeOffers(game, player) {
   ]) {
     if (choices.length < 3) choices.push(option);
   }
+  // Boss 戰利品提供一張傳奇 +3 升級卡；一般里程碑則可能有精良 +2 卡。
+  const skills=choices.map((offer,index)=>({offer,index})).filter(({offer})=>offer.type==='skill');
+  if(skills.length&&player.legendaryTokens>0){
+    const index=skills[0].index,original=choices[index],current=player.skills[original.key]||0;
+    choices[index]={...original,grade:'legendary',rankGain:Math.min(3,SKILL_CAP-current),
+      text:'傳奇突破！Lv.'+current+' → '+Math.min(SKILL_CAP,current+3)+'｜'+SKILLS[original.key][1]};
+  }else if(skills.length&&game.level%5===0){
+    const index=skills[0].index,original=choices[index],current=player.skills[original.key]||0;
+    choices[index]={...original,grade:'epic',rankGain:Math.min(2,SKILL_CAP-current),
+      text:'史詩強化！Lv.'+current+' → '+Math.min(SKILL_CAP,current+2)+'｜'+SKILLS[original.key][1]};
+  }
   player.offers = choices;
   player.offerId += 1;
   player.deadline = game.elapsed + 12;
@@ -145,9 +172,12 @@ export function choose(game, player, index, version) {
   const offer = player?.offers[index];
   if (!offer || game.ended || player.down || !Number.isInteger(index) || version !== player.offerId) return false;
   const {type,key} = offer;
-  if (type === 'skill') player.skills[key] = (player.skills[key] || 0) + 1;
+  if (type === 'skill'){
+    player.skills[key]=Math.min(SKILL_CAP,(player.skills[key]||0)+(offer.rankGain||1));
+    if(offer.grade==='legendary')player.legendaryTokens=Math.max(0,player.legendaryTokens-1);
+  }
   if (type === 'passive') {
-    player.passive[key] = (player.passive[key] || 0) + 1;
+    player.passive[key] = Math.min(PASSIVE_CAP,(player.passive[key] || 0) + 1);
     updateMaxHp(player, key === 'heart');
   }
   if (type === 'evolution') player.evolution[key] = true;
@@ -178,6 +208,7 @@ function gainXp(game, amount) {
     game.xp -= THRESHOLD(game.level++);
     for (const player of game.players) {
       player.pending++;
+      player.statPoints=Math.min(180,player.statPoints+3);
       if (!player.down && !player.offers.length) makeOffers(game, player);
     }
   }
@@ -252,6 +283,13 @@ function hurt(game, player, enemy, amount, color, crit, knock=0) {
   player.kills++;
   if (boss) player.bosses++;
   dropGem(game,enemy);
+  // 小怪也能偶爾掉裝備與果核，讓成長節奏不再完全卡在精英刷新。
+  if(!boss&&!elite&&random(game)<.018){
+    const item=rollGear(game,false);
+    if(player.loot.length<12)player.loot.push(item);
+    else player.crumbs+=2+item.rarity;
+  }
+  if(!boss&&!elite&&random(game)<.15)player.crumbs++;
   effect(game,enemy.x,enemy.y,enemy.radius*(boss ? 4 : 1.85),color,.42,'pop');
   if (boss || elite) {
     for (const ally of game.players) {
@@ -259,6 +297,7 @@ function hurt(game, player, enemy, amount, color, crit, knock=0) {
       if (ally.loot.length < 12) ally.loot.push(item);
       else ally.crumbs += 2+item.rarity;
       ally.crumbs += boss ? 8 : 3;
+      if(boss)ally.legendaryTokens=Math.min(3,ally.legendaryTokens+1);
       if (!ally.down) ally.hp = Math.min(ally.maxHp,ally.hp+ally.maxHp*(boss ? .3 : .14));
     }
     game.notice = ENEMIES[enemy.kind][5] + '被打跑了！每位隊友都有自己的裝備。';
@@ -479,7 +518,7 @@ function schedule(game, alive) {
   }
   game.spawnClock-=STEP;
   if (game.spawnClock>0) return;
-  const cap=150+Math.min(70,Math.floor(minutes*12));
+  const cap=150+Math.min(140,Math.floor(minutes*28));
   const group=Math.min(9,2+Math.floor(time/35)+Math.floor((game.modifiers-1)*.8));
   for (let i=0;i<group && game.enemies.length<cap;i++) {
     const roll=random(game);
@@ -668,7 +707,12 @@ export function buildView(game, focusId) {
       hp:n(p.hp),maxHp:p.maxHp,rev:p.rescue,inv:p.inv>0,kills:p.kills,damage:n(p.damage),bosses:p.bosses,rescues:p.rescues
     })),
     own:{id:focus.id,promotion:focus.promotion,burst:focus.burst,offers:focus.offers,offerId:focus.offerId,deadline:focus.deadline,
-      gear:focus.gear,loot:focus.loot,crumbs:focus.crumbs,skills:focus.skills,passive:focus.passive,evolution:focus.evolution},
+      gear:focus.gear,loot:focus.loot,crumbs:focus.crumbs,skills:focus.skills,passive:focus.passive,evolution:focus.evolution,
+      attributes:focus.attributes,statPoints:focus.statPoints,legendaryTokens:focus.legendaryTokens,
+      timers:focus.timers,derived:stats(focus)},
+    boss:game.enemies.filter(e=>e.hp>0&&['boss','queen'].includes(e.kind))
+      .map(e=>({name:ENEMIES[e.kind][5],hp:n(e.hp),maxHp:n(e.maxHp),kind:e.kind}))
+      .sort((a,b)=>b.hp-a.hp)[0]||null,
     enemies:game.enemies.filter(see).map(e=>[e.id,e.kind,n(e.x),n(e.y),e.radius,n(100*e.hp/e.maxHp),e.flash>0,e.face,n(e.wind*100),e.mode,n(e.tx),n(e.ty),n(e.aim*100)/100]),
     gems:game.gems.filter(see).map(g=>[n(g.x),n(g.y),g.value]),
     shots:game.shots.filter(see).map(s=>[s.id,n(s.x),n(s.y),n(s.angle*100)/100,s.color,s.kind,s.tier]),

@@ -1,6 +1,7 @@
 
-import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=021';
-import { getAdvancement } from './advancement.mjs?v=021';
+import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=030';
+import { getAdvancement } from './advancement.mjs?v=030';
+import { drawAdvancedCostume,drawAdvancedWeapon } from './costumes.mjs?v=030';
 
 const outline='#463c42';
 const velvet=(c,light,mid,dark)=>blend(c,-12,-26,11,19,light,mid,dark);
@@ -124,12 +125,14 @@ export function creature(c,enemy,t,x,y){
 
 const gearColors=['#c0a47b','#aecb77','#83c4ed','#d4a1ed','#ffba5e','#ff90a6'];
 const jobCloth={staff:['#b75136','#fbcb68'],mage:['#624779','#dca8ff'],scout:['#2d7265','#a4e4b4']};
-function weapon(c,job,look,t,face){
+function weapon(c,job,look,t,face,promotion){
   const level=look.level||1,evo=look.evolved;
   const gear=look.slots[0],trim=gear?gearColors[(gear-1)%6]:'#f4c568';
   const rank=gear?Math.floor((gear-1)/6):0;
   const swing=Math.sin((look.swing||0)/100*Math.PI);
   c.save();c.translate(15,-13);
+  // 進階職業改用專屬武器形體，禁止疊上舊的通用武器。
+  if(promotion){drawAdvancedWeapon(c,job,promotion,look,t);c.restore();return;}
   const aim=look.aim||0;
   const localAngle=Math.atan2(Math.sin(aim),Math.cos(aim)*face);
   if(job==='staff')c.rotate(.34+swing*1.45);
@@ -195,11 +198,11 @@ export function adventurer(c,p,sprite,t,x,y,self){
   c.save();c.translate(x,y+gait*1.7);c.scale(face,1);
   if(down)c.rotate(-.82);
   if(p.inv&&Math.floor(t*8)%2===0)c.globalAlpha=.79;
-  if(job==='mage'||worn[2]){
+  if(!promotion&&(job==='mage'||worn[2])){
     ink(c,'M-10 -29 Q-18 -19 -22 6 Q-12 11 -2 4 L8 -21Z',velvet(c,accent,cloth,'#4a414b'),outline,1.15);
     ink(c,'M-11 -21 Q-16 -8 -18 4',null,accent,1.2);
   }
-  if(job==='scout'){
+  if(!promotion&&job==='scout'){
     ink(c,'M-16 -17 L-23 -37 L-16 -39 L-8 -21Z','#977455',outline,1.2);
     ink(c,'M-22 -32 L-28 -40 L-22 -39 L-19 -45 L-18 -35Z','#9ac8a4',outline,.9);
   }
@@ -207,13 +210,9 @@ export function adventurer(c,p,sprite,t,x,y,self){
     const height=77,w=height*sprite.naturalWidth/sprite.naturalHeight;
     c.drawImage(sprite,-w/2,10-height,w,height);
   }
-  if(promotion){
-    // 沿用猴三毛全身立繪：只新增轉職披肩與徽章，不重新生成人物圖。
-    ink(c,'M-18 -24 Q-23 -11 -15 -7 L-11 -23 L-4 -27 Q0 -23 5 -26 L14 -22 L18 -9 L22 -16 L14 -28 Q0 -35 -18 -24Z',
-      promotion.color,outline,1.2);
-    ink(c,'M-14 -31 Q0 -25 14 -31',null,'#fff2c7',1.7);
-    star(c,0,-29,4.5,'#fff3bb');
-  }
+  // 全套職業服裝以永久角色造型取代舊披肩 + 粒子效果。
+  if(promotion)drawAdvancedCostume(c,job,p.promotion,look,t);
+  if(!promotion){
   if(worn[2]){
     ink(c,'M-10 -26 L-16 -22 L-13 -15 L-10 -16 L-10 -1 Q1 4 11 -2 L10 -18 L15 -15 L16 -23 L9 -27 Q0 -21 -10 -26Z',
       velvet(c,tint(2),cloth,'#51414a'),outline,1);
@@ -233,15 +232,10 @@ export function adventurer(c,p,sprite,t,x,y,self){
   }
   if(worn[4])for(const px of [-8,8]){oval(c,px,6,6.3,3.4,cloth);stroke(c,[[px-3,4],[px+2,4]],tint(4),1.6);}
   if(worn[5]){ink(c,'M-7 -22 Q-2 -10 7 -22',null,'#f7cf83',1.3);star(c,0,-14,3.8,tint(5));}
-  weapon(c,job,look,t,face);
-  if(promotion){
-    c.save();c.globalAlpha=.82;
-    star(c,-19+Math.sin(t*3)*2,-34,3.1,promotion.color,t*.25);
-    star(c,19+Math.cos(t*3)*2,-38,2.8,promotion.color,-t*.2);
-    c.restore();
   }
-  if(worn[3]){oval(c,14,-13,4.6,4,cloth);stroke(c,[[11,-12],[15,-10]],tint(3),1.5);}
-  for(const [slot,px] of [[6,-14],[7,14]])if(worn[slot]){oval(c,px,-12,2.8,2.5,'#dfae64');star(c,px,-12,2.3,tint(slot));}
+  weapon(c,job,look,t,face,p.promotion);
+  if(!promotion&&worn[3]){oval(c,14,-13,4.6,4,cloth);stroke(c,[[11,-12],[15,-10]],tint(3),1.5);}
+  for(const [slot,px] of [[6,-14],[7,14]])if(!promotion&&worn[slot]){oval(c,px,-12,2.8,2.5,'#dfae64');star(c,px,-12,2.3,tint(slot));}
   c.restore();
   if(!self||down){
     c.font='bold 12px system-ui';c.textAlign='center';c.lineWidth=3;c.strokeStyle='#374c39';c.fillStyle='#fff2bf';

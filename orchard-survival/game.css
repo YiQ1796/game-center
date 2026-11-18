@@ -201,3 +201,67 @@ body.playing #top {display:none}
 .choice[data-type="promotion"] b{font-size:1rem;color:#315946}
 .choice[data-type="promotion"] small{line-height:1.55}
 @media(max-width:460px){.choices.promotions{gap:7px}.choice[data-type="promotion"]{min-height:118px;padding:8px}}
+
+/* V0.3: battle information and advancement menus, with no new generated image assets. */
+.boss-banner{position:absolute;z-index:5;top:max(83px,calc(env(safe-area-inset-top) + 72px));left:50%;transform:translateX(-50%);width:min(420px,calc(100% - 220px));min-width:180px;padding:8px 13px 10px;text-align:center;color:#fff3d8;background:linear-gradient(180deg,#4c2b37f0,#302633f5);border:2px solid #d9a26a;border-radius:12px;box-shadow:0 4px 16px #241f22aa}
+.boss-banner strong{display:block;font-size:.87rem;margin-bottom:5px}
+.boss-track{height:10px;background:#2a1821;border:1px solid #be8071;border-radius:12px;overflow:hidden}
+.boss-track i{display:block;transform-origin:left center;transform:scaleX(1);height:100%;background:linear-gradient(90deg,#ab3652,#f17d58,#ffe4b3);transition:transform .18s linear}
+.battle-count{position:absolute;z-index:4;left:max(12px,env(safe-area-inset-left));top:max(75px,calc(env(safe-area-inset-top) + 66px));font-size:.76rem;font-weight:800;color:#fff5d9;background:#243d36cd;border:1px solid #d4c18d77;border-radius:9px;padding:5px 9px;box-shadow:0 2px 6px #1c2e2670;pointer-events:none}
+.tools button{white-space:nowrap}
+#stat-count{color:#ffdb83;font-weight:950}
+.active-skills{position:absolute;z-index:3;bottom:15px;left:50%;transform:translateX(-50%);display:flex;gap:4px;justify-content:center;align-items:flex-end;width:max-content;max-width:min(64vw,660px);overflow:hidden;pointer-events:none}
+.active-skill{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:center;width:clamp(53px,7vw,87px);height:47px;padding:3px 5px;flex-shrink:1;min-width:0;overflow:hidden;border:1px solid #d5be81;color:#fff0c9;border-radius:7px;background:linear-gradient(135deg,#486858ea,#263e35ed);box-shadow:0 3px 0 #14281fb0}
+.active-skill strong{max-width:100%;font-size:clamp(.52rem,.9vw,.69rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:1}
+.active-skill small{font-size:.68rem;color:#ecca87;z-index:1}
+.skill-cooldown{position:absolute;inset:0;background:#17251bc0;transform-origin:bottom center;transform:scaleY(0);pointer-events:none}
+.choice{position:relative;min-height:135px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;background:linear-gradient(180deg,#fff7e8,#e7d8b7);border:1px solid #b89361;box-shadow:0 3px 0 #8f765841;transition:border-color .1s,transform .1s}
+.choice:hover{transform:translateY(-2px);border-color:#c77d42}
+.choice:focus-visible{outline:3px solid #528d70;outline-offset:3px}
+.choice[data-grade=epic]{border:2px solid #9c71c5;background:linear-gradient(165deg,#faf3ff,#eadcf5)}
+.choice[data-grade=legendary]{border:2px solid #e8ac3d;background:linear-gradient(165deg,#fff5c8,#f7d8ad);box-shadow:0 0 0 2px #fff3c855,0 4px 16px #cf985f70}
+.choice[data-type=promotion]{min-height:162px}
+.choice .rarity-stamp{font-size:.7rem;color:#935322;font-weight:900;letter-spacing:.045em}
+.choice[data-grade=epic] .rarity-stamp{color:#684398}
+.offer-type{font-size:.66rem;font-weight:800;border-radius:5px;padding:2px 6px;background:#384d3d;color:#fff0d1}
+.choice[data-type=passive] .offer-type{background:#57766c}
+.choice[data-type=evolution] .offer-type{background:#9f6534}
+.choice b{font-size:1rem;line-height:1.23;color:#493a31}
+.choice small{line-height:1.48}
+.choice .offer-detail{margin-top:auto;border-top:1px dashed #c5a57b;padding-top:5px;color:#765944}
+.profile-head{display:flex;align-items:center;gap:14px;padding:8px;border:1px solid #c3a776;background:#faf0d7;border-radius:12px;margin-bottom:12px}
+.profile-head .look-preview{width:124px;height:96px;flex:none}
+.profile-head strong{font-size:1.03rem;color:#425b4d}
+.attribute-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.attribute-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px 8px;padding:8px 10px;align-items:center;background:#f7e9c8;border:1px solid #ceb38b;border-radius:9px}
+.attribute-row span{font-size:.84rem;font-weight:850}
+.attribute-row strong{font-size:1.05rem;color:#315a47;font-variant-numeric:tabular-nums}
+.attribute-row small{grid-column:1 / -1;font-size:.7rem;color:#6b6153;line-height:1.32}
+.attribute-add{border:none;background:#477e60;color:#ffedcb;border-radius:7px;font-size:1.1rem;font-weight:950;width:30px;height:27px;cursor:pointer}
+.attribute-add:disabled{opacity:.32;cursor:not-allowed}
+.derived-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 15px;margin-top:11px;padding:10px;background:#e9e9d4;border-radius:10px}
+.derived-stat{display:flex;justify-content:space-between;gap:4px;font-size:.77rem;color:#475646}
+.derived-stat b{color:#314e3e}
+.skill-heading{font-size:.93rem;color:#3c5f47;margin:12px 0 6px}
+.skill-book-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.skill-book-entry{display:flex;flex-direction:column;gap:4px;background:#fff0d7;border:1px solid #c8ae80;border-radius:8px;padding:8px}
+.skill-book-entry strong{font-size:.85rem;color:#4c553c}
+.skill-book-entry small{font-size:.72rem;line-height:1.4;color:#6b6154}
+.panel:has(.attribute-grid),.panel:has(.skill-book-grid){width:min(720px,100%)}
+@media(max-width:720px){
+  .boss-banner{top:max(115px,calc(env(safe-area-inset-top) + 104px));min-width:150px;width:min(260px,calc(100% - 115px));left:8px;transform:none;padding:6px 7px}
+  .battle-count{top:max(74px,calc(env(safe-area-inset-top) + 65px));left:8px;font-size:.64rem}
+  .active-skills{bottom:max(105px,calc(env(safe-area-inset-bottom) + 89px));max-width:96vw;gap:3px}
+  .active-skill{width:clamp(43px,14.4vw,67px);height:34px;padding:3px}
+  .active-skill strong{font-size:.59rem}.active-skill small{font-size:.57rem}
+  .attribute-grid,.skill-book-grid{gap:5px}
+  .attribute-row{padding:5px 6px;gap:4px}.attribute-row span{font-size:.73rem}.attribute-row small{font-size:.63rem}
+  .choice{min-height:140px;padding:7px}.choice b{font-size:.82rem}.choice small{font-size:.69rem}.choice .offer-detail{font-size:.63rem}
+}
+@media(max-width:420px){.tools button{font-size:.66rem;padding:4px 3px}.active-skills{max-width:98vw}.choices:not(.promotions){gap:4px}}
+@media(max-height:480px) and (orientation:landscape){
+  .boss-banner{top:56px;left:50%;transform:translateX(-50%);width:230px}
+  .battle-count{top:51px}
+  .active-skills{bottom:9px;max-width:45vw}.active-skill{width:53px;height:35px}
+  .panel{max-height:92dvh}
+}

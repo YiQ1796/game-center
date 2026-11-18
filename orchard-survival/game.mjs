@@ -1,16 +1,17 @@
 
-import { advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=021';
-import { CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=021';
-import { adventurer } from './actors.mjs?v=021';
-import { Scene } from './scene.mjs?v=021';
-import { Squad } from './squad.mjs?v=021';
-import { getAdvancement } from './advancement.mjs?v=021';
+import { allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=030';
+import { ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=030';
+import { adventurer } from './actors.mjs?v=030';
+import { Scene } from './scene.mjs?v=030';
+import { Squad } from './squad.mjs?v=030';
+import { getAdvancement } from './advancement.mjs?v=030';
 
 const $ = id => document.getElementById(id);
 const ui = Object.fromEntries([
   'home','play','jobs','solo','room-form','room-status','lobby','nickname','room-code','join',
   'room-label','copy','seats','ready','host-start','host','leave','retry','mascot','arena',
   'clock','wave','life-bar','xp-bar','life','level','squad-hud','field-status','notice',
+  'profile','skillbook','stat-count','boss-banner','boss-name','boss-life','active-skills','battle-count',
   'stick','knob','burst','keyboard','bag','menu','overlay','panel','dialog-title','dialog-copy','dialog-body','dialog-actions'
 ].map(id=>[id,$(id)]));
 const scene=new Scene(ui.arena,ui.mascot,$('mini-map'));
@@ -151,6 +152,7 @@ function action(type,value,version) {
     const player=game.players[0];
     if(type==='burst'&&!game.paused&&!player.offers.length&&!game.ended) player.burstPending=true;
     else if(type==='choose') choose(game,player,value,version);
+    else if(type==='stat') allocateAttribute(game,player,value);
     else gearAction(game,player,type,value);
     localView=buildView(game,'solo');
   } else squad.action(type,value,version);
@@ -244,6 +246,76 @@ function equipmentPanel(view,content,actions) {
   actions.append(button('返回戰場','primary',()=>setPanel('')));
 }
 
+function profilePanel(view,self,content,actions) {
+  const own=view.own;
+  const header=element('div','profile-head');
+  header.append(outfitPreview(self,self.look),element('strong','',
+    (getAdvancement(self.job,self.promotion)?.name||CLASSES[self.job].name)
+      +' ・Lv.'+view.l+' ・未分配 '+own.statPoints+' 點'));
+  content.append(header);
+  const attributes=element('div','attribute-grid');
+  const effects={
+    str:'金箍系傷害',agi:'移動速度／技能冷卻',vit:'最大生命／減傷',
+    int:'法術系傷害',dex:'果籽系傷害／攻擊距離',luk:'暴擊率'
+  };
+  for(const [key,label] of Object.entries(ATTRIBUTES)){
+    const cell=element('div','attribute-row');
+    const labelBox=element('span','',key.toUpperCase()+' '+label);
+    const value=element('strong','',String(own.attributes[key]));
+    const add=button('＋','attribute-add',()=>action('stat',key));
+    add.disabled=own.statPoints<1||own.attributes[key]>=99||view.done||self.down;
+    add.setAttribute('aria-label','提升 '+label);
+    const note=element('small','',effects[key]);
+    cell.append(labelBox,value,add,note);
+    attributes.append(cell);
+  }
+  content.append(attributes);
+  const derived=own.derived;
+  const stats=element('div','derived-grid');
+  for(const [title,value] of [
+    ['傷害倍率','×'+derived.power.toFixed(2)],
+    ['技能冷卻','×'+derived.haste.toFixed(2)],
+    ['暴擊機率',Math.round(derived.crit*100)+'%'],
+    ['攻擊範圍','×'+derived.reach.toFixed(2)],
+    ['移動速度',Math.round(derived.speed)],
+    ['被擊傷害',Math.round(derived.resist*100)+'%'],
+    ['每秒回復',derived.regen.toFixed(2)],
+    ['最大生命',Math.round(derived.hp)]
+  ]){
+    const stat=element('div','derived-stat');
+    stat.append(element('span','',title),element('b','',String(value)));
+    stats.append(stat);
+  }
+  content.append(stats);
+  actions.append(button('返回戰場','primary',()=>setPanel('')));
+}
+
+function skillBookPanel(view,self,content,actions) {
+  const own=view.own;
+  const title=element('p','loadout',
+    (getAdvancement(self.job,self.promotion)?.name||CLASSES[self.job].name)+
+    '｜主動技能 '+Object.keys(own.skills).length+'/6・被動技能 '+Object.keys(own.passive).length+'/6');
+  content.append(title);
+  const sections=[['主動技能',own.skills,SKILLS],['被動技能',own.passive,PASSIVES]];
+  for(const [heading,owned,source] of sections){
+    content.append(element('h3','skill-heading',heading));
+    const grid=element('div','skill-book-grid');
+    for(const [key,rank] of Object.entries(owned)){
+      const entry=element('div','skill-book-entry');
+      const skill=source[key];
+      const name=own.evolution[key]?EVOLUTIONS[key]?.[0]:skill?.[0];
+      entry.append(element('strong','',name+' Lv.'+rank),
+        element('small','',skill?.[1]||'主動武器'));
+      if(source===SKILLS)entry.append(element('small','',
+        '基礎冷卻 '+skill[4].toFixed(1)+' 秒｜'+(own.evolution[key]?'已進化':'未進化')));
+      grid.append(entry);
+    }
+    content.append(grid);
+  }
+  content.append(element('p','loadout','技能會自動攻擊。升級三選一可強化技能；符合條件後會出現進化卡。'));
+  actions.append(button('返回戰場','primary',()=>setPanel('')));
+}
+
 function menuPanel(content,actions) {
   const note=element('p','loadout', game?'遊戲已暫停。':'合作戰鬥持續進行，開房時請把戰場留在前景。');
   const toggle=button(quiet?'特效：精簡':'特效：完整','secondary',()=>{
@@ -252,7 +324,7 @@ function menuPanel(content,actions) {
     toggle.textContent=quiet?'特效：精簡':'特效：完整';
   });
   content.append(note);
-  actions.append(button('返回戰場','primary',()=>setPanel('')),toggle);
+  actions.append(button('返回戰場','primary',()=>setPanel('')),button('角色素質','secondary',()=>setPanel('profile')),button('技能圖鑑','secondary',()=>setPanel('skills')),toggle);
   if(game||squad.role==='host') actions.append(button('提前結算','quiet',()=>{
     if(game) finish(game,'猴三毛先收工，下一局見。');
     else squad.end();
@@ -266,11 +338,13 @@ function modal(view,self) {
   const mode=view.done?'done':offers.length?'choose':panel;
   ui.overlay.hidden=!mode;
   if(!mode) {panelKey='';return;}
-  const coop=!game&&['choose','bag','menu'].includes(mode);
+  const coop=!game&&['choose','bag','menu','profile','skills'].includes(mode);
   ui.overlay.classList.toggle('coop',coop);
   ui.panel.setAttribute('aria-modal',String(!coop));
   const fingerprint=mode==='choose'?String(view.own.offerId):mode==='bag'?
-    JSON.stringify([view.own.crumbs,view.own.gear,view.own.loot]):'';
+    JSON.stringify([view.own.crumbs,view.own.gear,view.own.loot]):mode==='profile'?
+    JSON.stringify([view.own.statPoints,view.own.attributes,view.own.derived]):mode==='skills'?
+    JSON.stringify([view.own.skills,view.own.passive,view.own.evolution]):'';
   const key=mode+':'+fingerprint;
   if(key===panelKey) {
     if(mode==='choose'&&!game) setText(ui['dialog-copy'],'剩 '+Math.ceil(Math.max(0,view.own.deadline-view.t))+' 秒。逾時會選第一項。');
@@ -291,18 +365,28 @@ function modal(view,self) {
     offers.forEach((offer,i)=>{
       const choice=button('','choice',()=>action('choose',i,view.own.offerId));
       choice.dataset.type=offer.type;
+      choice.dataset.grade=offer.grade||'normal';
+      if(offer.grade) choice.append(element('span','rarity-stamp',offer.grade==='legendary'?'★ 傳奇・技能 +3':'◆ 史詩・技能 +2'));
+      choice.append(element('span','offer-type',offer.type==='skill'?'主動技能':offer.type==='passive'?'被動技能':offer.type==='evolution'?'技能進化':offer.type==='promotion'?'轉職分支':'特殊獎勵'));
       if(offer.key===CLASSES[self.job].skill&&(offer.type==='skill'||offer.type==='evolution')){
         const look={level:view.own.skills[CLASSES[self.job].skill]||1,slots:Array(8).fill(0),...self.look};
         if(offer.type==='evolution')look.evolved=true;else look.level++;
         choice.append(outfitPreview(self,look));
       }
       choice.append(element('b','',offer.name),element('small','',offer.text));
+      if(offer.detail)choice.append(element('small','offer-detail',offer.detail));
       choices.append(choice);
     });
     content.append(choices);
   } else if(mode==='bag') {
     title='當局裝備';copy='強化果核 '+view.own.crumbs;
     equipmentPanel(view,content,actions);
+  } else if(mode==='profile'){
+    title='猴三毛・角色素質';copy='升級可獲得 3 點素質，依職業選擇不同成長路線。';
+    profilePanel(view,self,content,actions);
+  } else if(mode==='skills'){
+    title='已學會的技能';copy='K 可以隨時打開技能圖鑑。';
+    skillBookPanel(view,self,content,actions);
   } else {
     title='遊戲選單';copy='';
     menuPanel(content,actions);
@@ -320,6 +404,36 @@ function updateHud(view,self,now) {
   setText(ui.wave,view.enemies.some(enemy=>enemy[1]==='boss'||enemy[1]==='queen')?'首領出沒':'下波首領 '+clock(Math.max(0,view.nextBoss-view.t)));
   setText(ui.life,self.hp+' / '+Math.round(self.maxHp)+' 生命');
   setText(ui.level,'Lv. '+view.l+' · '+view.xp+' / '+view.xpMax+' 果籽'+(self.promotion?' · '+(getAdvancement(self.job,self.promotion)?.name||'已轉職'):''));
+  setText(ui['stat-count'],view.own.statPoints ? '('+view.own.statPoints+')' : '');
+  setText(ui['battle-count'],'擊退 '+self.kills+'　✦ 果核 '+view.own.crumbs+
+    (view.own.legendaryTokens?'　★ 傳奇券 '+view.own.legendaryTokens:''));
+  ui['boss-banner'].hidden=!view.boss;
+  if(view.boss){
+    setText(ui['boss-name'],view.boss.name+'　'+view.boss.hp+' / '+view.boss.maxHp);
+    ui['boss-life'].style.transform='scaleX('+Math.max(0,Math.min(1,view.boss.hp/view.boss.maxHp))+')';
+  }
+  const skillEntries=Object.entries(view.own.skills).slice(0,6);
+  const skillKey=JSON.stringify(skillEntries);
+  if(ui['active-skills'].dataset.skillKey!==skillKey){
+    ui['active-skills'].dataset.skillKey=skillKey;
+    ui['active-skills'].replaceChildren(...skillEntries.map(([key,rank])=>{
+      const item=element('div','active-skill');
+      item.dataset.key=key;
+      const skill=SKILLS[key];
+      item.append(element('strong','',view.own.evolution[key] ? (EVOLUTIONS[key]?.[0]||skill[0]) : skill[0]),
+        element('small','', 'Lv.'+rank));
+      const fill=element('i','skill-cooldown');
+      item.append(fill);
+      return item;
+    }));
+  }
+  for(const node of ui['active-skills'].children){
+    const key=node.dataset.key;
+    const base=SKILLS[key]?.[4] || 1;
+    const cooldown=Math.max(0,view.own.timers[key] || 0);
+    node.querySelector('.skill-cooldown').style.transform='scaleY('+Math.min(1,cooldown/base)+')';
+    node.classList.toggle('cooling',cooldown>.05);
+  }
   ui['life-bar'].style.transform='scaleX('+Math.max(0,Math.min(1,self.hp/self.maxHp))+')';
   ui['xp-bar'].style.transform='scaleX('+Math.max(0,Math.min(1,view.xp/view.xpMax))+')';
   const countdown=Math.ceil(view.own.burst);
@@ -418,6 +532,8 @@ ui['host-start'].addEventListener('click',()=>squad.start());
 ui.leave.addEventListener('click',()=>squad.leave());
 ui.retry.addEventListener('click',()=>squad.connection.reconnect());
 
+ui.profile.addEventListener('click',()=>setPanel('profile'));
+ui.skillbook.addEventListener('click',()=>setPanel('skills'));
 ui.bag.addEventListener('click',()=>setPanel('bag'));
 ui.menu.addEventListener('click',()=>setPanel('menu'));
 ui.burst.addEventListener('click',()=>action('burst'));
@@ -429,6 +545,8 @@ window.addEventListener('keydown',event=>{
   } else if(!event.repeat) {
     if(key===' '&&!event.target?.matches?.('button, a')) {event.preventDefault();action('burst');}
     if(key==='e') setPanel('bag');
+    if(key==='c') setPanel('profile');
+    if(key==='k') setPanel('skills');
     if(key==='escape') setPanel(panel?'':'menu');
     const view=(game||squad.match)?localView:squad.view;
     if(['1','2','3'].includes(key)&&view?.own.offers.length) action('choose',Number(key)-1,view.own.offerId);

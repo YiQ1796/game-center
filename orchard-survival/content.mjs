@@ -1,5 +1,8 @@
 
-export const BUILD = '0.2.1';
+export const BUILD = '0.3.0';
+export const SKILL_CAP = 10;
+export const PASSIVE_CAP = 10;
+export const ATTRIBUTES = Object.freeze({str:'力量',agi:'敏捷',vit:'體質',int:'智慧',dex:'靈巧',luk:'幸運'});
 export const FIELD = { width: 2700, height: 1900 };
 export const STEP = 1 / 30;
 export const SLOTS = ['武器','帽子','外套','手套','鞋子','項鍊','左戒指','右戒指'];
@@ -38,7 +41,7 @@ export const PASSIVES = {
   guard:['硬殼背心','受到的傷害降低'],
   heart:['猴三毛便當','最大生命 +18，並回復 18 生命'],
   crit:['好運小鈴鐺','暴擊率 +6%'],
-  regen:['療癒香蕉','每秒回復 0.45 生命，最多升 4 級'],
+  regen:['療癒香蕉','每秒回復 0.45 生命，可升到 10 級'],
   wisdom:['果園見習筆記','拾取果籽的經驗增加 8%']
 };
 export const EVOLUTIONS = {

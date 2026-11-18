@@ -1,8 +1,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { advance, buildView, choose, finish, gearAction, newGame, setMove } from '../orchard-survival/arena.mjs';
-import { CLASSES, EVOLUTIONS, PASSIVES, SKILLS, SLOTS, THRESHOLD } from '../orchard-survival/content.mjs';
+import { allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from '../orchard-survival/arena.mjs';
+import { ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, SKILLS, SLOTS, THRESHOLD } from '../orchard-survival/content.mjs';
 import { ADVANCEMENTS, ADVANCEMENT_LEVEL } from '../orchard-survival/advancement.mjs';
 import { Squad } from '../orchard-survival/squad.mjs';
 
@@ -188,6 +188,47 @@ test('host admits four seats, checks ready, rejects mid-round joins, and resumes
   host.reset();
   assert.equal(host.canStart(),false);
   host.leave();
+});
+
+
+test('stat points are granted every level, validated on host and affect combat statistics',()=>{
+  const game=newGame(seats('staff'),2334);
+  const p=game.players[0];
+  assert.equal(Object.keys(ATTRIBUTES).length,6);
+  game.spawnClock=999;
+  game.gems.push({x:p.x,y:p.y,value:THRESHOLD(1)});
+  advance(game);
+  assert.equal(game.level,2);
+  assert.equal(p.statPoints,3);
+  const hpBefore=p.maxHp;
+  assert.equal(allocateAttribute(game,p,'vit'),true);
+  assert.ok(p.maxHp>hpBefore);
+  assert.equal(p.statPoints,2);
+  assert.equal(allocateAttribute(game,p,'__proto__'),false);
+  assert.equal(allocateAttribute(game,p,'strength'),false);
+  p.statPoints=0;
+  assert.equal(allocateAttribute(game,p,'vit'),false);
+  assert.ok(buildView(game,p.id).own.derived.hp>hpBefore);
+});
+
+test('active skills can reach rank ten and legendary upgrade remains capped',()=>{
+  const game=newGame(seats('mage'),2335);
+  const p=game.players[0];
+  game.spawnClock=999;
+  game.level=13;
+  game.xp=THRESHOLD(13)-1;
+  game.gems.push({x:p.x,y:p.y,value:1});
+  p.skills.fire=9;
+  p.legendaryTokens=1;
+  advance(game);
+  const card=p.offers.find(o=>o.type==='skill'&&o.grade==='legendary');
+  assert.ok(card,'boss earned legendary skill card should appear');
+  assert.ok(card.rankGain>=1&&card.rankGain<=3);
+  const index=p.offers.indexOf(card);
+  assert.equal(choose(game,p,index,p.offerId),true);
+  assert.equal(p.legendaryTokens,0);
+  assert.ok(p.skills[card.key]<=10,'legendary card must respect maximum level');
+  assert.ok(p.skills[card.key]>=2,'legendary card must level up');
 });
 
 test('appearance and radar use authoritative state, including threats outside the camera',()=>{

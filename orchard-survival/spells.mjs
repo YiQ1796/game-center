@@ -1,5 +1,5 @@
 
-import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=020';
+import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=030';
 
 function comet(c,length,width,hot,edge){
   c.save();c.scale(length/100,width/16);

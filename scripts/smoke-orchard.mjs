@@ -19,8 +19,8 @@ async function exercise() {
   };
   await until(()=>el('jobs')?.children.length===3,'class selection never loaded');
   await el('mascot').decode();
-  const {adventurer,creature}=await import('./actors.mjs?v=021');
-  const {spellFlashes,airborne}=await import('./spells.mjs?v=021');
+  const {adventurer,creature}=await import('./actors.mjs?v=030');
+  const {spellFlashes,airborne}=await import('./spells.mjs?v=030');
   const target=document.createElement('canvas');target.width=290;target.height=240;
   const ink=target.getContext('2d',{willReadFrequently:true});
   function pixels(draw){
@@ -41,6 +41,14 @@ async function exercise() {
     look.evolved=true;expect(difference(old,pixels(paint))>35,job+' evolution');
     for(let slot=0;slot<8;slot++){old=pixels(paint);look.slots[slot]=5;expect(difference(old,pixels(paint))>3,job+' slot '+slot);}
   }
+  // 六套進階服飾與專屬武器必須真的改變角色輪廓，不能只換徽章或閃光。
+  for(const job of ['staff','mage','scout']){
+    const base=pixels(()=>adventurer(ink,{job,face:1,look:{level:8,slots:Array(8).fill(0)}},el('mascot'),1,140,145,true));
+    const options=job==='staff'?['king','guardian']:job==='mage'?['storm','archmage']:['ranger','shadow'];
+    const outfits=options.map(promotion=>pixels(()=>adventurer(ink,{job,promotion,face:1,look:{level:8,slots:Array(8).fill(0)}},el('mascot'),1,140,145,true)));
+    for(const costume of outfits)expect(difference(base,costume)>180,job+' class costume is only a particle');
+    expect(difference(outfits[0],outfits[1])>180,job+' advancement routes share the same silhouette');
+  }
   const monsters=['grub','shroom','boar','bee','snail','elite','boss','queen'].map(kind=>pixels(()=>creature(ink,[1,kind,0,0,30,100,false,1,0],1,130,140)));
   for(let i=0;i<monsters.length;i++)for(let j=0;j<i;j++)expect(difference(monsters[i],monsters[j])>75,'enemy silhouette');
   const ultimateFrames=['staff','mage','scout'].map(job=>pixels(()=>{
@@ -52,8 +60,8 @@ async function exercise() {
   }));
   for(let i=0;i<3;i++)expect(difference(ultimateFrames[i],ultimateFrames[(i+1)%3])>350,'ultimate frames match');
   // 檢查等級門檻、雙轉職選項、不可重複選擇與多人檢視資料。
-  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=021');
-  const {THRESHOLD}=await import('./content.mjs?v=021');
+  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=030');
+  const {THRESHOLD}=await import('./content.mjs?v=030');
   const progression=newGame([{id:'promotion-test',job:'staff',name:'猴三毛'}],1234);
   const adventurerState=progression.players[0];
   progression.level=7;
@@ -76,6 +84,14 @@ async function exercise() {
   el('radar-toggle').click();expect(el('mini-map').hidden,'radar did not fold');el('radar-toggle').click();
   el('bag').click();
   await until(()=>!!document.querySelector('.dressing canvas'),'equipment preview missing');
+  el('bag').click();
+  el('profile').click();
+  await until(()=>!!document.querySelector('.attribute-grid'),'attribute screen missing');
+  expect(document.querySelectorAll('.attribute-row').length===6,'six player attributes missing');
+  el('profile').click();
+  el('skillbook').click();
+  await until(()=>!!document.querySelector('.skill-book-grid'),'skill panel missing');
+  expect(document.getElementById('active-skills').children.length>0,'skill hotbar missing');
   return 'PASS';
 }
 const server = createServer(async (request, response) => {
@@ -139,24 +155,24 @@ try {
   let current=false;
   for(let i=0;i<(publicPage?15:1);i++){
     try{
-      const response=await fetch(address+'?ci=021-'+Date.now(),{signal:AbortSignal.timeout(7000)});
-      if(response.ok&&(await response.text()).includes('data-build="0.2.1"')){current=true;break;}
+      const response=await fetch(address+'?ci=030-'+Date.now(),{signal:AbortSignal.timeout(7000)});
+      if(response.ok&&(await response.text()).includes('data-build="0.3.0"')){current=true;break;}
     }catch(error){console.log('Waiting for Pages:',error.message);}
     if(publicPage)await delay(3000);
   }
-  assert.ok(current,'Orchard v0.2.1 entry not available at '+address);
+  assert.ok(current,'Orchard v0.3.0 entry not available at '+address);
   for(const [width,height] of [[1440,860],[390,844]]){
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
-    await call('Page.navigate',{url:address+'?ci=021-'+width+'-'+Date.now()});
+    await call('Page.navigate',{url:address+'?ci=030-'+width+'-'+Date.now()});
     let loaded=false;
     for(let i=0;i<180;i++){
-      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.2.1' && !!document.getElementById('jobs')?.firstElementChild"});
+      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.3.0' && !!document.getElementById('jobs')?.firstElementChild"});
       if(state.result.value===true){loaded=true;break;}await delay(100);
     }
     assert.ok(loaded,'Game modules failed to initialise: '+JSON.stringify(exceptions));
     const checked=await call('Runtime.evaluate',{expression:'('+exercise.toString()+')()',awaitPromise:true,returnByValue:true});
     assert.equal(checked.result.value,'PASS',checked.exceptionDetails?.exception?.description||JSON.stringify(exceptions));
-    console.log('Orchard Chrome '+width+'x'+height+' PASS: 3 jobs + level-8 advancement, weapon levels 1–5 + evolution, 8 equipment slots, 8 monsters, 3 ultimates, radar, normal solo entry and equipment panel');
+    console.log('Orchard Chrome '+width+'x'+height+' PASS: 3 jobs + 6 visible advancement outfits, weapon levels 1–5 + evolution, 8 equipment slots, 8 monsters, 3 ultimates, radar, normal solo entry and equipment panel');
   }
   assert.deepEqual(exceptions,[]);
 } finally {
