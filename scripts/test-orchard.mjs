@@ -218,6 +218,7 @@ test('active skills can reach rank ten and legendary upgrade remains capped',()=
   game.level=13;
   game.xp=THRESHOLD(13)-1;
   game.gems.push({x:p.x,y:p.y,value:1});
+  p.promotion='storm'; // The level-eight class milestone has already been resolved.
   p.skills.fire=9;
   p.legendaryTokens=1;
   advance(game);
