@@ -1,5 +1,5 @@
 
-export const BUILD = '0.1.0';
+export const BUILD = '0.2.0';
 export const FIELD = { width: 2700, height: 1900 };
 export const STEP = 1 / 30;
 export const SLOTS = ['武器','帽子','外套','手套','鞋子','項鍊','左戒指','右戒指'];

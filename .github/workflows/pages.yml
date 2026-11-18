@@ -52,3 +52,5 @@ jobs:
       - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify the public Orchard game in Chrome
+        run: node scripts/smoke-orchard.mjs --published

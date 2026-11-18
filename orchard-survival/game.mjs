@@ -1,8 +1,9 @@
 
-import { advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=010';
-import { CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=010';
-import { Scene } from './scene.mjs?v=010';
-import { Squad } from './squad.mjs?v=010';
+import { advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=020';
+import { CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=020';
+import { adventurer } from './actors.mjs?v=020';
+import { Scene } from './scene.mjs?v=020';
+import { Squad } from './squad.mjs?v=020';
 
 const $ = id => document.getElementById(id);
 const ui = Object.fromEntries([
@@ -11,7 +12,13 @@ const ui = Object.fromEntries([
   'clock','wave','life-bar','xp-bar','life','level','squad-hud','field-status','notice',
   'stick','knob','burst','keyboard','bag','menu','overlay','panel','dialog-title','dialog-copy','dialog-body','dialog-actions'
 ].map(id=>[id,$(id)]));
-const scene=new Scene(ui.arena,ui.mascot);
+const scene=new Scene(ui.arena,ui.mascot,$('mini-map'));
+$('radar-toggle').addEventListener('click',event=>{
+  const map=$('mini-map');
+  map.hidden=!map.hidden;
+  event.currentTarget.setAttribute('aria-expanded',String(!map.hidden));
+  scene.radar.last=-1;
+});
 const keys=new Set();
 const directions=new Set(['w','a','s','d','arrowup','arrowleft','arrowdown','arrowright']);
 const invitation=new URLSearchParams(location.search).get('room');
@@ -186,8 +193,23 @@ function summaryPanel(view,self,content,actions) {
   actions.append(button(squad.role?'離開房間':'回到首頁','quiet',leaveBattle));
 }
 
+function outfitPreview(player,look) {
+  const canvas=element('canvas','look-preview');
+  canvas.setAttribute('aria-hidden','true');
+  canvas.width=144;canvas.height=112;
+  const c=canvas.getContext('2d');
+  c.scale(1.24,1.24);
+  adventurer(c,{...player,face:1,walk:false,down:false,inv:false,look:{...look,swing:0}},ui.mascot,.4,51,72,true);
+  return canvas;
+}
+
 function equipmentPanel(view,content,actions) {
   const owned=view.own;
+  const self=view.players.find(player=>player.id===owned.id)||view.players[0];
+  const look=self.look||{level:owned.skills[CLASSES[self.job].skill]||1,evolved:Boolean(owned.evolution[CLASSES[self.job].skill]),slots:owned.gear.map(item=>item?1+item.rarity+item.rank*6:0)};
+  const fitting=element('div','dressing');
+  fitting.append(outfitPreview(self,look),element('strong','',CLASSES[self.job].name+' · '+(look.evolved?EVOLUTIONS[CLASSES[self.job].skill][0]:SKILLS[CLASSES[self.job].skill][0])+' Lv.'+look.level));
+  content.append(fitting);
   const wrap=element('div','inventory');
   const equipped=element('section','');
   const found=element('section','');
@@ -267,6 +289,11 @@ function modal(view,self) {
     offers.forEach((offer,i)=>{
       const choice=button('','choice',()=>action('choose',i,view.own.offerId));
       choice.dataset.type=offer.type;
+      if(offer.key===CLASSES[self.job].skill&&(offer.type==='skill'||offer.type==='evolution')){
+        const look={level:view.own.skills[CLASSES[self.job].skill]||1,slots:Array(8).fill(0),...self.look};
+        if(offer.type==='evolution')look.evolved=true;else look.level++;
+        choice.append(outfitPreview(self,look));
+      }
       choice.append(element('b','',offer.name),element('small','',offer.text));
       choices.append(choice);
     });

@@ -1,5 +1,5 @@
 
-import { CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, isClass } from './content.mjs?v=010';
+import { CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, isClass } from './content.mjs?v=020';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -28,7 +28,7 @@ function newPlayer(seat, i) {
     id: seat.id, name: seat.name, job, x: FIELD.width / 2 + (i % 2) * 39 - 20,
     y: FIELD.height / 2 + Math.floor(i / 2) * 39 - 20, face: 1, walk: false,
     hp:type.hp, maxHp:type.hp, inv:0, down:false, rescue:0, burst:0, burstPending:false,
-    move:{x:0,y:0}, skills:{[type.skill]:1}, passive:{}, evolution:{}, timers:{},
+    strikeAt:-5, aim:0, move:{x:0,y:0}, skills:{[type.skill]:1}, passive:{}, evolution:{}, timers:{},
     gear:Array(SLOTS.length).fill(null), loot:[], crumbs:0, pending:0, offers:[], deadline:0, offerId:0,
     kills:0, damage:0, bosses:0, rescues:0, limit:0
   };
@@ -105,6 +105,11 @@ function makeOffers(game, player) {
     player.skills[key] === 5 && player.passive[perk] && !player.evolution[key]
       ? [{ type:'evolution', key, name, text:'傷害大幅提高，範圍擴張，普攻變為進化版' }] : []);
   shuffled(game, active);
+  const primary = CLASSES[player.job].skill;
+  const primaryIndex = active.findIndex(option => option.key === primary);
+  if (primaryIndex > 0 && (game.level <= 3 || game.level % 3 === 0)) {
+    active.unshift(active.splice(primaryIndex, 1)[0]);
+  }
   shuffled(game, passive);
   const choices = [...evolutions.slice(0,1)];
   if (active.length) choices.push(active.shift());
@@ -135,6 +140,7 @@ export function choose(game, player, index, version) {
   if (type === 'limit') player.limit += 1;
   if (type === 'heal') player.hp = Math.min(player.maxHp,player.hp+player.maxHp*.45);
   if (type === 'crumbs') player.crumbs += 8;
+  if (type==='skill' || type==='evolution') effect(game,player.x,player.y,65,CLASSES[player.job].color,.95,'upgrade',0,0,offer.name);
   player.pending -= 1;
   player.offers = [];
   if (player.pending > 0) makeOffers(game, player);
@@ -169,6 +175,7 @@ export function gearAction(game, player, action, id) {
   const lootIndex = player.loot.findIndex(item => item.id === id);
   if (lootIndex !== -1 && (action === 'equip' || action === 'salvage')) {
     const [item] = player.loot.splice(lootIndex,1);
+    if (action === 'equip') effect(game,player.x,player.y,48,'#ffc46e',.76,'upgrade',0,0,item.name);
     if (action === 'salvage') player.crumbs += 2+item.rarity;
     else {
       const old = player.gear[item.slot];
@@ -267,25 +274,25 @@ function nearest(game,x,y,radius,exclude) {
   return found;
 }
 
-function blast(game, player, x, y, radius, amount, color, crit, knock=0, slow=0) {
+function blast(game, player, x, y, radius, amount, color, crit, knock=0, slow=0, style='impact') {
   nearby(game,x,y,radius,(enemy) => {
     hurt(game,player,enemy,amount,color,crit,knock);
     enemy.slow=Math.max(enemy.slow,slow);
   });
-  effect(game,x,y,radius,color,.38,'pop');
+  effect(game,x,y,radius,color,style==='cyclone' ? 1.04 : .48,style);
 }
 
-function shoot(game, player, angle, {amount,color,crit,reach,kind,speed=485,pierce=1}) {
+function shoot(game, player, angle, {amount,color,crit,reach,kind,speed=485,pierce=1,tier=1}) {
   if (game.shots.length >= 192) return;
   game.shots.push({
     id:++game.serial,x:player.x,y:player.y,owner:player.id,angle,speed,amount,color,crit,
-    life:reach/speed,reach,kind,pierce,hit:new Set(),returning:false
+    life:reach/speed,reach,kind,pierce,tier,hit:new Set(),returning:false
   });
 }
 
 function zone(game, player, kind, x, y, radius, amount, color, crit, duration) {
   if (game.zones.length < 48) game.zones.push({
-    id:++game.serial,owner:player.id,kind,x,y,radius,amount,color,crit,life:duration,tick:0
+    id:++game.serial,owner:player.id,kind,x,y,radius,amount,color,crit,life:duration,max:duration,tick:0
   });
 }
 
@@ -307,7 +314,7 @@ function useSkill(game, player, key, level, config) {
         const direction=phase+i*TAU/3;
         blast(game,player,x+Math.cos(direction)*65*scale,y+Math.sin(direction)*65*scale,41*scale,amount,color,config.crit,15);
       }
-    } else blast(game,player,x,y,range*scale,amount,color,config.crit,kind==='push' ? 52 : 12);
+    } else blast(game,player,x,y,range*scale,amount,color,config.crit,kind==='push' ? 52 : 12,0,kind==='push'?'gale':'sweep');
   } else if (kind === 'chain') {
     let head=target, previous=player;
     const hitIds=new Set();
@@ -323,17 +330,21 @@ function useSkill(game, player, key, level, config) {
       });
     }
   } else if (kind === 'slow') {
-    blast(game,player,target.x,target.y,79*scale,amount,color,config.crit,0,1.6);
+    blast(game,player,target.x,target.y,79*scale,amount,color,config.crit,0,1.6,'ice');
   } else if (kind === 'mine' || kind === 'field' || kind === 'drop') {
     const duration=kind==='mine' ? 7 : kind==='field' ? 2.5 : .48;
     zone(game,player,kind,target?.x ?? x,target?.y ?? y,(kind==='mine' ? 73 : 89)*scale,amount,color,config.crit,duration);
   } else {
     const angles = kind === 'radial' ? headings : evolved && kind==='pierce' ? [angle-.15,angle,angle+.15] : [angle];
     for (const direction of angles) {
-      shoot(game,player,direction,{amount,color,crit:config.crit,reach:(range+40)*scale,kind,speed:kind==='blast' ? 445 : 580,
+      shoot(game,player,direction,{amount,color,crit:config.crit,reach:(range+40)*scale,kind,tier:evolved?6:level,speed:kind==='blast' ? 445 : 580,
         pierce:kind==='pierce' ? 2+Math.floor(level/2)+(evolved ? 2 : 0) : kind==='return' ? 12 : kind==='radial' ? 2 : 1});
     }
-    if (evolved && kind === 'blast') zone(game,player,'drop',target.x,target.y,105*scale,amount*.58,color,config.crit,.58);
+    if (evolved && kind === 'blast') zone(game,player,'meteor',target.x,target.y,105*scale,amount*.58,color,config.crit,.58);
+  }
+  if (key===CLASSES[player.job].skill) {
+    player.strikeAt=game.elapsed;
+    player.aim=angle;
   }
   player.timers[key] = delay*config.haste*Math.max(.72,1-(level-1)*.055);
 }
@@ -342,17 +353,17 @@ function burst(game, player, config) {
   const {x,y} = player;
   const type=CLASSES[player.job];
   player.burst=22;
-  effect(game,x,y,155,type.color,.6,'ring',0,0,type.burst);
+  effect(game,x,y,110,type.color,1.0,'cast-'+player.job,0,0,type.burst);
   if (player.job==='staff') {
-    blast(game,player,x,y,230,125*config.power,type.color,config.crit,105);
+    blast(game,player,x,y,230,125*config.power,type.color,config.crit,105,0,'cyclone');
     player.inv=Math.max(1.15,player.inv);
   } else if (player.job==='mage') {
     for (const angle of headings) {
       const distance=95+random(game)*120;
-      zone(game,player,'drop',x+Math.cos(angle)*distance,y+Math.sin(angle)*distance,111,67*config.power,type.color,config.crit,.28+random(game)*.58);
+      zone(game,player,'meteor',x+Math.cos(angle)*distance,y+Math.sin(angle)*distance,111,67*config.power,type.color,config.crit,.48+random(game)*.82);
     }
   } else {
-    for (let i=0;i<18;i++) shoot(game,player,i/18*TAU,{amount:54*config.power,color:type.color,crit:config.crit,reach:560,kind:'pierce',pierce:5});
+    for (let i=0;i<18;i++) shoot(game,player,i/18*TAU,{amount:54*config.power,color:type.color,crit:config.crit,reach:560,kind:'starArrow',pierce:5,tier:6});
     player.inv=Math.max(.78,player.inv);
   }
 }
@@ -387,8 +398,8 @@ function updateZones(game, owners) {
     const owner=owners.get(item.owner);
     if (!owner) { item.life=0; continue; }
     const { x,y,radius,amount,color,crit,kind }=item;
-    if (kind==='drop' && item.life<=0 || kind==='mine' && nearest(game,x,y,47)) {
-      blast(game,owner,x,y,radius,amount,color,crit,19);
+    if ((kind==='drop'||kind==='meteor') && item.life<=0 || kind==='mine' && nearest(game,x,y,47)) {
+      blast(game,owner,x,y,radius,amount,color,crit,19,0,kind==='meteor'?'nova':'impact');
       item.life=0;
     }
     if (kind==='field' && item.life>0) {
@@ -405,7 +416,7 @@ function updateZones(game, owners) {
 function spawn(game, kind, around) {
   const [baseHp,speed,radius,damage]=ENEMIES[kind];
   const big = kind==='boss'||kind==='queen'||kind==='elite';
-  const distance=big ? 340 : 330+random(game)*130;
+  const distance=big ? 340 : game.elapsed<2 ? 143+random(game)*85 : 330+random(game)*130;
   const angle=random(game)*TAU;
   const minutes=game.elapsed/60;
   const strength=(1+minutes*.21+Math.sqrt(minutes)*.15)*(1+(game.modifiers-1)*(big ? .58 : .28));
@@ -601,23 +612,35 @@ export function advance(game) {
   if (game.players.every(player=>player.down)) finish(game,'果園收工！下次再來。');
 }
 
+// Keep one occupancy cell per group, including enemies beyond the camera.
+function radarContacts(enemies) {
+  const cells = new Set(), bosses = [];
+  for (const e of enemies) {
+    if (e.hp<=0) continue;
+    if (['elite','boss','queen'].includes(e.kind)) bosses.push([Math.round(e.x),Math.round(e.y),e.kind==='elite'?1:2]);
+    else cells.add(Math.min(31,Math.floor(e.x/FIELD.width*32))+32*Math.min(19,Math.floor(e.y/FIELD.height*20)));
+  }
+  return { cells:[...cells], bosses };
+}
+
 export function buildView(game, focusId) {
   const focus=game.players.find(player=>player.id===focusId) || game.players[0];
   const see=object=>Math.abs(object.x-focus.x)<760&&Math.abs(object.y-focus.y)<660;
   const n=Math.round;
   return {
-    t:game.elapsed,l:game.level,xp:game.xp,xpMax:THRESHOLD(game.level),done:game.ended,reason:game.reason,
+    radar:radarContacts(game.enemies), t:game.elapsed,l:game.level,xp:game.xp,xpMax:THRESHOLD(game.level),done:game.ended,reason:game.reason,
     notice:game.elapsed<game.noticeAt ? game.notice : '', nextBoss:game.bossAt, paused:game.paused,
     players:game.players.map(p=>({
       id:p.id,name:p.name,job:p.job,x:n(p.x),y:n(p.y),face:p.face,walk:p.walk,down:p.down,
+      look:{ level:p.skills[CLASSES[p.job].skill], evolved:Boolean(p.evolution[CLASSES[p.job].skill]), slots:p.gear.map(item=>item ? 1+item.rarity+item.rank*6 : 0), swing:n(Math.max(0,1-(game.elapsed-p.strikeAt)/.4)*100), aim:n(p.aim*100)/100 },
       hp:n(p.hp),maxHp:p.maxHp,rev:p.rescue,inv:p.inv>0,kills:p.kills,damage:n(p.damage),bosses:p.bosses,rescues:p.rescues
     })),
     own:{id:focus.id,burst:focus.burst,offers:focus.offers,offerId:focus.offerId,deadline:focus.deadline,
       gear:focus.gear,loot:focus.loot,crumbs:focus.crumbs,skills:focus.skills,passive:focus.passive,evolution:focus.evolution},
     enemies:game.enemies.filter(see).map(e=>[e.id,e.kind,n(e.x),n(e.y),e.radius,n(100*e.hp/e.maxHp),e.flash>0,e.face,n(e.wind*100),e.mode,n(e.tx),n(e.ty),n(e.aim*100)/100]),
     gems:game.gems.filter(see).map(g=>[n(g.x),n(g.y),g.value]),
-    shots:game.shots.filter(see).map(s=>[s.id,n(s.x),n(s.y),n(s.angle*100)/100,s.color,s.kind]),
-    zones:game.zones.filter(see).map(z=>[n(z.x),n(z.y),n(z.radius),z.kind,z.color]),
+    shots:game.shots.filter(see).map(s=>[s.id,n(s.x),n(s.y),n(s.angle*100)/100,s.color,s.kind,s.tier]),
+    zones:game.zones.filter(see).map(z=>[n(z.x),n(z.y),n(z.radius),z.kind,z.color,n(100*z.life/z.max),z.id]),
     fx:game.fx.filter(see).slice(-44).map(f=>[n(f.x),n(f.y),n(f.radius),f.color,n(f.life/f.max*100),f.kind,n(f.x2),n(f.y2),f.label])
   };
 }

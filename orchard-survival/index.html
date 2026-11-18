@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant" data-build="0.1.0">
+<html lang="zh-Hant" data-build="0.2.0">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -8,13 +8,13 @@
   <link rel="canonical" href="https://yiq1796.github.io/game-center/orchard-survival/">
   <link rel="icon" href="../favicon.ico">
   <link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon-v070.png">
-  <link rel="stylesheet" href="./game.css?v=010">
+  <link rel="stylesheet" href="./game.css?v=020">
   <title>猴三毛割草隊｜香蕉果園</title>
 </head>
 <body>
   <header class="top" id="top">
     <a class="home" href="../"><img src="../assets/mascot-logo.webp" alt="" width="35" height="35">遊戲中心</a>
-    <span class="version">試玩版 V0.1.0</span>
+    <span class="version">試玩版 V0.2.0</span>
   </header>
   <main id="home">
     <section class="intro">
@@ -89,6 +89,10 @@
           <button id="menu" type="button" aria-label="打開遊戲選單">選單</button>
         </div>
       </header>
+      <aside class="radar" aria-label="果園小地圖">
+        <button id="radar-toggle" type="button" aria-expanded="true" aria-controls="mini-map" title="展開或收合小地圖">果園地圖 <span aria-hidden="true">⌃</span></button>
+        <canvas id="mini-map" width="216" height="152" aria-label="全場位置，亮黃點是自己，青點是隊友，橘色菱形是首領"></canvas>
+      </aside>
       <div id="squad-hud" class="squad-hud" hidden></div>
       <div id="notice" class="notice" hidden></div>
       <div id="field-status" class="field-status" hidden role="status"></div>
@@ -108,6 +112,6 @@
     </div>
   </main>
   <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
-  <script type="module" src="./game.mjs?v=010"></script>
+  <script type="module" src="./game.mjs?v=020"></script>
 </body>
 </html>

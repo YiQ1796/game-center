@@ -173,3 +173,24 @@ body.playing #top {display:none}
   .notice {top:74px}
 }
 @media (prefers-reduced-motion:reduce) {.bar i {transition:none}}
+
+/* A compact field journal leaves the centre of the orchard open. */
+.hud {grid-template-columns:auto minmax(140px,330px) auto;justify-content:start;right:auto;max-width:calc(100% - 22px);gap:5px}
+.clock,.bars,.tools,.radar {background:linear-gradient(150deg,#314a40f5,#263d36f5);border:1px solid #bca87d;color:#fff4d2;box-shadow:0 3px 8px #23382f40}
+.clock {min-width:77px}
+.bars {min-width:clamp(135px,24vw,340px)}
+.bar {background:#22362f;border:1px solid #657159}
+.bar.health i {background:linear-gradient(0deg,#a5473b,#db8260)}
+.bar.exp i {background:linear-gradient(0deg,#51836a,#8db37c)}
+.tools button {background:#405a4c;color:#fff1d1;border-color:#82927a}
+.radar {position:absolute;top:max(12px,env(safe-area-inset-top));right:max(13px,env(safe-area-inset-right));width:clamp(116px,10vw,176px);border-radius:10px;overflow:hidden}
+.radar button {display:flex;align-items:center;justify-content:space-between;width:100%;padding:5px 9px;background:none;color:#ffe7af;font-weight:800;font-size:.76rem;border:0}
+.radar button[aria-expanded=false] span {transform:rotate(180deg)}
+#mini-map {display:block;width:100%;height:auto;border-top:1px solid #68795d}
+.squad-hud {top:max(70px,calc(env(safe-area-inset-top) + 61px))}
+.look-preview {display:block;width:90px;max-width:100%;height:68px;margin:2px auto}
+.dressing {display:flex;align-items:center;gap:7px;background:#e8e9ca;padding:0 9px;border-radius:9px;margin:7px 0}
+.dressing canvas {margin:0}
+.dressing strong {font-size:.83rem}
+@media(max-width:720px){.hud {right:max(8px,env(safe-area-inset-right));left:max(8px,env(safe-area-inset-left));max-width:none;grid-template-columns:auto minmax(85px,1fr) auto;gap:3px}.bars {min-width:0}.radar {top:max(72px,calc(env(safe-area-inset-top) + 63px));width:98px;right:8px}.squad-hud{max-width:calc(100% - 118px)}.notice{top:max(122px,calc(env(safe-area-inset-top) + 113px));left:8px;transform:none;max-width:calc(100% - 119px);font-size:.73rem}.look-preview{height:52px}}
+@media(max-height:480px) and (orientation:landscape){.radar{top:6px;right:8px;width:90px}.hud{max-width:calc(100% - 110px)}.notice{top:75px}.look-preview{height:40px}}

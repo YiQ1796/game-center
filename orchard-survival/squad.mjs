@@ -1,7 +1,7 @@
 
 import { PeerRoom } from '../one-a-two-b/peer-room.mjs?v=stack-100';
-import { buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=010';
-import { isClass } from './content.mjs?v=010';
+import { buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=020';
+import { isClass } from './content.mjs?v=020';
 
 const CODE = /^\d{6}$/;
 const TOKEN = /^[a-f0-9-]{36}$/;
@@ -17,7 +17,7 @@ function packet(view, round) {
   view.shots=view.shots.slice(0,82);
   view.gems=view.gems.slice(0,145);
   if(JSON.stringify(result).length>=22500) {
-    view.fx=[];
+    view.fx=view.fx.filter(f=>f[5].startsWith('cast-')||['cyclone','nova','upgrade'].includes(f[5])).slice(-12);
     view.shots=view.shots.slice(0,46);
     view.enemies=view.enemies.sort((a,b)=>{
       const own=view.players.find(player=>player.id===view.own.id);

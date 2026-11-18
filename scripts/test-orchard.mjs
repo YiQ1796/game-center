@@ -145,3 +145,30 @@ test('host admits four seats, checks ready, rejects mid-round joins, and resumes
   assert.equal(host.canStart(),false);
   host.leave();
 });
+
+test('appearance and radar use authoritative state, including threats outside the camera',()=>{
+  const game=newGame(seats('staff','mage'),109);
+  const [player,friend]=game.players;
+  friend.skills.fire=5; friend.evolution.fire=true;
+  friend.gear[1]={id:88,slot:1,rarity:3,rank:2,perks:[]};
+  game.enemies.push({id:77,kind:'boss',hp:44,x:27,y:37});
+  const view=buildView(game,player.id);
+  assert.equal(view.enemies.length,0);
+  assert.deepEqual(view.radar.bosses,[[27,37,2]]);
+  assert.deepEqual(view.players[1].look.slots,[0,16,0,0,0,0,0,0]);
+  assert.equal(view.players[1].look.level,5);assert.equal(view.players[1].look.evolved,true);
+});
+
+test('three ultimate abilities send distinct animated effects to every seat',()=>{
+  const game=newGame(seats('staff','mage','scout'),987);
+  for(const p of game.players) p.burstPending=true;
+  advance(game);
+  for(const p of game.players){
+    const v=buildView(game,p.id);
+    assert.ok(v.fx.some(f=>f[5]==='cyclone'));
+    assert.equal(v.zones.filter(z=>z[3]==='meteor'&&z[5]>0).length,6);
+    assert.equal(v.shots.filter(s=>s[5]==='starArrow').length,18);
+  }
+  tick(game,41);
+  assert.ok(game.zones.every(z=>z.kind!=='meteor'));
+});
