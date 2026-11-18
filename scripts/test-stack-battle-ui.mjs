@@ -62,7 +62,7 @@ test('Active gameplay blocks Safari long-press text selection outside control bu
   assert.match(game, /selection\?\.rangeCount/);
   assert.match(game, /gameplaySurface\(selection\.anchorNode\)/);
   assert.match(game, /\$\('help-dialog'\)\.open/);
-  assert.match(html, /V1\.3\.3/);
+  assert.match(html, /V1\.4\.0/);
 });
 
 test('Guest input prediction and snapshot throttling are present', () => {
@@ -79,4 +79,10 @@ test('WSS relay coalesces Stack Battle snapshots without changing other games', 
   assert.match(relay, /namespace === 'sanmao-blocks-v1' && payload\?\.type === 'state'/);
   assert.match(relay, /entry\.latestState = payload/);
   assert.match(relay, /sendEncrypted\(latest, 0\)/);
+});
+
+test('Updated room and shared peer loader bust old relay caches', () => {
+  assert.match(room, /peer-room.mjs\?v=stack-140/);
+  const peer = readFileSync(new URL('../one-a-two-b/peer-room.mjs', import.meta.url), 'utf8');
+  assert.match(peer, /relay-transport.mjs\?v=5/);
 });

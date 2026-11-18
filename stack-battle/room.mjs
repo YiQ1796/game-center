@@ -1,6 +1,6 @@
 import { advance, applyAction, createMatch, ENDLESS_MODE, finishMatch, playMatch, PLAYER_ACTIONS } from './engine.mjs?v=132';
 import { isRoomTaunt, isTauntIndex, TAUNT_COOLDOWN } from './banter.mjs?v=130';
-import { PeerRoom } from '../one-a-two-b/peer-room.mjs?v=stack-100';
+import { PeerRoom } from '../one-a-two-b/peer-room.mjs?v=stack-140';
 
 const STORAGE = 'sanmao-blocks-room-v1';
 const SNAPSHOT_INTERVAL_MS = 125;
@@ -234,9 +234,13 @@ export class BattleRoom {
     if (!urgent && now - (this.lastSnapshotSentAt || 0) < SNAPSHOT_INTERVAL_MS) return;
     const { name, guest, match, mode, taunt } = this.state;
     const snapshotNumber = (this.snapshotNumber || 0) + 1;
+    // Freeze the authoritative board and its acknowledgement at the same
+    // moment. WSS encryption is async; passing a live match reference can
+    // otherwise make the board newer than the acknowledged input sequence.
     const message = {
       type: 'state', mode: roomMode(mode), names: [name, guest?.name ?? ''],
-      match, taunt, supportsTaunts: true, now: Date.now(), snapshotNumber
+      match: match ? structuredClone(match) : null, taunt,
+      supportsTaunts: true, now: Date.now(), snapshotNumber
     };
     if (guest?.supportsPrediction) message.inputAcknowledged = this.lastGuestInputSequence || 0;
     if (this.transport.sendHost(this.guest, message) !== false) {

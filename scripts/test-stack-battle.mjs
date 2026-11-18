@@ -396,3 +396,24 @@ test('Host supports legacy players without prediction and unchanged KO attack', 
   guest.input('l');
   assert.deepEqual(sent, [{ type:'input', action:'l' }]);
 });
+
+test('Asynchronously sent host snapshots do not mutate after later actions', async () => {
+  const { BattleRoom } = await import('../stack-battle/room.mjs');
+  const host = Object.create(BattleRoom.prototype);
+  host.guest = { open: true };
+  host.state = {
+    role:'host', name:'房主', mode:ENDLESS_MODE,
+    guest:{ name:'好友', supportsPrediction:true },
+    match:createMatch(49, Date.now(), ENDLESS_MODE)
+  };
+  const packets = [];
+  host.transport = { sendHost(_seat, payload) { packets.push(payload); return true; } };
+  host.sendView();
+  const first = packets[0];
+  const firstX = first.match.players[1].piece.x;
+  const ack = first.inputAcknowledged;
+  applyAction(host.state.match.players[1], 'r');
+  assert.equal(first.match.players[1].piece.x, firstX);
+  assert.equal(first.inputAcknowledged, ack);
+  assert.equal(host.state.match.players[1].piece.x, firstX + 1);
+});
