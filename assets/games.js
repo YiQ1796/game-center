@@ -61,5 +61,15 @@ window.SANMAO_GAMES = Object.freeze([
     imageAlt: '猴三毛開心舉起彩色方塊，與朋友參加繽紛的方塊派對',
     status: 'beta',
     url: 'https://yiq1796.github.io/game-center/stack-battle/'
+  }),
+  Object.freeze({
+    id: 'orchard-survival',
+    name: '猴三毛割草隊',
+    category: '無限生存・單人與 2～4 人合作',
+    summary: '揮金箍棒、丟火球、射果籽。升級、打首領，揪朋友一起守住香蕉果園！',
+    image: 'one-a-two-b/sanmao-full-body.webp',
+    imageAlt: '猴三毛全身插畫',
+    status: 'beta',
+    url: 'https://yiq1796.github.io/game-center/orchard-survival/'
   })
 ]);

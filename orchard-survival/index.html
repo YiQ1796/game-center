@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-Hant" data-build="0.1.0">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fff2d7">
+  <meta name="description" content="猴三毛割草隊，單人或揪好友守住香蕉果園。三種職業、技能進化、無限怪潮。">
+  <link rel="canonical" href="https://yiq1796.github.io/game-center/orchard-survival/">
+  <link rel="icon" href="../favicon.ico">
+  <link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon-v070.png">
+  <link rel="stylesheet" href="./game.css?v=010">
+  <title>猴三毛割草隊｜香蕉果園</title>
+</head>
+<body>
+  <header class="top" id="top">
+    <a class="home" href="../"><img src="../assets/mascot-logo.webp" alt="" width="35" height="35">遊戲中心</a>
+    <span class="version">試玩版 V0.1.0</span>
+  </header>
+  <main id="home">
+    <section class="intro">
+      <div class="poster">
+        <span class="sticker">香蕉果園 🍌</span>
+        <img id="mascot" src="../one-a-two-b/sanmao-full-body.webp" alt="猴三毛全身插畫" fetchpriority="high">
+        <span class="poster-caption">「我只是來採香蕉的啊！」</span>
+      </div>
+      <div class="intro-copy">
+        <h1>猴三毛<span>割草隊</span></h1>
+        <p>果園的搗蛋鬼全跑出來啦！揮金箍棒、丟火球、射果籽，今天能撐過幾波？</p>
+        <a class="start-link" href="#choose-job">選職業，進果園 ↓</a>
+      </div>
+    </section>
+    <section class="lineup" id="choose-job" aria-labelledby="jobs-title">
+      <div class="section-title"><h2 id="jobs-title">今天怎麼守果園？</h2><span>三種職業都能直接選</span></div>
+      <div id="jobs" class="jobs" aria-label="選擇職業"></div>
+    </section>
+    <section class="party" aria-label="遊玩模式">
+      <div class="solo">
+        <h2>單人守果園</h2>
+        <p>撿果籽升級。第 52 秒有精英，第 1 分 45 秒見首領。</p>
+        <button id="solo" class="primary" type="button">開始單人</button>
+      </div>
+      <div class="friend">
+        <h2>揪朋友開工 <small>2～4 人合作</small></h2>
+        <div id="room-form">
+          <label for="nickname">暱稱 <span>可留空</span></label>
+          <input id="nickname" maxlength="16" placeholder="例如：香蕉巡邏隊" autocomplete="nickname">
+          <button id="host" class="secondary" type="button">建立房間</button>
+          <form id="join">
+            <label for="room-code" class="sr">六位數房號</label>
+            <input id="room-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required placeholder="六位數房號" autocomplete="off">
+            <button class="secondary" type="submit">加入好友</button>
+          </form>
+        </div>
+        <div id="lobby" hidden>
+          <div class="room-line"><strong>房號 <span id="room-label"></span></strong><button id="copy" class="secondary" type="button">複製邀請連結</button></div>
+          <div id="seats" class="seats"></div>
+          <div class="lobby-buttons">
+            <button id="ready" class="primary" type="button" hidden>我準備好了</button>
+            <button id="host-start" class="primary" type="button" hidden disabled>開始合作</button>
+            <button id="retry" class="secondary" type="button" hidden>重新連線</button>
+            <button id="leave" class="quiet" type="button">離開房間</button>
+          </div>
+        </div>
+        <p id="room-status" role="status" hidden></p>
+      </div>
+    </section>
+    <details class="help">
+      <summary>操作與玩法</summary>
+      <ul>
+        <li>電腦用 WASD 或方向鍵移動，空白鍵放大招，E 看裝備，Esc 暫停或開啟選單。</li>
+        <li>手機用左下搖桿移動，右下按鈕放大招。武器會自行攻擊。</li>
+        <li>拾取果籽會升級，每次三選一。金箍橫掃、焦糖火球、果籽箭升到 5 級並取得對應被動後，可選進化。</li>
+        <li>合作共用經驗、各自選技能和領裝備。隊友倒地後靠近約兩秒可救援。</li>
+      </ul>
+    </details>
+    <noscript>請啟用 JavaScript 後重新載入。</noscript>
+  </main>
+  <main id="play" hidden>
+    <div class="battle">
+      <canvas id="arena" aria-label="香蕉果園戰場"></canvas>
+      <header class="hud">
+        <div class="clock"><strong id="clock">0:00</strong><span id="wave">果園開工</span></div>
+        <div class="bars">
+          <div class="bar health"><i id="life-bar"></i><span id="life"></span></div>
+          <div class="bar exp"><i id="xp-bar"></i><span id="level"></span></div>
+        </div>
+        <div class="tools">
+          <button id="bag" type="button" aria-label="打開當局裝備">裝備</button>
+          <button id="menu" type="button" aria-label="打開遊戲選單">選單</button>
+        </div>
+      </header>
+      <div id="squad-hud" class="squad-hud" hidden></div>
+      <div id="notice" class="notice" hidden></div>
+      <div id="field-status" class="field-status" hidden role="status"></div>
+      <div class="control">
+        <div id="stick" class="stick" aria-label="移動搖桿"><span id="knob"></span></div>
+        <span id="keyboard" class="keyboard">WASD／方向鍵移動</span>
+        <button id="burst" class="burst" type="button"><strong>大招</strong><small>空白鍵</small></button>
+      </div>
+      <section id="overlay" class="overlay" hidden>
+        <div id="panel" class="panel" role="dialog" aria-labelledby="dialog-title">
+          <h2 id="dialog-title"></h2>
+          <p id="dialog-copy" hidden></p>
+          <div id="dialog-body"></div>
+          <div id="dialog-actions" class="dialog-actions"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
+  <script type="module" src="./game.mjs?v=010"></script>
+</body>
+</html>

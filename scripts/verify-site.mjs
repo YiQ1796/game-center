@@ -18,6 +18,7 @@ const expected = new Map([
   ['aqua-world', 'https://yiq1796.github.io/game-center/aqua-world/'],
   ['one-a-two-b', 'https://yiq1796.github.io/game-center/one-a-two-b/'],
   ['stack-battle', 'https://yiq1796.github.io/game-center/stack-battle/'],
+  ['orchard-survival', 'https://yiq1796.github.io/game-center/orchard-survival/'],
 ]);
 assert.equal(games.length, expected.size, 'Expected one card per game');
 const approvedGames = new Set(['big-two', 'rummikub', 'one-a-two-b']);
@@ -45,6 +46,11 @@ for (const game of games) {
     assert.match(game.imageAlt, /猴三毛/);
     assert.equal(game.status, 'available', '1A2B passed user acceptance');
     assert.ok(existsSync(resolve(root, game.image)), 'Missing 1A2B cover');
+  } else if (game.id === 'orchard-survival') {
+    assert.equal(game.status, 'beta');
+    assert.equal(game.image, 'one-a-two-b/sanmao-full-body.webp');
+    assert.ok(existsSync(resolve(root, game.image)), 'Orchard mascot is missing');
+    assert.match(read('orchard-survival/index.html'), /data-build="0\.1\.0"/);
   } else if (game.id === 'stack-battle') {
     assert.equal(game.status, 'beta');
     assert.equal(game.name, '方塊派對');
@@ -59,7 +65,7 @@ for (const game of games) {
 }
 assert.match(html, /猴三毛遊戲中心/);
 assert.match(html, /https:\/\/yiq1796\.github\.io\/game-center\//);
-assert.match(html, /V0\.8\.7/);
+assert.match(html, /V0\.8\.8/);
 assert.ok(!html.includes('utm_source='), 'Do not include tracking parameters');
 const styleSource = read('assets/site.css');
 const uiSource = read('assets/site.js');
@@ -87,3 +93,8 @@ execFileSync(process.execPath, ['--test', resolve(root, 'scripts/test-stack-batt
 await import('./prepare-aqua-world.mjs');
 execFileSync(process.execPath, ['--test', resolve(root, 'scripts/test-aqua-world.mjs')], { stdio: 'inherit' });
 await import('./smoke-aqua-world.mjs');
+
+execFileSync(process.execPath, ['--test', resolve(root, 'scripts/test-orchard.mjs')], { stdio: 'inherit' });
+for (const name of ['content', 'arena', 'scene', 'squad', 'game']) {
+  execFileSync(process.execPath, ['--check', resolve(root, 'orchard-survival', name + '.mjs')]);
+}

@@ -43,3 +43,9 @@
 .game-stack-battle{background:linear-gradient(125deg,#fce9c8,#d9ebc9);border-color:#e7d6b5}
 .game-stack-battle .game-illustration{object-position:center center}
 /* 1A2B 已移除獨立綠色按鈕：沿用全站 .game-entry 橘色。 */
+
+.game-orchard-survival{background:linear-gradient(135deg,#fff4cd,#d9e9ad);border-color:#e4d7a0}
+.game-orchard-survival .game-card-visual{background:radial-gradient(ellipse,#fff2ae 18%,#f2bc70 91%);margin:10px;border-radius:13px}
+.game-orchard-survival .game-illustration{object-fit:contain;object-position:center;padding:10px;min-height:0}
+.game-orchard-survival h3{white-space:normal;font-size:clamp(23px,2.15vw,34px)}
+@media(max-width:890px){.game-orchard-survival .game-card-visual{margin:9px 9px 0}}
