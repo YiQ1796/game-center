@@ -19,8 +19,8 @@ async function exercise() {
   };
   await until(()=>el('jobs')?.children.length===3,'class selection never loaded');
   await el('mascot').decode();
-  const {adventurer,creature}=await import('./actors.mjs?v=040');
-  const {spellFlashes,airborne}=await import('./spells.mjs?v=040');
+  const {adventurer,creature}=await import('./actors.mjs?v=041');
+  const {spellFlashes,airborne}=await import('./spells.mjs?v=041');
   const target=document.createElement('canvas');target.width=290;target.height=240;
   const ink=target.getContext('2d',{willReadFrequently:true});
   function pixels(draw){
@@ -66,8 +66,8 @@ async function exercise() {
   }));
   for(let i=0;i<3;i++)expect(difference(ultimateFrames[i],ultimateFrames[(i+1)%3])>350,'ultimate frames match');
   // 檢查等級門檻、雙轉職選項、不可重複選擇與多人檢視資料。
-  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=040');
-  const {THRESHOLD}=await import('./content.mjs?v=040');
+  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=041');
+  const {THRESHOLD}=await import('./content.mjs?v=041');
   const progression=newGame([{id:'promotion-test',job:'staff',name:'猴三毛'}],1234);
   const adventurerState=progression.players[0];
   progression.level=7;
@@ -163,18 +163,18 @@ try {
   let current=false;
   for(let i=0;i<(publicPage?15:1);i++){
     try{
-      const response=await fetch(address+'?ci=040-'+Date.now(),{signal:AbortSignal.timeout(7000)});
-      if(response.ok&&(await response.text()).includes('data-build="0.4.0"')){current=true;break;}
+      const response=await fetch(address+'?ci=041-'+Date.now(),{signal:AbortSignal.timeout(7000)});
+      if(response.ok&&(await response.text()).includes('data-build="0.4.1"')){current=true;break;}
     }catch(error){console.log('Waiting for Pages:',error.message);}
     if(publicPage)await delay(3000);
   }
-  assert.ok(current,'Orchard v0.4.0 entry not available at '+address);
+  assert.ok(current,'Orchard v0.4.1 entry not available at '+address);
   for(const [width,height] of [[1440,860],[390,844]]){
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
-    await call('Page.navigate',{url:address+'?ci=040-'+width+'-'+Date.now()});
+    await call('Page.navigate',{url:address+'?ci=041-'+width+'-'+Date.now()});
     let loaded=false;
     for(let i=0;i<180;i++){
-      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.4.0' && !!document.getElementById('jobs')?.firstElementChild"});
+      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.4.1' && !!document.getElementById('jobs')?.firstElementChild"});
       if(state.result.value===true){loaded=true;break;}await delay(100);
     }
     assert.ok(loaded,'Game modules failed to initialise: '+JSON.stringify(exceptions));

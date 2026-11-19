@@ -1,5 +1,5 @@
-import { blend, ink, oval, star, stroke } from './paint.mjs?v=040';
-import { getAdvancement } from './advancement.mjs?v=040';
+import { blend, ink, oval, star, stroke } from './paint.mjs?v=041';
+import { getAdvancement } from './advancement.mjs?v=041';
 
 // Costume is permanent illustrated character geometry, not a short-lived particle or filter.
 // Each advanced job has its own silhouette: hat, shoulders, chest, skirt, boots and weapon.
@@ -89,13 +89,13 @@ export function drawAdvancedCostume(c,job,advancement,look,t){
     ink(c,'M-13 -24 L0 -18 L13 -24 M-12 -15 Q0 -9 12 -15',null,colors[1],2.5);
   } else if(track.id==='storm'){
     ink(c,'M-14 -28 Q-28 -19 -30 16 L-14 6 L-6 10 L0 -21 L10 8 L24 15 Q22 -14 13 -29Z',colors[3],rim,1.5);
-    coat(c,colors,13,16);shoulders(c,colors);hood(c,colors,true);
+    coat(c,colors,6,15);shoulders(c,colors);hood(c,colors,true);
     ink(c,'M2 -27 L-5 -14 L4 -14 L-3 1 L12 -18 L3 -18 L9 -27Z','#fcf4db','#bf9cff',1.3);
     for(const side of [-1,1])star(c,side*20,-17,3.4,colors[1],t*.3);
   } else if(track.id==='archmage'){
     ink(c,'M-15 -25 Q-28 -19 -26 14 Q-17 12 -13 8 Q1 18 17 8 Q22 16 26 12 Q25 -18 12 -27Z',
       '#fcf0cf',rim,1.2);
-    coat(c,colors,14,16);shoulders(c,colors);
+    coat(c,colors,7,15);shoulders(c,colors);
     ink(c,'M-21 -56 Q-15 -76 -4 -75 L7 -84 L12 -75 L20 -57 Q0 -49 -21 -56Z',
       cloth(c,colors),rim,1.5);
     ink(c,'M-17 -57 Q0 -51 17 -57',null,'#fffde5',2);
@@ -160,8 +160,13 @@ export function drawAdvancedWeapon(c,job,advancement,look,t) {
   } else if(track.id==='ranger'){
     ink(c,'M-1 -36 Q30 -25 17 0 Q27 23 -1 35 L-4 29 Q18 18 10 5 Q-4 -13 17 -27 Q7 -29 -4 -31Z',
       colors[3],rim,2);
-    ink(c,'M-1 -34 Q-9 0 -1 34',null,'#f7f3d2',2);
+    const phase=(look.swing||0)/100;
+    const draw=phase>.55?(1-phase)/.45:phase/.55;
+    const notch=-5-15*draw;
+    stroke(c,[[-1,-34],[notch,0],[-1,34]],'#f7f3d2',1.5);
+    c.save();c.translate(-12*draw,0);
     ink(c,'M-10 -4 L33 -4 L26 -10 L39 -3 L26 3 L33 -2 L-10 0Z',colors[1],rim,.7);
+    c.restore();
     ink(c,'M-9 -11 L4 -10 L10 3 L-8 4Z',colors[0],rim,1);
   }else{
     for(const side of [-1,1]){

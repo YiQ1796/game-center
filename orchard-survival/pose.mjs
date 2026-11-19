@@ -48,14 +48,16 @@ export function deform(x,y,p){
   const right=smooth(-4,4,x)*2-1;
   const hand=smooth(7,16,Math.abs(x))*smooth(-29,-15,y)*(1-smooth(-7,2,y));
   const tail=smooth(13,24,x)*smooth(-15,0,y);
-  const push=job==='staff'?7.2:job==='mage'?3.2:-3.5;
+  const push=job==='staff'?9.2:job==='mage'?4.6:-5;
+  const head=1-smooth(-39,-28,y);
+  const tilt=head*(stride*.038+a*(job==='staff'?.105:job==='scout'?-.092:-.058));
   let dx=upper*(stride*1.5+a*push)+leg*(stride*right*4.2-a*right*2.2);
   let dy=bob*(1-leg)+leg*(-Math.max(0,lift*right)*6.5+Math.min(0,lift*right)*.5);
   dx+=hand*(right*(job==='scout'?8.5:6.5)*a-stride*right*3);
   dy+=hand*(-Math.max(0,a)*(job==='mage'?15:job==='staff'?9:6)+stride*right*1.8);
   dy+=upper*(job==='mage'?-4*a:a*2.8)+tail*(stride*5-a*5);
   dx+=tail*(lift*2.5+a*2);
-  return [x+dx,y+dy];
+  return [x+dx-(y+30)*tilt,y+dy+x*tilt];
 }
 const vertices=ys.flatMap(y=>xs.map(x=>[x,y]));
 const triangles=[];

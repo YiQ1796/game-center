@@ -1,6 +1,6 @@
 
-import { FIELD } from './content.mjs?v=040';
-import { blend, ink, oval, TAU } from './paint.mjs?v=040';
+import { FIELD } from './content.mjs?v=041';
+import { blend, ink, oval, TAU } from './paint.mjs?v=041';
 
 export const TRAIL='M-180 1170 C430 870 700 1310 1110 1120 S1580 720 1980 830 S2460 1110 2890 610';
 const tileSize=384;

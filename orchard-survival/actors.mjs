@@ -1,8 +1,8 @@
-import { deform, drawPose, poseFor } from './pose.mjs?v=040';
+import { deform, drawPose, poseFor } from './pose.mjs?v=041';
 
-import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=040';
-import { getAdvancement } from './advancement.mjs?v=040';
-import { drawAdvancedCostume,drawAdvancedWeapon } from './costumes.mjs?v=040';
+import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=041';
+import { getAdvancement } from './advancement.mjs?v=041';
+import { drawAdvancedCostume,drawAdvancedWeapon } from './costumes.mjs?v=041';
 
 const outline='#463c42';
 const velvet=(c,light,mid,dark)=>blend(c,-12,-26,11,19,light,mid,dark);
@@ -136,9 +136,9 @@ function weapon(c,job,look,t,face,promotion,pose){
   // 進階職業改用專屬武器形體，禁止疊上舊的通用武器。
   const aim=look.aim||0;
   const localAngle=Math.atan2(Math.sin(aim),Math.cos(aim)*face);
-  if(job==='staff')c.rotate(.22+pose.a*1.65);
+  if(job==='staff')c.rotate(.58+pose.a*1.35);
   else if(job==='mage')c.rotate(.43+swing*Math.atan2(Math.sin(localAngle+1.15),Math.cos(localAngle+1.15)));
-  else c.rotate(.05+swing*localAngle);
+  else c.rotate(.06+pose.a*.16+swing*localAngle);
   if(promotion){drawAdvancedWeapon(c,job,promotion,look,t);c.restore();return;}
   const size=1+(level-1)*.07+(evo?.18:0)+rank*.025;
   c.scale(size,size);

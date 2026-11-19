@@ -1,7 +1,7 @@
 
-import { FIELD } from './content.mjs?v=040';
-import { TRAIL } from './garden.mjs?v=040';
-import { ink, oval, stroke } from './paint.mjs?v=040';
+import { FIELD } from './content.mjs?v=041';
+import { TRAIL } from './garden.mjs?v=041';
+import { ink, oval, stroke } from './paint.mjs?v=041';
 
 export class Radar {
   constructor(canvas){
