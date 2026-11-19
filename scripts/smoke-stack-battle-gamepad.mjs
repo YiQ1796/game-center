@@ -85,7 +85,14 @@ try {
     let ready = false;
     for (let attempt = 0; attempt < 150; attempt++) {
       const result = await call('Runtime.evaluate', {
-        expression: "document.getElementById('overlay-action')?.textContent === '開始遊戲' && getComputedStyle(document.getElementById('controls')).display === 'grid'",
+        expression: `(() => {
+          const button = document.getElementById('overlay-action');
+          const controls = document.getElementById('controls');
+          if (!button || !controls) return false;
+          if (!document.body.hasAttribute('data-playing')) button.click();
+          return document.body.hasAttribute('data-playing') &&
+                 !controls.hidden && getComputedStyle(controls).display === 'grid';
+        })()`,
         returnByValue: true
       });
       if (result.result.value === true) { ready = true; break; }
@@ -94,7 +101,6 @@ try {
     assert.ok(ready, 'Game module/layout did not load on ' + width + 'px viewport');
     const response = await call('Runtime.evaluate', {
       expression: `(() => {
-        document.getElementById('overlay-action').click();
         const controls = document.getElementById('controls');
         if (controls.hidden) throw new Error('Gamepad was not revealed after starting');
         const lookup = action => {
