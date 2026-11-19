@@ -1,11 +1,11 @@
 
-import { stats, banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=050';
-import { MARKET, skillNumbers, ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=050';
-import { adventurer } from './actors.mjs?v=050';
-import { FittingStage } from './fitting-stage.mjs?v=050';
-import { Scene } from './scene.mjs?v=050';
-import { Squad } from './squad.mjs?v=050';
-import { ADVANCEMENTS, getAdvancement } from './advancement.mjs?v=050';
+import { stats, banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=051';
+import { MARKET, skillNumbers, ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=051';
+import { adventurer } from './actors.mjs?v=051';
+import { FittingStage } from './fitting-stage.mjs?v=051';
+import { Scene } from './scene.mjs?v=051';
+import { Squad } from './squad.mjs?v=051';
+import { ADVANCEMENTS, getAdvancement } from './advancement.mjs?v=051';
 
 const $ = id => document.getElementById(id);
 const ui = Object.fromEntries([

@@ -1,4 +1,4 @@
-import { blend, ink, oval, stroke, TAU } from './paint.mjs?v=050';
+import { blend, ink, oval, stroke, TAU } from './paint.mjs?v=051';
 
 export function orchardSeed(x,y){
   let n=(Math.imul(x+139,73856093)^Math.imul(y+61,19349663))>>>0;
@@ -12,6 +12,7 @@ const canopyColors=[
 ];
 function fruitTree(c,variant,random){
   const colors=canopyColors[variant%3];
+  c.transform(1,(variant%3-1)*.035,(Math.floor(variant/3)-1)*.095,variant%3===1?.94:1,0,0);
   ink(c,'M-15 3 Q-5 -8 -9 -31 L-27 -55 L-23 -58 L-4 -43 L-4 -64 L3 -65 L5 -47 L21 -63 L25 -60 L9 -35 Q4 -9 15 3 L5 1 L0 5 L-4 1Z',
     blend(c,-10,-52,10,0,'#aa8b57','#806340','#544d3b'),trunk,1.5);
   ink(c,'M-6 -32 Q1 -18 -4 -2 M4 -35 L12 -44 M-4 -23 L-6 -12',null,'#bc9b66',1.7);
@@ -68,6 +69,14 @@ function packingHouse(c){
   ink(c,'M-57 -54 L-16 -39 L-17 12 L-57 -5Z','#b29663',edge,1.4);
   ink(c,'M-17 -40 L54 -57 L54 -5 L-17 12Z',blend(c,0,-56,14,9,'#e6c98e','#b89564','#94734f'),edge,1.5);
   for(let i=0;i<7;i++)stroke(c,[[-12+i*10,-36-i*2.35],[-12+i*10,10-i*2.35]],'#826545',1);
+  // Timber braces and a shuttered window on the side facing the orchard.
+  ink(c,'M-55 -52 L-51 -50 L-51 -6 L-55 -7Z M-20 -38 L-16 -39 L-17 11 L-21 10Z','#876846',edge,.8);
+  for(let i=0;i<5;i++)stroke(c,[[-52,-46+i*8],[-20,-34+i*8]],'#a1885f',.75);
+  ink(c,'M-48 -40 L-29 -33 L-29 -14 L-48 -21Z','#785e44',edge,1.3);
+  ink(c,'M-45 -37 L-32 -32 L-32 -18 L-45 -23Z','#58685b',edge,.75);
+  ink(c,'M-40 -35 L-38 -34 L-38 -21 L-40 -22Z M-45 -31 L-32 -26 L-32 -24 L-45 -29Z','#d2b885');
+  ink(c,'M-51 -21 L-28 -13 L-26 -15 L-48 -24Z','#c29668',edge,.8);
+  ink(c,'M-58 -3 L-18 10 L-18 14 L-59 0Z','#928568',edge,.8);
   ink(c,'M-67 -54 L-40 -91 L36 -107 L66 -57 L-16 -36Z','#704a3e',edge,2);
   ink(c,'M-65 -57 L-39 -93 L-13 -39Z','#ad8057',edge,1.6);
   ink(c,'M-40 -93 L36 -109 L66 -62 L-13 -41Z',blend(c,0,-100,9,-45,'#d3946b','#af6b51','#825341'),edge,1.5);

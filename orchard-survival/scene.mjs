@@ -1,9 +1,9 @@
-import { TAU } from './paint.mjs?v=050';
-import { FIELD } from './content.mjs?v=050';
-import { adventurer, creature } from './actors.mjs?v=050';
-import { Garden, fieldLight } from './garden.mjs?v=050';
-import { Radar } from './radar.mjs?v=050';
-import { airborne, groundSpells, spellFlashes } from './spells.mjs?v=050';
+import { TAU } from './paint.mjs?v=051';
+import { FIELD } from './content.mjs?v=051';
+import { adventurer, creature } from './actors.mjs?v=051';
+import { Garden, fieldLight } from './garden.mjs?v=051';
+import { Radar } from './radar.mjs?v=051';
+import { airborne, groundSpells, spellFlashes } from './spells.mjs?v=051';
 const LIMIT=(v,min,max)=>Math.max(min,Math.min(max,v));
 function ellipse(ctx,x,y,rx,ry,color) {
   ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,TAU);ctx.fillStyle=color;ctx.fill();
@@ -87,7 +87,6 @@ export class Scene {
     this.garden.draw(ctx,x,y,rangeX,rangeY,light);
     this.garden.shadows(ctx,props,light);
     const show=(px,py,margin=85)=>px>=x-margin&&px<=x+rangeX+margin&&py>=y-margin&&py<=y+rangeY+margin;
-    for(const enemy of view.enemies) if(show(enemy[2],enemy[3],700)) danger(ctx,enemy);
     groundSpells(ctx,view);
     // Let the paths, the characters and the trees share a single ground plane.
     const protectedActors=[...view.players];
@@ -104,6 +103,7 @@ export class Scene {
       if(show(px,py)) draw.push([py,()=>adventurer(ctx,player,this.sprite,view.t,px,py,player.id===id)]);
     }
     draw.sort((a,b)=>a[0]-b[0]).forEach(entry=>entry[1]());
+    for(const enemy of view.enemies) if(show(enemy[2],enemy[3],700)) danger(ctx,enemy);
     airborne(ctx,view,(key,px,py)=>this.position('s'+key,px,py,step),quiet);
     spellFlashes(ctx,view,quiet);
     this.radar.draw(view,id,[x,y,rangeX,rangeY]);

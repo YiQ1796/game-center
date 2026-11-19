@@ -1,6 +1,6 @@
-import { FIELD } from './content.mjs?v=050';
-import { blend, ink, oval, stroke } from './paint.mjs?v=050';
-import { orchardSeed, propImage } from './orchard-props.mjs?v=050';
+import { FIELD } from './content.mjs?v=051';
+import { blend, ink, oval, stroke } from './paint.mjs?v=051';
+import { orchardSeed, propImage } from './orchard-props.mjs?v=051';
 
 export const ROADS=[
   ['M-90 1250 C320 994 595 1340 960 1114 S1320 924 1570 886 S2225 633 2800 808',83],
@@ -82,10 +82,11 @@ function makeTile(col,row,roads){
   const canvas=document.createElement('canvas');canvas.width=canvas.height=TILE;
   const c=canvas.getContext('2d'),left=col*TILE,top=row*TILE;
   c.drawImage(turf(left,top),0,0,TILE,TILE);c.translate(-left,-top);
-  for(const [path,width] of roads){
-    for(const [extra,color] of [[16,'#92956b68'],[9,'#adab7e'],[3,'#c1b087'],[-5,'#cbb68d'],[-16,'#cfbb96']]){
-      c.strokeStyle=color;c.lineWidth=width+extra;c.lineJoin='round';c.stroke(path);
-    }
+  c.lineCap='round';c.lineJoin='round';
+  // Paint each soil layer across the whole network so forks have uninterrupted interiors.
+  for(const [extra,color] of [[16,'#92956b68'],[9,'#adab7e'],[3,'#c1b087'],[-5,'#cbb68d'],[-16,'#cfbb96']]){
+    c.strokeStyle=color;
+    for(const [path,width] of roads){c.lineWidth=width+extra;c.stroke(path);}
   }
   for(let j=Math.floor(top/18)-1;j<=Math.floor((top+TILE)/18);j++){
     for(let i=Math.floor(left/18)-1;i<=Math.floor((left+TILE)/18);i++){

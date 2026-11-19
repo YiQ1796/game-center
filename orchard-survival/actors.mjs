@@ -1,8 +1,8 @@
-import { deform, drawPose, poseFor } from './pose.mjs?v=050';
+import { deform, drawPose, poseFor } from './pose.mjs?v=051';
 
-import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=050';
-import { getAdvancement } from './advancement.mjs?v=050';
-import { baseCostume,baseCostumeBack,drawAdvancedCostume,drawAdvancedWeapon } from './costumes.mjs?v=050';
+import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=051';
+import { getAdvancement } from './advancement.mjs?v=051';
+import { baseCostume,baseCostumeBack,drawAdvancedCostume,drawAdvancedWeapon } from './costumes.mjs?v=051';
 
 const outline='#463c42';
 const velvet=(c,light,mid,dark)=>blend(c,-12,-26,11,19,light,mid,dark);

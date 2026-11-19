@@ -1,6 +1,6 @@
-import { adventurer } from './actors.mjs?v=050';
-import { propImage } from './orchard-props.mjs?v=050';
-import { blend, ink, oval, stroke, TAU } from './paint.mjs?v=050';
+import { adventurer } from './actors.mjs?v=051';
+import { propImage } from './orchard-props.mjs?v=051';
+import { blend, ink, oval, stroke, TAU } from './paint.mjs?v=051';
 
 // The character audition uses the same sprite, costume mesh and grips as a live round.
 const W=630,H=355;
