@@ -38,6 +38,7 @@ jobs:
           node scripts/verify-site.mjs
           node scripts/verify-icons.mjs
           node --test scripts/test-stack-battle.mjs scripts/test-stack-battle-ui.mjs
+          node scripts/smoke-stack-battle-gamepad.mjs
       - name: Check leaderboard network integration (diagnostic only)
         continue-on-error: true
         run: node scripts/check-stack-battle-leaderboard-live.mjs
