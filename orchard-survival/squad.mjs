@@ -1,7 +1,7 @@
 
 import { PeerRoom } from '../one-a-two-b/peer-room.mjs?v=stack-100';
-import { allocateAttribute, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=030';
-import { isClass } from './content.mjs?v=030';
+import { banish, purchase, allocateAttribute, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=040';
+import { isClass } from './content.mjs?v=040';
 
 const CODE = /^\d{6}$/;
 const TOKEN = /^[a-f0-9-]{36}$/;
@@ -235,6 +235,8 @@ export class Squad {
     if(!this.match||this.match.ended||player.down) return;
     if(action==='burst') player.burstPending=true;
     else if(action==='choose') choose(this.match,player,value,version);
+    else if(action==='banish') banish(this.match,player,value,version);
+    else if(action==='buy') purchase(this.match,player,value);
     else if(action==='stat') allocateAttribute(this.match,player,value);
     else gearAction(this.match,player,action,value);
   }

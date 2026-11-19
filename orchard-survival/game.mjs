@@ -1,10 +1,10 @@
 
-import { allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=030';
-import { ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=030';
-import { adventurer } from './actors.mjs?v=030';
-import { Scene } from './scene.mjs?v=030';
-import { Squad } from './squad.mjs?v=030';
-import { getAdvancement } from './advancement.mjs?v=030';
+import { stats, banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=040';
+import { MARKET, skillNumbers, ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=040';
+import { adventurer } from './actors.mjs?v=040';
+import { Scene } from './scene.mjs?v=040';
+import { Squad } from './squad.mjs?v=040';
+import { ADVANCEMENTS, getAdvancement } from './advancement.mjs?v=040';
 
 const $ = id => document.getElementById(id);
 const ui = Object.fromEntries([
@@ -25,6 +25,7 @@ const keys=new Set();
 const directions=new Set(['w','a','s','d','arrowup','arrowleft','arrowdown','arrowright']);
 const invitation=new URLSearchParams(location.search).get('room');
 let job='staff', game=null, localView=null, panel='', panelKey='', activeRound='', detail='';
+let panelStatsOpen=false;
 let pointer=null, analog={x:0,y:0}, lastFrame=0, accumulator=0, lastMotion=0, lastHud=0;
 let quiet=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -73,7 +74,9 @@ function jobButtons() {
     const label=element('span','');
     label.append(element('strong','',item.name),element('small','',item.role));
     header.append(icon,label);
-    node.append(header,element('p','',item.description));
+    node.append(outfitPreview({job:key}, {level:1,slots:Array(8).fill(0)}),header,element('p','',item.description));
+    node.append(element('small','job-stats','生命 '+item.hp+'　移速 '+item.speed+'　'+SKILLS[item.skill][0]),
+      element('small','job-tracks','Lv.8　'+ADVANCEMENTS[key].map(track=>track.name).join(' ／ ')));
     return node;
   });
   ui.jobs.replaceChildren(...buttons);
@@ -152,6 +155,8 @@ function action(type,value,version) {
     const player=game.players[0];
     if(type==='burst'&&!game.paused&&!player.offers.length&&!game.ended) player.burstPending=true;
     else if(type==='choose') choose(game,player,value,version);
+    else if(type==='banish') banish(game,player,value,version);
+    else if(type==='buy') purchase(game,player,value);
     else if(type==='stat') allocateAttribute(game,player,value);
     else gearAction(game,player,type,value);
     localView=buildView(game,'solo');
@@ -184,6 +189,8 @@ function summaryPanel(view,self,content,actions) {
   }
   content.append(stats,element('p','loadout','技能：'+Object.entries(view.own.skills).map(([key,rank])=>
     (view.own.evolution[key]?EVOLUTIONS[key][0]:SKILLS[key][0])+' Lv.'+rank).join('、')));
+  const gear=view.own.gear.filter(Boolean);
+  if(gear.length)content.append(element('p','loadout','收工時的裝備　'+gear.map(i=>i.name+(i.rank?' +'+i.rank:'')).join('、')));
   if(view.players.length>1) {
     const result=element('ul','result-team');
     for(const player of view.players) {
@@ -199,11 +206,40 @@ function summaryPanel(view,self,content,actions) {
 function outfitPreview(player,look) {
   const canvas=element('canvas','look-preview');
   canvas.setAttribute('aria-hidden','true');
-  canvas.width=144;canvas.height=112;
+  canvas.width=176;canvas.height=134;
   const c=canvas.getContext('2d');
   c.scale(1.24,1.24);
-  adventurer(c,{...player,face:1,walk:false,down:false,inv:false,look:{...look,swing:0}},ui.mascot,.4,51,72,true);
+  adventurer(c,{...player,face:1,walk:false,down:false,inv:false,look:{...look,swing:0}},ui.mascot,.4,64,90,true);
   return canvas;
+}
+
+function formatPerk(key,value) {
+  if(key==='regen')return value.toFixed(2)+'/秒';
+  return ['magnet','heart'].includes(key)?String(Math.round(value*10)/10):(value*100).toFixed(1).replace(/\.0$/,'')+'%';
+}
+function gearDifference(own,self,item) {
+  const next=own.gear.slice();next[item.slot]=item;
+  const after=stats({...own,job:self.job,promotion:self.promotion,limit:own.limit||0},next);
+  const parts=[];
+  for(const [key,label,unit] of [['power','傷害','%'],['resist','減傷','%'],['haste','冷卻縮減','%'],['speed','跑速',''],['hp','生命',''],['crit','暴擊','%'],['reach','範圍','%'],['magnet','拾取',''],['regen','回復','/秒'],['wisdom','經驗','%']]){
+    const delta=(after[key]-own.derived[key])*(unit==='%'?100:1)*(['resist','haste'].includes(key)?-1:1);
+    if(Math.abs(delta)<.005)continue;
+    parts.push(label+' '+(delta>0?'+':'')+Number(delta.toFixed(2))+unit);
+  }
+  return parts.join('、')||'實際能力相同';
+}
+function marketPanel(view,self,content,actions){
+  const grid=element('div','market-grid');
+  for(const [key,item] of Object.entries(MARKET)){
+    const row=element('div','market-item');
+    row.append(element('strong','',item.name),element('small','',item.description));
+    const buy=button('購買 · '+item.cost+' 果核','secondary',()=>action('buy',key));
+    buy.disabled=self.down||view.own.crumbs<item.cost||(key==='juice'&&self.hp>=self.maxHp)||
+      (key==='boots'&&view.own.loot.length>=12)||(key==='point'&&view.own.statPoints>=180);
+    row.append(buy);grid.append(row);
+  }
+  content.append(grid);
+  actions.append(button('回裝備欄','secondary',()=>setPanel('bag')),button('返回戰場','primary',()=>setPanel('')));
 }
 
 function equipmentPanel(view,content,actions) {
@@ -212,6 +248,8 @@ function equipmentPanel(view,content,actions) {
   const look=self.look||{level:owned.skills[CLASSES[self.job].skill]||1,evolved:Boolean(owned.evolution[CLASSES[self.job].skill]),slots:owned.gear.map(item=>item?1+item.rarity+item.rank*6:0)};
   const fitting=element('div','dressing');
   fitting.append(outfitPreview(self,look),element('strong','',(getAdvancement(self.job,self.promotion)?.name||CLASSES[self.job].name)+' · '+(look.evolved?EVOLUTIONS[CLASSES[self.job].skill][0]:SKILLS[CLASSES[self.job].skill][0])+' Lv.'+look.level));
+  fitting.append(element('small','gear-vitals','生命 '+self.hp+' / '+Math.round(self.maxHp)+'　傷害 ×'+owned.derived.power.toFixed(2)+'　暴擊 '+Math.round(owned.derived.crit*100)+'%'),
+    element('small','gear-vitals','可分配素質 '+owned.statPoints+' 點'));
   content.append(fitting);
   const wrap=element('div','inventory');
   const equipped=element('section','');
@@ -225,34 +263,39 @@ function equipmentPanel(view,content,actions) {
     const title=element('strong','',item.name+' · '+tier+(item.rank?' +'+item.rank:''));
     title.style.color=color;
     row.append(title,element('small','',label+' · '+item.perks.map(([key,value])=>
-      PERKS[key][0]+' +'+(['magnet','heart'].includes(key)?value.toFixed(1):Math.round(value*100)+'%')).join('、')));
+      PERKS[key][0]+' +'+formatPerk(key,value)).join('、')));
     if(worn&&item.rank<4) {
       const cost=4+item.rank*2;
       const forge=button('強化 · '+cost,'secondary',()=>action('forge',item.id));
       forge.disabled=owned.crumbs<cost;
       row.append(forge);
     }
+    if(worn){
+      const remove=button('卸下','quiet',()=>action('unequip',item.id));remove.disabled=owned.loot.length>=12;row.append(remove);
+    }else row.append(element('small','gear-comparison','換上後　'+gearDifference(owned,self,item)));
     if(!worn) row.append(button('裝備','secondary',()=>action('equip',item.id)),
       button('分解 +' + (2+item.rarity),'quiet',()=>action('salvage',item.id)));
     return row;
   }
   owned.gear.forEach((item,i)=>gearList.append(itemRow(item,SLOTS[i],true)));
   owned.loot.forEach(item=>lootList.append(itemRow(item,SLOTS[item.slot],false)));
-  if(!owned.loot.length) lootList.append(element('li','item','打倒精英或首領會掉裝備。'));
+  if(!owned.loot.length) lootList.append(element('li','item','小怪偶爾掉裝，精英與首領必掉。'));
   equipped.append(element('h3','','裝備欄'),gearList);
-  found.append(element('h3','','戰利品'),lootList);
-  wrap.append(equipped,found);
+  found.append(element('h3','','戰利品 '+owned.loot.length+' / 12'),lootList);
+  const character=element('section','gear-character');
+  const details=element('details','sheet-stats');
+  details.open=window.matchMedia('(min-width: 760px)').matches||panelStatsOpen;
+  details.addEventListener('toggle',()=>{if(details.isConnected)panelStatsOpen=details.open;});
+  details.append(element('summary','','角色素質（'+owned.statPoints+'）'));
+  appendCharacterStats(view,self,details);
+  character.append(details);
+  wrap.append(character,equipped,found);
   content.append(wrap);
-  actions.append(button('返回戰場','primary',()=>setPanel('')));
+  actions.append(button('果園行商','secondary',()=>setPanel('market')),button('返回戰場','primary',()=>setPanel('')));
 }
 
-function profilePanel(view,self,content,actions) {
+function appendCharacterStats(view,self,content){
   const own=view.own;
-  const header=element('div','profile-head');
-  header.append(outfitPreview(self,self.look),element('strong','',
-    (getAdvancement(self.job,self.promotion)?.name||CLASSES[self.job].name)
-      +' ・Lv.'+view.l+' ・未分配 '+own.statPoints+' 點'));
-  content.append(header);
   const attributes=element('div','attribute-grid');
   const effects={
     str:'金箍系傷害',agi:'移動速度／技能冷卻',vit:'最大生命／減傷',
@@ -287,7 +330,17 @@ function profilePanel(view,self,content,actions) {
     stats.append(stat);
   }
   content.append(stats);
-  actions.append(button('返回戰場','primary',()=>setPanel('')));
+}
+
+function profilePanel(view,self,content,actions) {
+  const own=view.own;
+  const header=element('div','profile-head');
+  header.append(outfitPreview(self,self.look),element('strong','',
+    (getAdvancement(self.job,self.promotion)?.name||CLASSES[self.job].name)
+      +' ・Lv.'+view.l+' ・未分配 '+own.statPoints+' 點'));
+  content.append(header);
+  appendCharacterStats(view,self,content);
+  actions.append(button('查看穿戴與背包','secondary',()=>setPanel('bag')),button('返回戰場','primary',()=>setPanel('')));
 }
 
 function skillBookPanel(view,self,content,actions) {
@@ -312,6 +365,7 @@ function skillBookPanel(view,self,content,actions) {
     }
     content.append(grid);
   }
+  if(own.forgotten?.length)content.append(element('p','loadout','本局已遺忘　'+own.forgotten.map(k=>(SKILLS[k]||PASSIVES[k])[0]).join('、')));
   content.append(element('p','loadout','技能會自動攻擊。升級三選一可強化技能；符合條件後會出現進化卡。'));
   actions.append(button('返回戰場','primary',()=>setPanel('')));
 }
@@ -338,11 +392,12 @@ function modal(view,self) {
   const mode=view.done?'done':offers.length?'choose':panel;
   ui.overlay.hidden=!mode;
   if(!mode) {panelKey='';return;}
-  const coop=!game&&['choose','bag','menu','profile','skills'].includes(mode);
+  const coop=!game&&['choose','bag','menu','profile','skills','market'].includes(mode);
   ui.overlay.classList.toggle('coop',coop);
   ui.panel.setAttribute('aria-modal',String(!coop));
   const fingerprint=mode==='choose'?String(view.own.offerId):mode==='bag'?
-    JSON.stringify([view.own.crumbs,view.own.gear,view.own.loot]):mode==='profile'?
+    JSON.stringify([view.own.crumbs,view.own.gear,view.own.loot,view.own.statPoints,self.hp]):mode==='market'?
+    [view.own.crumbs,view.own.loot.length,view.own.statPoints,self.hp>=self.maxHp,self.down].join(','):mode==='profile'?
     JSON.stringify([view.own.statPoints,view.own.attributes,view.own.derived]):mode==='skills'?
     JSON.stringify([view.own.skills,view.own.passive,view.own.evolution]):'';
   const key=mode+':'+fingerprint;
@@ -370,17 +425,32 @@ function modal(view,self) {
       choice.append(element('span','offer-type',offer.type==='skill'?'主動技能':offer.type==='passive'?'被動技能':offer.type==='evolution'?'技能進化':offer.type==='promotion'?'轉職分支':'特殊獎勵'));
       if(offer.key===CLASSES[self.job].skill&&(offer.type==='skill'||offer.type==='evolution')){
         const look={level:view.own.skills[CLASSES[self.job].skill]||1,slots:Array(8).fill(0),...self.look};
-        if(offer.type==='evolution')look.evolved=true;else look.level++;
+        if(offer.type==='evolution')look.evolved=true;else look.level=Math.min(10,look.level+(offer.rankGain||1));
         choice.append(outfitPreview(self,look));
       }
       choice.append(element('b','',offer.name),element('small','',offer.text));
-      if(offer.detail)choice.append(element('small','offer-detail',offer.detail));
-      choices.append(choice);
+      if(isPromotion)choice.prepend(outfitPreview({...self,promotion:offer.key},self.look));
+      if(offer.type==='skill'||offer.type==='evolution'){
+        const old=view.own.skills[offer.key]||0;
+        const evolved=Boolean(view.own.evolution[offer.key]);
+        const rank=offer.type==='evolution'?old:Math.min(10,old+(offer.rankGain||1));
+        const next=skillNumbers(offer.key,rank,view.own.derived,evolved||offer.type==='evolution');
+        const prior=old?skillNumbers(offer.key,old,view.own.derived,evolved):null;
+        choice.append(element('small','offer-detail','基礎傷害 '+(prior?prior.damage+' → ':'')+next.damage+'　冷卻 '+(prior?prior.cooldown.toFixed(2)+' → ':'')+next.cooldown.toFixed(2)+' 秒'));
+      }else if(offer.detail)choice.append(element('small','offer-detail',offer.detail));
+      const card=element('div','card-column');card.append(choice);
+      if(view.own.canBanish&&['skill','passive'].includes(offer.type)&&!view.own.skills[offer.key]&&!view.own.passive[offer.key]){
+        card.append(button('本局遺忘','banish',()=>action('banish',i,view.own.offerId)));
+      }
+      choices.append(card);
     });
     content.append(choices);
+    if(choices.querySelector('.banish'))content.append(element('small','choice-note','每級可遺忘一個未學技能，立即重抽，本局不再出現。'));
   } else if(mode==='bag') {
     title='當局裝備';copy='強化果核 '+view.own.crumbs;
     equipmentPanel(view,content,actions);
+  } else if(mode==='market'){
+    title='果園行商';copy='可用果核 '+view.own.crumbs;marketPanel(view,self,content,actions);
   } else if(mode==='profile'){
     title='猴三毛・角色素質';copy='升級可獲得 3 點素質，依職業選擇不同成長路線。';
     profilePanel(view,self,content,actions);
@@ -413,7 +483,7 @@ function updateHud(view,self,now) {
     ui['boss-life'].style.transform='scaleX('+Math.max(0,Math.min(1,view.boss.hp/view.boss.maxHp))+')';
   }
   const skillEntries=Object.entries(view.own.skills).slice(0,6);
-  const skillKey=JSON.stringify(skillEntries);
+  const skillKey=JSON.stringify([skillEntries,view.own.evolution]);
   if(ui['active-skills'].dataset.skillKey!==skillKey){
     ui['active-skills'].dataset.skillKey=skillKey;
     ui['active-skills'].replaceChildren(...skillEntries.map(([key,rank])=>{
@@ -429,7 +499,7 @@ function updateHud(view,self,now) {
   }
   for(const node of ui['active-skills'].children){
     const key=node.dataset.key;
-    const base=SKILLS[key]?.[4] || 1;
+    const base=skillNumbers(key,view.own.skills[key],view.own.derived).cooldown;
     const cooldown=Math.max(0,view.own.timers[key] || 0);
     node.querySelector('.skill-cooldown').style.transform='scaleY('+Math.min(1,cooldown/base)+')';
     node.classList.toggle('cooling',cooldown>.05);
@@ -437,7 +507,7 @@ function updateHud(view,self,now) {
   ui['life-bar'].style.transform='scaleX('+Math.max(0,Math.min(1,self.hp/self.maxHp))+')';
   ui['xp-bar'].style.transform='scaleX('+Math.max(0,Math.min(1,view.xp/view.xpMax))+')';
   const countdown=Math.ceil(view.own.burst);
-  const burstName=CLASSES[self.job]?.burst||'大招';
+  const burstName=getAdvancement(self.job,self.promotion)?.burst||CLASSES[self.job]?.burst||'大招';
   setText(ui.burst.firstElementChild,countdown?'冷卻中':'大招');
   setText(ui.burst.lastElementChild,countdown?countdown+' 秒':burstName);
   ui.burst.disabled=self.down||countdown>0||view.done||Boolean(game&&(view.own.offers.length||panel));
@@ -582,6 +652,7 @@ for(const name of ['pointerup','pointercancel','lostpointercapture']) {
 }
 
 jobButtons();
+if(!ui.mascot.complete)ui.mascot.addEventListener('load',jobButtons,{once:true});
 if(/^\d{6}$/.test(invitation||'')) ui['room-code'].value=invitation;
 const restore=squad.restoreCode();
 if(restore&&(!invitation||invitation===restore)) {

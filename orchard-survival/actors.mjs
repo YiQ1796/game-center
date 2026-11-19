@@ -1,7 +1,8 @@
+import { deform, drawPose, poseFor } from './pose.mjs?v=040';
 
-import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=030';
-import { getAdvancement } from './advancement.mjs?v=030';
-import { drawAdvancedCostume,drawAdvancedWeapon } from './costumes.mjs?v=030';
+import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=040';
+import { getAdvancement } from './advancement.mjs?v=040';
+import { drawAdvancedCostume,drawAdvancedWeapon } from './costumes.mjs?v=040';
 
 const outline='#463c42';
 const velvet=(c,light,mid,dark)=>blend(c,-12,-26,11,19,light,mid,dark);
@@ -125,19 +126,20 @@ export function creature(c,enemy,t,x,y){
 
 const gearColors=['#c0a47b','#aecb77','#83c4ed','#d4a1ed','#ffba5e','#ff90a6'];
 const jobCloth={staff:['#b75136','#fbcb68'],mage:['#624779','#dca8ff'],scout:['#2d7265','#a4e4b4']};
-function weapon(c,job,look,t,face,promotion){
+function weapon(c,job,look,t,face,promotion,pose){
   const level=look.level||1,evo=look.evolved;
   const gear=look.slots[0],trim=gear?gearColors[(gear-1)%6]:'#f4c568';
   const rank=gear?Math.floor((gear-1)/6):0;
   const swing=Math.sin((look.swing||0)/100*Math.PI);
-  c.save();c.translate(15,-13);
+  const hand=deform(11,-8,pose);
+  c.save();c.translate(...hand);
   // 進階職業改用專屬武器形體，禁止疊上舊的通用武器。
-  if(promotion){drawAdvancedWeapon(c,job,promotion,look,t);c.restore();return;}
   const aim=look.aim||0;
   const localAngle=Math.atan2(Math.sin(aim),Math.cos(aim)*face);
-  if(job==='staff')c.rotate(.34+swing*1.45);
+  if(job==='staff')c.rotate(.22+pose.a*1.65);
   else if(job==='mage')c.rotate(.43+swing*Math.atan2(Math.sin(localAngle+1.15),Math.cos(localAngle+1.15)));
   else c.rotate(.05+swing*localAngle);
+  if(promotion){drawAdvancedWeapon(c,job,promotion,look,t);c.restore();return;}
   const size=1+(level-1)*.07+(evo?.18:0)+rank*.025;
   c.scale(size,size);
   if(job==='scout'){
@@ -193,11 +195,14 @@ export function adventurer(c,p,sprite,t,x,y,self){
   const [cloth,accent]=jobCloth[job]||jobCloth.staff;
   const tint=i=>worn[i]?gearColors[(worn[i]-1)%6]:accent;
   const promotion=getAdvancement(job,p.promotion);
-  const gait=walk&&!down?Math.sin(t*14):Math.sin(t*2)*.18;
-  oval(c,x+2,y+8,22,6.5,'#304c4366');
-  c.save();c.translate(x,y+gait*1.7);c.scale(face,1);
-  if(down)c.rotate(-.82);
+  const pose=poseFor(p,t);
+  oval(c,x+1,y+9,20+(walk?Math.abs(pose.stride)*2:0),5.5,'#304c435c');
+  c.save();c.translate(x,y);c.scale(face,1);
+  if(down){c.translate(-5,4);c.rotate(-1.05);c.scale(1,.87);}
   if(p.inv&&Math.floor(t*8)%2===0)c.globalAlpha=.79;
+  const loaded=Boolean(sprite.complete&&sprite.naturalWidth);
+  const skinKey=[sprite.currentSrc||sprite.src,loaded,job,p.promotion||'',worn.join(',')].join('|');
+  drawPose(c,skinKey,pose,c=>{
   if(!promotion&&(job==='mage'||worn[2])){
     ink(c,'M-10 -29 Q-18 -19 -22 6 Q-12 11 -2 4 L8 -21Z',velvet(c,accent,cloth,'#4a414b'),outline,1.15);
     ink(c,'M-11 -21 Q-16 -8 -18 4',null,accent,1.2);
@@ -233,9 +238,20 @@ export function adventurer(c,p,sprite,t,x,y,self){
   if(worn[4])for(const px of [-8,8]){oval(c,px,6,6.3,3.4,cloth);stroke(c,[[px-3,4],[px+2,4]],tint(4),1.6);}
   if(worn[5]){ink(c,'M-7 -22 Q-2 -10 7 -22',null,'#f7cf83',1.3);star(c,0,-14,3.8,tint(5));}
   }
-  weapon(c,job,look,t,face,p.promotion);
-  if(!promotion&&worn[3]){oval(c,14,-13,4.6,4,cloth);stroke(c,[[11,-12],[15,-10]],tint(3),1.5);}
-  for(const [slot,px] of [[6,-14],[7,14]])if(!promotion&&worn[slot]){oval(c,px,-12,2.8,2.5,'#dfae64');star(c,px,-12,2.3,tint(slot));}
+  });
+  weapon(c,job,look,t,face,p.promotion,pose);
+  // Fingers and worn jewelry sit in front of the grip, including after advancement.
+  for(const [slot,px] of [[6,-15],[7,11]]){
+    const [hx,hy]=deform(px,slot===7?-8:-7,pose);
+    if(slot===7){
+      oval(c,hx,hy,2.7,2.1,'#dcbb8f');
+      if(worn[3]){oval(c,hx,hy,4.1,3.4,cloth);stroke(c,[[hx-2,hy-1],[hx+2,hy-1]],tint(3),1.3);}
+    }
+    if(worn[slot]){
+      oval(c,hx,hy+1,3.5,2.8,'#c38b42');
+      star(c,hx,hy+.4,3.1,tint(slot));
+    }
+  }
   c.restore();
   if(!self||down){
     c.font='bold 12px system-ui';c.textAlign='center';c.lineWidth=3;c.strokeStyle='#374c39';c.fillStyle='#fff2bf';

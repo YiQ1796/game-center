@@ -1,5 +1,5 @@
-import { blend, ink, oval, star, stroke } from './paint.mjs?v=030';
-import { getAdvancement } from './advancement.mjs?v=030';
+import { blend, ink, oval, star, stroke } from './paint.mjs?v=040';
+import { getAdvancement } from './advancement.mjs?v=040';
 
 // Costume is permanent illustrated character geometry, not a short-lived particle or filter.
 // Each advanced job has its own silhouette: hat, shoulders, chest, skirt, boots and weapon.

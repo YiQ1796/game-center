@@ -1,5 +1,5 @@
 
-import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=030';
+import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=040';
 
 function comet(c,length,width,hot,edge){
   c.save();c.scale(length/100,width/16);
@@ -51,6 +51,9 @@ export function groundSpells(c,view){
     if(kind==='mine'){
       oval(c,1,2,12,5,'#41554366');ink(c,'M-9 0 Q-12 -10 -4 -12 Q1 -19 7 -13 Q15 -13 11 -4 Q9 4 -2 5Z','#ffd78d','#966146',1.5);
       star(c,6,-11,3+Math.sin(view.t*8),'#fff6da');
+    }else if(kind==='frostfield'){
+      oval(c,0,0,r,r*.7,'#9adcea52');
+      for(let i=0;i<8;i++){const a=i*2.4;star(c,Math.cos(a)*r*.65,Math.sin(a)*r*.48,4+(i%3),'#dbfbff',a);}
     }else if(kind==='field'){
       oval(c,0,0,r,r*.64,color+'65');
       for(let i=0;i<7;i++){const a=i*2.4;oval(c,Math.cos(a)*r*.56,Math.sin(a)*r*.39,12,5,'#ffe29987');}
@@ -108,7 +111,24 @@ export function spellFlashes(c,view,quiet){
     const life=strength/100, p=1-life;
     if(life<=0||quiet&&kind==='number')continue;
     c.save();c.translate(x,y);c.globalAlpha=Math.min(1,life*3.1);
-    if(kind==='line'){
+    if(kind==='ward'){
+      c.save();c.scale(1,1.15);
+      glow(c,0,-15,38,'#e2ffcb44','#76d29e00');
+      c.beginPath();c.ellipse(0,-13,32,35,-.13,0,TAU);c.strokeStyle='#b7ecc4';c.lineWidth=2;c.stroke();
+      for(let i=0;i<4;i++){const a=i*TAU/4+p*3;star(c,Math.cos(a)*31,-13+Math.sin(a)*31,3.2,'#fff5be',a);}
+      c.restore();
+    }else if(kind==='trail'){
+      const dx=x2-x,dy=y2-y;c.rotate(Math.atan2(dy,dx));const length=Math.hypot(dx,dy);
+      for(let i=-1;i<=1;i++){
+        const j=i*7;c.beginPath();c.moveTo(0,j);c.quadraticCurveTo(length*.55,j-16-i*6,length,j);
+        c.strokeStyle=i?'#95d9e9':'#f0fcff';c.lineWidth=i?2:4;c.stroke();
+      }
+    }else if(kind==='bolt'){
+      const dx=x2-x,dy=y2-y,points=[[0,0],[dx*.27+11,dy*.25],[dx*.4-12,dy*.47],[dx*.6+6,dy*.46],[dx*.76-10,dy*.74],[dx,dy]];
+      stroke(c,points,'#a280e88f',quiet?6:12);stroke(c,points,'#c2a5ff',5);stroke(c,points,'#fff9ed',2);
+      if(!quiet)stroke(c,[points[2],[dx*.4-34,dy*.49],[dx*.3-40,dy*.68]],'#dec9ff',2);
+      star(c,dx,dy,6+9*life,'#fff7dd',p);
+    }else if(kind==='line'){
       const dx=x2-x,dy=y2-y;const points=[[0,0],[dx*.26+6,dy*.26-5],[dx*.49-7,dy*.49+4],[dx*.74+3,dy*.74-6],[dx,dy]];
       stroke(c,points,'#b893da88',8);stroke(c,points,'#ffdb79',3.5);stroke(c,points,'#fffee2',1.3);
     }else if(kind==='number'){

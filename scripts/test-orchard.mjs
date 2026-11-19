@@ -1,7 +1,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from '../orchard-survival/arena.mjs';
+import { banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from '../orchard-survival/arena.mjs';
 import { ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, SKILLS, SLOTS, THRESHOLD } from '../orchard-survival/content.mjs';
 import { ADVANCEMENTS, ADVANCEMENT_LEVEL } from '../orchard-survival/advancement.mjs';
 import { Squad } from '../orchard-survival/squad.mjs';
@@ -257,4 +257,62 @@ test('three ultimate abilities send distinct animated effects to every seat',()=
   }
   tick(game,41);
   assert.ok(game.zones.every(z=>z.kind!=='meteor'));
+});
+
+test('banish is personal, once per level, excludes future draws and rejects stale packets',()=>{
+  const g=newGame(seats('mage','staff'),101), [p,ally]=g.players;
+  const levelUp=()=>{g.gems.push({id:78,x:p.x,y:p.y,value:THRESHOLD(g.level)});advance(g);};
+  levelUp();
+  const index=p.offers.findIndex(o=>['skill','passive'].includes(o.type)&&!p.skills[o.key]);
+  assert.ok(index>=0);
+  const oldId=p.offerId, gone=p.offers[index].key, pending=p.pending,deadline=p.deadline;
+  assert.ok(banish(g,p,index,oldId));
+  assert.equal(p.deadline,deadline);assert.equal(p.pending,pending);
+  assert.equal(ally.forgotten.length,0);
+  assert.equal(banish(g,p,0,p.offerId),false);assert.equal(choose(g,p,0,oldId),false);
+  assert.ok(p.offers.every(o=>o.key!==gone));assert.ok(choose(g,p,0,p.offerId));
+  levelUp();assert.ok(p.offers.every(o=>o.key!==gone));assert.ok(buildView(g,p.id).own.canBanish);
+});
+test('shop, capacity, equipment replacement and unequip apply only to the owner',()=>{
+  const g=newGame(seats('mage','scout'),14),[p,ally]=g.players;p.crumbs=30;
+  assert.equal(purchase(g,p,'juice'),false);assert.equal(p.crumbs,30);
+  assert.equal(purchase(g,p,'__proto__'),false);
+  const before=buildView(g,p.id).own.derived.speed;
+  assert.ok(purchase(g,p,'boots'));const id=p.loot[0].id;
+  assert.ok(gearAction(g,p,'equip',id));
+  assert.ok(buildView(g,p.id).own.derived.speed>before);
+  assert.equal(ally.loot.length,0);
+  assert.ok(gearAction(g,p,'unequip',id));assert.equal(buildView(g,p.id).own.derived.speed,before);
+  p.loot=Array(12).fill(p.loot[0]);assert.equal(purchase(g,p,'boots'),false);
+  p.hp=10;assert.ok(purchase(g,p,'juice'));assert.ok(p.hp>10);
+  assert.ok(purchase(g,p,'point'));assert.equal(p.statPoints,1);assert.equal(p.crumbs,5);
+  assert.equal(purchase(g,p,'point'),false);
+});
+test('six advancements perform distinct battle actions, visible to the second seat',()=>{
+  for(const [job,tracks] of Object.entries(ADVANCEMENTS)){
+    for(const track of tracks){
+      const g=newGame(seats(job,'staff'),94),[p,ally]=g.players;
+      p.promotion=track.id;p.burstPending=true;g.spawnClock=900;
+      ally.hp=20;
+      const start=p.x;
+      const mob={id:701,kind:'snail',x:p.x+100,y:p.y,hp:10000,maxHp:10000,radius:23,speed:0,damage:0,flash:0,slow:0,timer:9,wind:0,dash:0,face:1,mode:0,aim:0};
+      g.enemies.push(mob);advance(g);
+      const v=buildView(g,ally.id);
+      assert.ok(v.fx.some(f=>f[8]===track.burst));
+      if(track.id==='king'){assert.equal(g.zones.filter(z=>z.kind==='quake').length,3);tick(g,24);assert.ok(mob.hp<10000);}
+      if(track.id==='guardian'){assert.ok(ally.hp>20);assert.ok(ally.inv>1);}
+      if(track.id==='storm'){assert.ok(v.fx.some(f=>f[5]==='bolt'));assert.ok(mob.hp<10000);}
+      if(track.id==='archmage'){assert.equal(g.zones.filter(z=>z.kind==='meteor').length,5);assert.ok(mob.slow>1);}
+      if(track.id==='ranger'){assert.equal(g.shots.filter(z=>z.kind==='starArrow').length,9);}
+      if(track.id==='shadow'){assert.ok(p.x>start+100);assert.ok(v.fx.some(f=>f[5]==='trail'));assert.ok(mob.hp<10000);}
+    }
+  }
+});
+test('movement pose follows distance and stops advancing against a wall',()=>{
+  const g=newGame(seats('staff'),41),p=g.players[0];g.spawnClock=999;
+  setMove(p,0,1);tick(g,4);
+  const moving=buildView(g,p.id).players[0];
+  assert.ok(moving.walk&&moving.gait>0);
+  setMove(p,0,0);tick(g,1);assert.equal(buildView(g,p.id).players[0].gait,moving.gait);
+  p.x=21;setMove(p,-1,0);tick(g,1);assert.equal(p.walk,false);
 });

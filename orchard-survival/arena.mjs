@@ -1,6 +1,6 @@
 
-import { CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=030';
-import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=030';
+import { CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=040';
+import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=040';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -29,7 +29,7 @@ function newPlayer(seat, i) {
     id: seat.id, name: seat.name, job, x: FIELD.width / 2 + (i % 2) * 39 - 20,
     y: FIELD.height / 2 + Math.floor(i / 2) * 39 - 20, face: 1, walk: false,
     hp:type.hp, maxHp:type.hp, inv:0, down:false, rescue:0, burst:0, burstPending:false,
-    strikeAt:-5, aim:0, promotion:null, move:{x:0,y:0}, skills:{[type.skill]:1}, passive:{}, evolution:{}, timers:{},
+    strikeAt:-5, gait:0, aim:0, forgotten:[], banishedAt:0, promotion:null, move:{x:0,y:0}, skills:{[type.skill]:1}, passive:{}, evolution:{}, timers:{},
     attributes:{str:5,agi:5,vit:5,int:5,dex:5,luk:5},statPoints:0,legendaryTokens:0,
     gear:Array(SLOTS.length).fill(null), loot:[], crumbs:0, pending:0, offers:[], deadline:0, offerId:0,
     kills:0, damage:0, bosses:0, rescues:0, limit:0
@@ -55,10 +55,10 @@ export function setMove(player, x, y) {
   player.move = { x:x/length, y:y/length };
 }
 
-function stats(player) {
+export function stats(player, equipment=player.gear) {
   const points = {...player.passive};
   const gear = {};
-  for (const item of player.gear) {
+  for (const item of equipment) {
     if (!item) continue;
     for (const [key,value] of item.perks) gear[key] = (gear[key] || 0) + value;
   }
@@ -78,12 +78,12 @@ function stats(player) {
     resist:Math.max(.26, 1-rank('guard')*.08-bonus('guard')-promoted('guard')-(attr('vit')-5)*.002),
     hp:(CLASSES[player.job].hp+rank('heart')*18+bonus('heart')+(attr('vit')-5)*7)*(1+promoted('health')),
     crit:Math.min(.75,.05+rank('crit')*.06+bonus('crit')+promoted('crit')+(attr('luk')-5)*.006),
-    regen:rank('regen')*.45+bonus('regen')
+    regen:rank('regen')*.45+bonus('regen'), wisdom:rank('wisdom')*.08+bonus('wisdom')
   };
 }
 
 export function allocateAttribute(game,player,key) {
-  if(game.ended||player?.down||!Object.hasOwn(ATTRIBUTES,key) ||
+  if(game.ended||!player||player.down||!Object.hasOwn(ATTRIBUTES,key) ||
      !Number.isInteger(player.statPoints)||player.statPoints<1||player.attributes[key]>=99) return false;
   player.attributes[key] += 1;
   player.statPoints -= 1;
@@ -109,7 +109,7 @@ function makeOffers(game, player) {
   if (game.level >= ADVANCEMENT_LEVEL && !player.promotion) {
     player.offers = (ADVANCEMENTS[player.job] || []).map(track=>({
       type:'promotion', key:track.id, name:track.name,
-      text:track.role+'・'+track.description
+      text:track.role+'・'+track.description, detail:track.burst+'｜'+track.technique
     }));
     player.offerId += 1;
     player.deadline = game.elapsed + 25;
@@ -120,14 +120,14 @@ function makeOffers(game, player) {
   const active = Object.entries(SKILLS).flatMap(([key,skill]) => {
     const level = player.skills[key] || 0;
     if (level >= SKILL_CAP || (!level && activeCount >= 6)) return [];
-    const rankGain=Math.min(2,SKILL_CAP-level);
+    if (player.forgotten.includes(key)) return [];
     return [{ type:'skill', key, name:skill[0],
       rankGain:1, text:level ? 'Lv.'+level+' → '+(level+1)+'｜'+skill[1] : skill[1],
       detail:'傷害 '+skill[2]+'｜冷卻 '+skill[4].toFixed(1)+' 秒｜最高 Lv.'+SKILL_CAP }];
   });
   const passive = Object.entries(PASSIVES).flatMap(([key,perk]) => {
     const level = player.passive[key] || 0;
-    if (level >= PASSIVE_CAP || (!level && passiveCount >= 6)) return [];
+    if (player.forgotten.includes(key) || level >= PASSIVE_CAP || (!level && passiveCount >= 6)) return [];
     return [{ type:'passive', key, name:perk[0], text:'Lv.'+level+' → '+(level+1)+'｜'+perk[1],
       detail:'被動技能｜最高 Lv.'+PASSIVE_CAP }];
   });
@@ -166,6 +166,19 @@ function makeOffers(game, player) {
   player.offers = choices;
   player.offerId += 1;
   player.deadline = game.elapsed + 12;
+}
+
+export function banish(game, player, index, version) {
+  const card=player?.offers[index];
+  if (!Number.isInteger(index) || !card || game.ended || player.down ||
+      player.offerId!==version || player.banishedAt===game.level ||
+      !['skill','passive'].includes(card.type) || player.skills[card.key] || player.passive[card.key]) return false;
+  player.forgotten.push(card.key);
+  player.banishedAt=game.level;
+  const deadline=player.deadline;
+  makeOffers(game,player);
+  player.deadline=deadline;
+  return true;
 }
 
 export function choose(game, player, index, version) {
@@ -214,20 +227,45 @@ function gainXp(game, amount) {
   }
 }
 
-function rollGear(game, high) {
+function rollGear(game, high, job) {
   const slot = Math.floor(random(game)*SLOTS.length);
   const [base,key] = templates[slot];
+  const variants=[
+    {staff:['榛果短棒','赤漆盤龍棍'],mage:['晶露短杖','星糖法杖'],scout:['藤木短弓','碧羽獵弓']}[job],
+    ['蕉葉漁夫帽','金穗頭巾'],['果園工作服','林衛短甲'],['採果手套','斑紋護腕'],
+    ['軟底竹鞋','踏風木屐'],['蜜蜂墜飾','琥珀葉墜'],['紅莓戒指','赤晶藤戒'],['蜂蜜戒指','露珠指環']
+  ];
   const find = random(game) + Math.min(.18,game.elapsed/3400) + (high ? .28 : 0);
   const rarity = find > 1.27 ? 5 : find > 1.12 ? 4 : find > .94 ? 3 : find > .72 ? 2 : find > .34 ? 1 : 0;
   const keys = [key,...shuffled(game,Object.keys(PERKS).filter(other => other !== key)).slice(0,Math.min(3,rarity))];
   return {
-    id:++game.serial, slot, name:base, rarity, rank:0,
+    id:++game.serial, slot, name:variants[slot]?.[rarity>=2?1:0]||base, rarity, rank:0,
     perks:keys.map(stat => [stat, PERKS[stat][1]*(1+rarity*.36)])
   };
 }
 
+export function purchase(game,player,key) {
+  if (game.ended || !player || player.down || !Object.hasOwn(MARKET,key)) return false;
+  const item=MARKET[key];
+  if (player.crumbs<item.cost || (key==='juice' && player.hp>=player.maxHp) ||
+      (key==='boots' && player.loot.length>=12) || (key==='point' && player.statPoints>=180)) return false;
+  player.crumbs-=item.cost;
+  if (key==='juice') player.hp=Math.min(player.maxHp,player.hp+player.maxHp*.35);
+  if (key==='boots') player.loot.push({id:++game.serial,slot:4,name:item.name,rarity:1,rank:0,perks:[['boots',.08],['magnet',12]]});
+  if (key==='point') player.statPoints++;
+  effect(game,player.x,player.y,38,'#f6da90',.65,'upgrade',0,0,item.name);
+  return true;
+}
+
 export function gearAction(game, player, action, id) {
   if (game.ended || !player || player.down || !Number.isSafeInteger(id)) return false;
+  if (action==='unequip') {
+    const slot=player.gear.findIndex(item=>item?.id===id);
+    if (slot<0 || player.loot.length>=12) return false;
+    player.loot.push(player.gear[slot]);player.gear[slot]=null;
+    updateMaxHp(player);
+    return true;
+  }
   const lootIndex = player.loot.findIndex(item => item.id === id);
   if (lootIndex !== -1 && (action === 'equip' || action === 'salvage')) {
     const [item] = player.loot.splice(lootIndex,1);
@@ -285,7 +323,7 @@ function hurt(game, player, enemy, amount, color, crit, knock=0) {
   dropGem(game,enemy);
   // 小怪也能偶爾掉裝備與果核，讓成長節奏不再完全卡在精英刷新。
   if(!boss&&!elite&&random(game)<.018){
-    const item=rollGear(game,false);
+    const item=rollGear(game,false,player.job);
     if(player.loot.length<12)player.loot.push(item);
     else player.crumbs+=2+item.rarity;
   }
@@ -293,7 +331,7 @@ function hurt(game, player, enemy, amount, color, crit, knock=0) {
   effect(game,enemy.x,enemy.y,enemy.radius*(boss ? 4 : 1.85),color,.42,'pop');
   if (boss || elite) {
     for (const ally of game.players) {
-      const item = rollGear(game,boss);
+      const item = rollGear(game,boss,ally.job);
       if (ally.loot.length < 12) ally.loot.push(item);
       else ally.crumbs += 2+item.rarity;
       ally.crumbs += boss ? 8 : 3;
@@ -361,9 +399,9 @@ function zone(game, player, kind, x, y, radius, amount, color, crit, duration) {
 }
 
 function useSkill(game, player, key, level, config) {
-  const [, , base, range, delay, color, kind] = SKILLS[key];
+  const [, , , range, , color, kind] = SKILLS[key];
   const evolved = player.evolution[key];
-  const amount = base*config.power*(1+(level-1)*.26)*(evolved ? 1.55 : 1);
+  const {damage:amount,cooldown}=skillNumbers(key,level,config,evolved);
   const scale = config.reach*(evolved ? 1.27 : 1);
   const x = player.x, y = player.y;
   const target = range && nearest(game,x,y,range*(kind==='ring' ? scale : 1));
@@ -382,9 +420,9 @@ function useSkill(game, player, key, level, config) {
   } else if (kind === 'chain') {
     let head=target, previous=player;
     const hitIds=new Set();
-    for (let i=0;i<3+Math.floor(level/3)&&head;i++) {
+    for (let i=0;i<3+Math.floor(level/3)+(evolved?2:0)&&head;i++) {
       effect(game,previous.x,previous.y,0,color,.26,'line',head.x,head.y);
-      hurt(game,player,head,amount*(1-i*.11),color,config.crit);
+      hurt(game,player,head,amount*Math.max(.35,1-i*.11),color,config.crit);
       hitIds.add(head.id);
       previous=head;
       let closest=125*scale;
@@ -394,12 +432,13 @@ function useSkill(game, player, key, level, config) {
       });
     }
   } else if (kind === 'slow') {
+    if(evolved) zone(game,player,'frostfield',target.x,target.y,86*scale,amount*.32,color,config.crit,2.2);
     blast(game,player,target.x,target.y,79*scale,amount,color,config.crit,0,1.6,'ice');
   } else if (kind === 'mine' || kind === 'field' || kind === 'drop') {
     const duration=kind==='mine' ? 7 : kind==='field' ? 2.5 : .48;
     zone(game,player,kind,target?.x ?? x,target?.y ?? y,(kind==='mine' ? 73 : 89)*scale,amount,color,config.crit,duration);
   } else {
-    const angles = kind === 'radial' ? headings : evolved && kind==='pierce' ? [angle-.15,angle,angle+.15] : [angle];
+    const angles = kind === 'radial' ? headings : evolved && kind==='return' ? [angle-.19,angle+.19] : evolved && kind==='pierce' ? [angle-.15,angle,angle+.15] : [angle];
     for (const direction of angles) {
       shoot(game,player,direction,{amount,color,crit:config.crit,reach:(range+40)*scale,kind,tier:evolved?6:level,speed:kind==='blast' ? 445 : 580,
         pierce:kind==='pierce' ? 2+Math.floor(level/2)+(evolved ? 2 : 0) : kind==='return' ? 12 : kind==='radial' ? 2 : 1});
@@ -409,8 +448,9 @@ function useSkill(game, player, key, level, config) {
   if (key===CLASSES[player.job].skill) {
     player.strikeAt=game.elapsed;
     player.aim=angle;
+    if (target && Math.abs(Math.cos(angle))>.18) player.face=Math.cos(angle)>0?1:-1;
   }
-  player.timers[key] = delay*config.haste*Math.max(.72,1-(level-1)*.055);
+  player.timers[key] = cooldown;
 }
 
 function burst(game, player, config) {
@@ -418,7 +458,52 @@ function burst(game, player, config) {
   const type=CLASSES[player.job];
   const promotion=getAdvancement(player.job,player.promotion);
   player.burst=promotion ? 18 : 22;
-  effect(game,x,y,promotion ? 150 : 110,promotion?.color||type.color,1.0,'cast-'+player.job,0,0,promotion ? promotion.name+' · '+type.burst : type.burst);
+  const target=nearest(game,x,y,620);
+  player.aim=target?Math.atan2(target.y-y,target.x-x):(player.face===1?0:Math.PI);
+  player.strikeAt=game.elapsed;
+  if(Math.abs(Math.cos(player.aim))>.18)player.face=Math.cos(player.aim)>0?1:-1;
+  effect(game,x,y,promotion ? 150 : 110,promotion?.color||type.color,1.0,'cast-'+player.job,0,0,promotion ? promotion.burst : type.burst);
+  if (promotion) {
+    const power=config.power, color=promotion.color, reach=config.reach;
+    if (promotion.id==='king') {
+      for(const [i,radius] of [90,150,220].entries())
+        zone(game,player,'quake',x,y,radius*reach,62*power,color,config.crit,.12+.23*i);
+      player.inv=Math.max(.8,player.inv);
+    } else if (promotion.id==='guardian') {
+      blast(game,player,x,y,184*reach,80*power,color,config.crit,98,1,'gale');
+      for(const ally of game.players.filter(p=>!p.down && dist(player,p)<=225*reach)){
+        ally.hp=Math.min(ally.maxHp,ally.hp+ally.maxHp*.22);
+        ally.inv=Math.max(2.2,ally.inv);
+        effect(game,ally.x,ally.y,38,color,2.2,'ward');
+      }
+    } else if (promotion.id==='storm') {
+      const enemies=[];
+      nearby(game,x,y,470*reach,(enemy,distance)=>enemies.push({enemy,distance}));
+      for(const {enemy} of enemies.sort((a,b)=>a.distance-b.distance).slice(0,6)){
+        effect(game,enemy.x,enemy.y-145,0,color,.52,'bolt',enemy.x,enemy.y);
+        blast(game,player,enemy.x,enemy.y,38,100*power,color,config.crit);
+      }
+    } else if (promotion.id==='archmage') {
+      blast(game,player,x,y,180*reach,45*power,'#b5edff',config.crit,0,2.5,'ice');
+      const cx=target?.x??x,cy=target?.y??y;
+      for(let i=0;i<5;i++) zone(game,player,'meteor',cx+(i?Math.cos(i*Math.PI/2)*68:0),
+        cy+(i?Math.sin(i*Math.PI/2)*68:0),91*reach,70*power,color,config.crit,.3+i*.22);
+    } else if (promotion.id==='ranger') {
+      for(let i=-4;i<=4;i++) shoot(game,player,player.aim+i*.09,{amount:74*power,color,crit:config.crit,reach:680*reach,kind:'starArrow',pierce:7,tier:8});
+    } else if (promotion.id==='shadow') {
+      const dx=Math.cos(player.aim),dy=Math.sin(player.aim);
+      player.x=clamp(x+dx*165,21,FIELD.width-21);player.y=clamp(y+dy*165,21,FIELD.height-21);
+      const length=Math.hypot(player.x-x,player.y-y);
+      nearby(game,x,y,length+52,(enemy)=>{
+        const u=clamp(((enemy.x-x)*(player.x-x)+(enemy.y-y)*(player.y-y))/(length*length||1),0,1);
+        if(Math.hypot(enemy.x-x-u*(player.x-x),enemy.y-y-u*(player.y-y))<=45+enemy.radius)
+          hurt(game,player,enemy,136*power,color,config.crit);
+      });
+      player.inv=Math.max(1.6,player.inv);
+      effect(game,x,y,35,color,.6,'trail',player.x,player.y);
+    }
+    return;
+  }
   if (player.job==='staff') {
     blast(game,player,x,y,230*config.reach,125*config.power,type.color,config.crit,105,0,'cyclone');
     player.inv=Math.max(1.15,player.inv);
@@ -467,11 +552,12 @@ function updateZones(game, owners) {
       blast(game,owner,x,y,radius,amount,color,crit,19,0,kind==='meteor'?'nova':'impact');
       item.life=0;
     }
-    if (kind==='field' && item.life>0) {
+    if(kind==='quake' && item.life<=0) blast(game,owner,x,y,radius,amount,color,crit,16,0,'sweep');
+    if ((kind==='field'||kind==='frostfield') && item.life>0) {
       item.tick-=STEP;
       if (item.tick<=0) {
         item.tick=.44;
-        nearby(game,x,y,radius,enemy=>hurt(game,owner,enemy,amount,color,crit));
+        nearby(game,x,y,radius,enemy=>{hurt(game,owner,enemy,amount,color,crit);if(kind==='frostfield')enemy.slow=Math.max(enemy.slow,.75);});
       }
     }
   }
@@ -595,7 +681,7 @@ function updateEnemies(game, alive, configs) {
   }
 }
 
-function collect(game) {
+function collect(game, configs) {
   let value=0;
   for (const gem of game.gems) {
     let focus, distance=Infinity;
@@ -613,8 +699,8 @@ function collect(game) {
   if (value) {
     game.gems=game.gems.filter(gem=>gem.value>0);
     // 小額果籽也能累積經驗加成；餘數保留到下次拾取。
-    const teamWisdom=Math.max(0,...game.players.filter(player=>!player.down).map(player=>player.passive.wisdom||0));
-    const adjusted=value*(1+teamWisdom*.08)+game.bonusXpCarry;
+    const teamWisdom=Math.max(0,...game.players.filter(player=>!player.down).map(player=>configs.get(player.id)?.wisdom||0));
+    const adjusted=value*(1+teamWisdom)+game.bonusXpCarry;
     const gained=Math.floor(adjusted);
     game.bonusXpCarry=adjusted-gained;
     if(gained>0)gainXp(game,gained);
@@ -661,10 +747,13 @@ export function advance(game) {
     player.burst=Math.max(0,player.burst-STEP);
     if (config.regen>0) player.hp=Math.min(player.maxHp,player.hp+config.regen*STEP);
     const {x,y}=player.move;
-    player.walk=Boolean(x||y);
+    const oldX=player.x, oldY=player.y;
     player.x=clamp(player.x+x*config.speed*STEP,21,FIELD.width-21);
     player.y=clamp(player.y+y*config.speed*STEP,21,FIELD.height-21);
-    if (Math.abs(x)>.12) player.face=x>0 ? 1 : -1;
+    const stride=Math.hypot(player.x-oldX,player.y-oldY);
+    player.walk=stride>.03;
+    if(player.walk)player.gait=(player.gait+stride/67) % 1;
+    if (Math.abs(x)>.12 && game.elapsed-player.strikeAt>.34) player.face=x>0 ? 1 : -1;
     for (const [key,level] of Object.entries(player.skills)) {
       player.timers[key]=Math.max(0,(player.timers[key]||0)-STEP);
       if (player.timers[key]===0) useSkill(game,player,key,level,config);
@@ -676,7 +765,7 @@ export function advance(game) {
   updateShots(game,owners);
   updateZones(game,owners);
   updateEnemies(game,alive,configs);
-  collect(game);
+  collect(game,configs);
   updateRescue(game);
   game.enemies=game.enemies.filter(enemy=>enemy.hp>0);
   game.fx=game.fx.filter(item=>(item.life-=STEP)>0);
@@ -702,11 +791,11 @@ export function buildView(game, focusId) {
     radar:radarContacts(game.enemies), t:game.elapsed,l:game.level,xp:game.xp,xpMax:THRESHOLD(game.level),done:game.ended,reason:game.reason,
     notice:game.elapsed<game.noticeAt ? game.notice : '', nextBoss:game.bossAt, paused:game.paused,
     players:game.players.map(p=>({
-      id:p.id,name:p.name,job:p.job,promotion:p.promotion,x:n(p.x),y:n(p.y),face:p.face,walk:p.walk,down:p.down,
+      id:p.id,name:p.name,job:p.job,promotion:p.promotion,x:n(p.x),y:n(p.y),face:p.face,walk:p.walk,gait:n(p.gait*255),down:p.down,
       look:{ level:p.skills[CLASSES[p.job].skill], evolved:Boolean(p.evolution[CLASSES[p.job].skill]), slots:p.gear.map(item=>item ? 1+item.rarity+item.rank*6 : 0), swing:n(Math.max(0,1-(game.elapsed-p.strikeAt)/.4)*100), aim:n(p.aim*100)/100 },
       hp:n(p.hp),maxHp:p.maxHp,rev:p.rescue,inv:p.inv>0,kills:p.kills,damage:n(p.damage),bosses:p.bosses,rescues:p.rescues
     })),
-    own:{id:focus.id,promotion:focus.promotion,burst:focus.burst,offers:focus.offers,offerId:focus.offerId,deadline:focus.deadline,
+    own:{id:focus.id,limit:focus.limit,forgotten:focus.forgotten,canBanish:focus.banishedAt!==game.level,promotion:focus.promotion,burst:focus.burst,offers:focus.offers,offerId:focus.offerId,deadline:focus.deadline,
       gear:focus.gear,loot:focus.loot,crumbs:focus.crumbs,skills:focus.skills,passive:focus.passive,evolution:focus.evolution,
       attributes:focus.attributes,statPoints:focus.statPoints,legendaryTokens:focus.legendaryTokens,
       timers:focus.timers,derived:stats(focus)},

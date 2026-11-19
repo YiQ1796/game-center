@@ -265,3 +265,25 @@ body.playing #top {display:none}
   .active-skills{bottom:9px;max-width:45vw}.active-skill{width:53px;height:35px}
   .panel{max-height:92dvh}
 }
+
+.job>.look-preview{float:right;width:76px;height:68px;object-fit:contain;border:0;background:none}
+.job-stats,.job-tracks{display:block;clear:both;line-height:1.5}
+.job-stats{color:#415d46;font-weight:750}.job-tracks{margin-top:3px;color:#745d48}
+.card-column{min-width:0;display:flex;flex-direction:column;gap:6px}.card-column>.choice{flex:1;width:100%}
+.card-column .look-preview{align-self:center;width:116px;height:82px;object-fit:contain}
+.banish{background:transparent;color:#734c39;border:1px solid #b99b73;border-radius:7px;padding:6px;font:inherit;font-size:.77rem;cursor:pointer}
+.banish:hover,.banish:focus-visible{background:#f7e3c3}
+.choice-note,.gear-vitals{display:block;margin:.55rem 0;color:#5b6149;font-size:.79rem}
+.gear-comparison{grid-column:1/-1;color:#2d6244!important;font-weight:700}
+.dressing{flex-wrap:wrap}.dressing .gear-vitals{flex:1 1 180px}
+.market-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.market-item{display:flex;flex-direction:column;gap:10px;padding:12px;background:#fff1d5;border:1px solid #c7a77b;border-radius:9px}
+.market-item small{line-height:1.45;flex:1}.market-item button:disabled{opacity:.55}
+@media(max-width:600px){.market-grid{grid-template-columns:1fr}.market-item{display:grid;grid-template-columns:minmax(0,1fr) auto}.market-item small{grid-row:2}.market-item button{grid-column:2;grid-row:1/3}.card-column .look-preview{width:82px;height:64px}.job>.look-preview{width:62px;height:52px}.dressing .gear-vitals{flex-basis:120px}}
+
+.inventory .sheet-stats summary{cursor:pointer;color:#385c45;font-size:.9rem;font-weight:750;padding:.3rem}
+.inventory .attribute-grid,.inventory .derived-grid{grid-template-columns:1fr}
+.inventory .attribute-row{padding:5px 7px}.inventory .attribute-row small{font-size:.65rem}
+.panel:has(.inventory){width:min(1040px,100%)}
+@media(min-width:760px){.inventory{grid-template-columns:minmax(155px,.82fr) minmax(180px,1fr) minmax(180px,1.14fr)}}
+@media(max-width:759px){.inventory .gear-character{grid-column:1/-1}.inventory .attribute-grid,.inventory .derived-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}

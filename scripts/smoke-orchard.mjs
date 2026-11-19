@@ -19,8 +19,8 @@ async function exercise() {
   };
   await until(()=>el('jobs')?.children.length===3,'class selection never loaded');
   await el('mascot').decode();
-  const {adventurer,creature}=await import('./actors.mjs?v=030');
-  const {spellFlashes,airborne}=await import('./spells.mjs?v=030');
+  const {adventurer,creature}=await import('./actors.mjs?v=040');
+  const {spellFlashes,airborne}=await import('./spells.mjs?v=040');
   const target=document.createElement('canvas');target.width=290;target.height=240;
   const ink=target.getContext('2d',{willReadFrequently:true});
   function pixels(draw){
@@ -49,6 +49,12 @@ async function exercise() {
     for(const costume of outfits)expect(difference(base,costume)>180,job+' class costume is only a particle');
     expect(difference(outfits[0],outfits[1])>180,job+' advancement routes share the same silhouette');
   }
+  const walking={job:'staff',face:1,walk:true,look:{level:1,slots:Array(8).fill(0)}};
+  function lowerBody(gait){
+    ink.clearRect(0,0,290,240);adventurer(ink,{...walking,gait},el('mascot'),1,140,140,true);
+    return ink.getImageData(120,137,40,17).data;
+  }
+  expect(difference(lowerBody(48),lowerBody(176))>65,'feet must change with the stride');
   const monsters=['grub','shroom','boar','bee','snail','elite','boss','queen'].map(kind=>pixels(()=>creature(ink,[1,kind,0,0,30,100,false,1,0],1,130,140)));
   for(let i=0;i<monsters.length;i++)for(let j=0;j<i;j++)expect(difference(monsters[i],monsters[j])>75,'enemy silhouette');
   const ultimateFrames=['staff','mage','scout'].map(job=>pixels(()=>{
@@ -60,8 +66,8 @@ async function exercise() {
   }));
   for(let i=0;i<3;i++)expect(difference(ultimateFrames[i],ultimateFrames[(i+1)%3])>350,'ultimate frames match');
   // 檢查等級門檻、雙轉職選項、不可重複選擇與多人檢視資料。
-  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=030');
-  const {THRESHOLD}=await import('./content.mjs?v=030');
+  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=040');
+  const {THRESHOLD}=await import('./content.mjs?v=040');
   const progression=newGame([{id:'promotion-test',job:'staff',name:'猴三毛'}],1234);
   const adventurerState=progression.players[0];
   progression.level=7;
@@ -84,7 +90,9 @@ async function exercise() {
   el('radar-toggle').click();expect(el('mini-map').hidden,'radar did not fold');el('radar-toggle').click();
   el('bag').click();
   await until(()=>!!document.querySelector('.dressing canvas'),'equipment preview missing');
-  el('bag').click();
+  Array.from(document.querySelectorAll('#dialog-actions button')).find(b=>b.textContent==='果園行商').click();
+  await until(()=>document.querySelectorAll('.market-item').length===3,'shop is unreachable from bag');
+  Array.from(document.querySelectorAll('#dialog-actions button')).find(b=>b.textContent==='返回戰場').click();
   el('profile').click();
   await until(()=>!!document.querySelector('.attribute-grid'),'attribute screen missing');
   expect(document.querySelectorAll('.attribute-row').length===6,'six player attributes missing');
@@ -155,18 +163,18 @@ try {
   let current=false;
   for(let i=0;i<(publicPage?15:1);i++){
     try{
-      const response=await fetch(address+'?ci=030-'+Date.now(),{signal:AbortSignal.timeout(7000)});
-      if(response.ok&&(await response.text()).includes('data-build="0.3.0"')){current=true;break;}
+      const response=await fetch(address+'?ci=040-'+Date.now(),{signal:AbortSignal.timeout(7000)});
+      if(response.ok&&(await response.text()).includes('data-build="0.4.0"')){current=true;break;}
     }catch(error){console.log('Waiting for Pages:',error.message);}
     if(publicPage)await delay(3000);
   }
-  assert.ok(current,'Orchard v0.3.0 entry not available at '+address);
+  assert.ok(current,'Orchard v0.4.0 entry not available at '+address);
   for(const [width,height] of [[1440,860],[390,844]]){
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
-    await call('Page.navigate',{url:address+'?ci=030-'+width+'-'+Date.now()});
+    await call('Page.navigate',{url:address+'?ci=040-'+width+'-'+Date.now()});
     let loaded=false;
     for(let i=0;i<180;i++){
-      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.3.0' && !!document.getElementById('jobs')?.firstElementChild"});
+      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.4.0' && !!document.getElementById('jobs')?.firstElementChild"});
       if(state.result.value===true){loaded=true;break;}await delay(100);
     }
     assert.ok(loaded,'Game modules failed to initialise: '+JSON.stringify(exceptions));

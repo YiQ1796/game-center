@@ -1,5 +1,5 @@
 
-export const BUILD = '0.3.0';
+export const BUILD = '0.4.0';
 export const SKILL_CAP = 10;
 export const PASSIVE_CAP = 10;
 export const ATTRIBUTES = Object.freeze({str:'力量',agi:'敏捷',vit:'體質',int:'智慧',dex:'靈巧',luk:'幸運'});
@@ -45,7 +45,8 @@ export const PASSIVES = {
   wisdom:['果園見習筆記','拾取果籽的經驗增加 8%']
 };
 export const EVOLUTIONS = {
-  sweep: ['金箍風暴','reach'], fire:['焦糖流星','power'], seed:['千籽穿林','crit']
+  sweep: ['金箍風暴','reach'], fire:['焦糖流星','power'], seed:['千籽穿林','crit'],
+  spark:['雷樹開花','wisdom'], frost:['碎冰花園','guard'], peel:['雙月蕉刃','haste']
 };
 export const ENEMIES = {
   grub:[19,82,12,10,1,'豆豆蟲'],
@@ -71,3 +72,16 @@ export const TAUNTS = [
 ];
 export const THRESHOLD = level => 4 + level * 3 + Math.floor(level * level / 12);
 export const isClass = value => typeof value === 'string' && Object.hasOwn(CLASSES, value);
+
+export const MARKET = Object.freeze({
+  juice: {name:'蜜桃果汁', cost:5, description:'立即回復最大生命的 35%'},
+  boots: {name:'輕羽短靴', cost:12, description:'精良鞋子，跑速 +8%、拾取距離 +12'},
+  point: {name:'見習筆記殘頁', cost:8, description:'取得 1 點可自由分配的素質'}
+});
+export function skillNumbers(key, rank, stats, evolved=false) {
+  const skill=SKILLS[key];
+  return {
+    damage:Math.round(skill[2]*stats.power*(1+(rank-1)*.26)*(evolved?1.55:1)),
+    cooldown:skill[4]*stats.haste*Math.max(.72,1-(rank-1)*.055)
+  };
+}
