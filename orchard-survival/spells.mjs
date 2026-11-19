@@ -1,5 +1,5 @@
 
-import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=041';
+import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=050';
 
 function comet(c,length,width,hot,edge){
   c.save();c.scale(length/100,width/16);
@@ -33,6 +33,17 @@ function slices(c,r,progress,color,loops){
     c.restore();
   }
 }
+// A seven-seed rosette ties the orchard's magic and its carved waystones together.
+function seedSeal(c,r,turn,color){
+  c.save();c.scale(r,r*.67);c.rotate(turn);
+  c.strokeStyle=color;c.lineWidth=.022;
+  c.beginPath();c.arc(0,0,.84,0,TAU);c.stroke();
+  for(let i=0;i<7;i++){
+    c.rotate(TAU/7);
+    ink(c,'M0 -.59 Q-.16 -.78 0 -.97 Q.16 -.79 0 -.59Z',null,color,.026);
+  }
+  c.restore();
+}
 function sparks(c,progress,r,count,seed,color,shards=false){
   for(let i=0;i<count;i++){
     const a=seed*.31+i*2.39996;
@@ -53,6 +64,7 @@ export function groundSpells(c,view){
       star(c,6,-11,3+Math.sin(view.t*8),'#fff6da');
     }else if(kind==='frostfield'){
       oval(c,0,0,r,r*.7,'#9adcea52');
+      seedSeal(c,r*.92,view.t*.45,'#d4fbf0b0');
       for(let i=0;i<8;i++){const a=i*2.4;star(c,Math.cos(a)*r*.65,Math.sin(a)*r*.48,4+(i%3),'#dbfbff',a);}
     }else if(kind==='field'){
       oval(c,0,0,r,r*.64,color+'65');
@@ -60,6 +72,7 @@ export function groundSpells(c,view){
     }else{
       const fraction=1-remaining/100;
       oval(c,0,2,10+r*.28*fraction,3+r*.07*fraction,'#6d4d555c');
+      if(kind==='meteor')seedSeal(c,r*(.56+.18*fraction),fraction*.58,'#ffdb96b8');
       for(let i=0;i<4;i++){
         c.save();c.rotate(i*Math.PI/2+.36);c.translate(r*(.62-.37*fraction),0);
         ink(c,'M4 -5 L-3 0 L4 5',null,kind==='meteor'?'#fff1bf':'#ecc28b',2.6);c.restore();
@@ -137,6 +150,7 @@ export function spellFlashes(c,view,quiet){
     }else if(kind==='sweep'||kind==='cyclone'||kind==='gale'){
       const big=kind==='cyclone';const radius=r*(.38+.66*Math.sin(Math.min(1,p*1.9)*Math.PI/2));
       slices(c,radius,p,big?'#ffbb45':color,big?3:1);
+      if(big)seedSeal(c,radius*.81,p*.82,'#ffdf8d96');
       if(big&&!quiet){c.save();c.translate(0,-23*p);slices(c,radius*.63,p+.32,'#ffe381',2);c.restore();}
       sparks(c,p,r,big?quiet?8:28:8,Math.floor(x),color,true);
     }else if(kind.startsWith('cast-')){
@@ -146,6 +160,7 @@ export function spellFlashes(c,view,quiet){
           c.save();c.rotate(i*TAU/(quiet?6:12));c.translate(18+p*110,0);arrow(c,39*(1-p*.4),8,true);c.restore();
         }
       }else if(cls==='mage'){
+        seedSeal(c,32+p*48,p,'#ffcc9ad9');
         for(let i=0;i<5;i++){
           const angle=i*TAU/5+p*1.6;star(c,Math.cos(angle)*(25+p*54),-24+Math.sin(angle)*(14+p*25)-p*26,6*(1-p)+2,'#ffe19b',angle);
         }

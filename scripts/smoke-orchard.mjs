@@ -19,8 +19,8 @@ async function exercise() {
   };
   await until(()=>el('jobs')?.children.length===3,'class selection never loaded');
   await el('mascot').decode();
-  const {adventurer,creature}=await import('./actors.mjs?v=041');
-  const {spellFlashes,airborne}=await import('./spells.mjs?v=041');
+  const {adventurer,creature}=await import('./actors.mjs?v=050');
+  const {spellFlashes,airborne}=await import('./spells.mjs?v=050');
   const target=document.createElement('canvas');target.width=290;target.height=240;
   const ink=target.getContext('2d',{willReadFrequently:true});
   function pixels(draw){
@@ -33,6 +33,20 @@ async function exercise() {
     for(let i=0;i<a.length;i+=4)if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])+Math.abs(a[i+3]-b[i+3])>22)changed++;
     return changed;
   }
+  const stage=el('fitting-stage');
+  for(const [index,routeName] of ['金箍戰神','紫電靈猴','疾風神射手'].entries()){
+    el('jobs').children[index].click();el('route-options').children[1].click();
+    expect(el('stage-name').textContent===routeName&&stage.getAttribute('aria-label').includes(routeName),'fitting route mismatch');
+    expect(el('jobs').children[index].getAttribute('aria-pressed')==='true','audition changed starting class');
+  }
+  const {Garden,fieldLight,LANDMARKS}=await import('./garden.mjs?v=050');
+  const garden=new Garden(),day=fieldLight(0),night=fieldLight(168);
+  const drawLand=light=>{ink.save();ink.translate(-1230,-820);garden.draw(ink,1230,820,290,240,light);ink.restore();};
+  const meadow=pixels(()=>drawLand(day)),moon=pixels(()=>drawLand(night));
+  expect(difference(meadow,moon)>60000,'night failed to light the world');
+  const lamp=LANDMARKS.find(p=>p.kind==='post');
+  const propShot=players=>pixels(()=>{ink.save();ink.translate(135-lamp.x,145-lamp.y);garden.prop(ink,{...lamp,variant:0},day,players);ink.restore();});
+  expect(difference(propShot([]),propShot([{x:lamp.x,y:lamp.y-12}]))>120,'foreground did not reveal player');
   for(const job of ['staff','mage','scout']){
     const look={level:1,slots:Array(8).fill(0)};
     const paint=()=>adventurer(ink,{job,face:1,look},el('mascot'),1,140,140,true);
@@ -48,6 +62,14 @@ async function exercise() {
     const outfits=options.map(promotion=>pixels(()=>adventurer(ink,{job,promotion,face:1,look:{level:8,slots:Array(8).fill(0)}},el('mascot'),1,140,145,true)));
     for(const costume of outfits)expect(difference(base,costume)>180,job+' class costume is only a particle');
     expect(difference(outfits[0],outfits[1])>180,job+' advancement routes share the same silhouette');
+    for(const promotion of options){
+      const look={level:8,slots:Array(8).fill(0)};
+      const paint=()=>adventurer(ink,{job,promotion,face:1,look},el('mascot'),1,140,145,true);
+      for(let slot=0;slot<8;slot++){
+        const old=pixels(paint);look.slots[slot]=5;
+        expect(difference(old,pixels(paint))>3,promotion+' equipped slot '+slot+' did not render');
+      }
+    }
   }
   const walking={job:'staff',face:1,walk:true,look:{level:1,slots:Array(8).fill(0)}};
   function lowerBody(gait){
@@ -66,8 +88,8 @@ async function exercise() {
   }));
   for(let i=0;i<3;i++)expect(difference(ultimateFrames[i],ultimateFrames[(i+1)%3])>350,'ultimate frames match');
   // 檢查等級門檻、雙轉職選項、不可重複選擇與多人檢視資料。
-  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=041');
-  const {THRESHOLD}=await import('./content.mjs?v=041');
+  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=050');
+  const {THRESHOLD}=await import('./content.mjs?v=050');
   const progression=newGame([{id:'promotion-test',job:'staff',name:'猴三毛'}],1234);
   const adventurerState=progression.players[0];
   progression.level=7;
@@ -163,18 +185,18 @@ try {
   let current=false;
   for(let i=0;i<(publicPage?15:1);i++){
     try{
-      const response=await fetch(address+'?ci=041-'+Date.now(),{signal:AbortSignal.timeout(7000)});
-      if(response.ok&&(await response.text()).includes('data-build="0.4.1"')){current=true;break;}
+      const response=await fetch(address+'?ci=050-'+Date.now(),{signal:AbortSignal.timeout(7000)});
+      if(response.ok&&(await response.text()).includes('data-build="0.5.0"')){current=true;break;}
     }catch(error){console.log('Waiting for Pages:',error.message);}
     if(publicPage)await delay(3000);
   }
-  assert.ok(current,'Orchard v0.4.1 entry not available at '+address);
+  assert.ok(current,'Orchard v0.5.0 entry not available at '+address);
   for(const [width,height] of [[1440,860],[390,844]]){
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
-    await call('Page.navigate',{url:address+'?ci=041-'+width+'-'+Date.now()});
+    await call('Page.navigate',{url:address+'?ci=050-'+width+'-'+Date.now()});
     let loaded=false;
     for(let i=0;i<180;i++){
-      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.4.1' && !!document.getElementById('jobs')?.firstElementChild"});
+      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.5.0' && !!document.getElementById('jobs')?.firstElementChild"});
       if(state.result.value===true){loaded=true;break;}await delay(100);
     }
     assert.ok(loaded,'Game modules failed to initialise: '+JSON.stringify(exceptions));

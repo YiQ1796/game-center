@@ -1,6 +1,6 @@
 
-import { CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=041';
-import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=041';
+import { CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=050';
+import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=050';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -791,7 +791,7 @@ export function buildView(game, focusId) {
     radar:radarContacts(game.enemies), t:game.elapsed,l:game.level,xp:game.xp,xpMax:THRESHOLD(game.level),done:game.ended,reason:game.reason,
     notice:game.elapsed<game.noticeAt ? game.notice : '', nextBoss:game.bossAt, paused:game.paused,
     players:game.players.map(p=>({
-      id:p.id,name:p.name,job:p.job,promotion:p.promotion,x:n(p.x),y:n(p.y),face:p.face,walk:p.walk,gait:n(p.gait*255),down:p.down,
+      id:p.id,name:p.name,job:p.job,promotion:p.promotion,x:n(p.x),y:n(p.y),face:p.face,walk:p.walk,gait:n(p.gait*255),travelY:p.walk&&Math.abs(p.move.y)>.35?Math.sign(p.move.y):0,down:p.down,
       look:{ level:p.skills[CLASSES[p.job].skill], evolved:Boolean(p.evolution[CLASSES[p.job].skill]), slots:p.gear.map(item=>item ? 1+item.rarity+item.rank*6 : 0), swing:n(Math.max(0,1-(game.elapsed-p.strikeAt)/.4)*100), aim:n(p.aim*100)/100 },
       hp:n(p.hp),maxHp:p.maxHp,rev:p.rescue,inv:p.inv>0,kills:p.kills,damage:n(p.damage),bosses:p.bosses,rescues:p.rescues
     })),

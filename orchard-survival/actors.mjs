@@ -1,8 +1,8 @@
-import { deform, drawPose, poseFor } from './pose.mjs?v=041';
+import { deform, drawPose, poseFor } from './pose.mjs?v=050';
 
-import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=041';
-import { getAdvancement } from './advancement.mjs?v=041';
-import { drawAdvancedCostume,drawAdvancedWeapon } from './costumes.mjs?v=041';
+import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=050';
+import { getAdvancement } from './advancement.mjs?v=050';
+import { baseCostume,baseCostumeBack,drawAdvancedCostume,drawAdvancedWeapon } from './costumes.mjs?v=050';
 
 const outline='#463c42';
 const velvet=(c,light,mid,dark)=>blend(c,-12,-26,11,19,light,mid,dark);
@@ -203,41 +203,13 @@ export function adventurer(c,p,sprite,t,x,y,self){
   const loaded=Boolean(sprite.complete&&sprite.naturalWidth);
   const skinKey=[sprite.currentSrc||sprite.src,loaded,job,p.promotion||'',worn.join(',')].join('|');
   drawPose(c,skinKey,pose,c=>{
-  if(!promotion&&(job==='mage'||worn[2])){
-    ink(c,'M-10 -29 Q-18 -19 -22 6 Q-12 11 -2 4 L8 -21Z',velvet(c,accent,cloth,'#4a414b'),outline,1.15);
-    ink(c,'M-11 -21 Q-16 -8 -18 4',null,accent,1.2);
-  }
-  if(!promotion&&job==='scout'){
-    ink(c,'M-16 -17 L-23 -37 L-16 -39 L-8 -21Z','#977455',outline,1.2);
-    ink(c,'M-22 -32 L-28 -40 L-22 -39 L-19 -45 L-18 -35Z','#9ac8a4',outline,.9);
-  }
+  if(!promotion)baseCostumeBack(c,job);
   if(sprite.complete&&sprite.naturalWidth){
     const height=77,w=height*sprite.naturalWidth/sprite.naturalHeight;
     c.drawImage(sprite,-w/2,10-height,w,height);
   }
-  // 全套職業服裝以永久角色造型取代舊披肩 + 粒子效果。
-  if(promotion)drawAdvancedCostume(c,job,p.promotion,look,t);
-  if(!promotion){
-  if(worn[2]){
-    ink(c,'M-10 -26 L-16 -22 L-13 -15 L-10 -16 L-10 -1 Q1 4 11 -2 L10 -18 L15 -15 L16 -23 L9 -27 Q0 -21 -10 -26Z',
-      velvet(c,tint(2),cloth,'#51414a'),outline,1);
-    stroke(c,[[0,-22],[0,-3]],accent,1);oval(c,2,-12,1.2,1.2,'#ffda81');
-  }
-  ink(c,'M-13 -28 Q0 -22 12 -29 L12 -24 Q4 -17 -4 -20 L-11 -13 L-10 -23Z',cloth,outline,1);
-  ink(c,'M-11 -26 Q1 -21 10 -26',null,accent,1);star(c,3,-23,3.7,accent);
-  if(job==='staff')ink(c,'M-13 -23 Q-8 -30 -5 -23 L-7 -19 L-14 -18Z',accent,outline,1.1);
-  if(worn[1]){
-    ink(c,'M-17 -53 Q-17 -67 -4 -69 Q8 -70 15 -57 L21 -55 Q8 -50 -18 -53Z',velvet(c,tint(1),'#9fa867','#6b794e'),outline,1.2);
-    ink(c,'M-14 -57 Q1 -54 13 -57',null,cloth,2);star(c,10,-59,3,accent);
-  }else if(job==='mage'){
-    ink(c,'M-17 -55 Q-12 -61 -10 -68 L-5 -62 L0 -70 L4 -59 L9 -54Z',cloth,outline,1.1);
-    stroke(c,[[-16,-56],[-7,-54],[8,-55]],accent,1.4);
-  }else if(job==='scout'){
-    ink(c,'M-14 -53 Q-23 -61 -20 -69 Q-10 -66 -10 -54Z','#6ca67b','#4c715c',1.1);
-  }
-  if(worn[4])for(const px of [-8,8]){oval(c,px,6,6.3,3.4,cloth);stroke(c,[[px-3,4],[px+2,4]],tint(4),1.6);}
-  if(worn[5]){ink(c,'M-7 -22 Q-2 -10 7 -22',null,'#f7cf83',1.3);star(c,0,-14,3.8,tint(5));}
-  }
+  if(promotion)drawAdvancedCostume(c,job,p.promotion,look,0);
+  else baseCostume(c,job,look);
   });
   weapon(c,job,look,t,face,p.promotion,pose);
   // Fingers and worn jewelry sit in front of the grip, including after advancement.
@@ -253,6 +225,11 @@ export function adventurer(c,p,sprite,t,x,y,self){
     }
   }
   c.restore();
+  if(!down&&Number.isFinite(p.hp)&&p.maxHp>0){
+    const length=self?27:22,ratio=Math.max(0,Math.min(1,p.hp/p.maxHp));
+    c.fillStyle='#343b32';c.fillRect(x-length/2-1,y+14,length+2,4);
+    c.fillStyle=self?'#c6da8e':'#99ddce';c.fillRect(x-length/2,y+15,length*ratio,2);
+  }
   if(!self||down){
     c.font='bold 12px system-ui';c.textAlign='center';c.lineWidth=3;c.strokeStyle='#374c39';c.fillStyle='#fff2bf';
     const label=down?'救援 '+Math.round(p.rev/2.3*100)+'%':p.name;

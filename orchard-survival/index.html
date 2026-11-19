@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant" data-build="0.4.1">
+<html lang="zh-Hant" data-build="0.5.0">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -8,24 +8,25 @@
   <link rel="canonical" href="https://yiq1796.github.io/game-center/orchard-survival/">
   <link rel="icon" href="../favicon.ico">
   <link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon-v070.png">
-  <link rel="stylesheet" href="./game.css?v=041">
+  <link rel="stylesheet" href="./game.css?v=050">
   <title>猴三毛割草隊｜香蕉果園</title>
 </head>
 <body>
   <header class="top" id="top">
     <a class="home" href="../"><img src="../assets/mascot-logo.webp" alt="" width="35" height="35">遊戲中心</a>
-    <span class="version">試玩版 V0.4.1</span>
+    <span class="version">試玩版 V0.5.0</span>
   </header>
   <main id="home">
     <section class="intro">
       <div class="poster">
-        <span class="sticker">香蕉果園 🍌</span>
-        <img id="mascot" src="../one-a-two-b/sanmao-full-body.webp" alt="猴三毛全身插畫" fetchpriority="high">
-        <span class="poster-caption">「我只是來採香蕉的啊！」</span>
+        <img id="mascot" src="../one-a-two-b/sanmao-full-body.webp" alt="" hidden fetchpriority="high">
+        <canvas id="fitting-stage" width="630" height="355" role="img" aria-label="猴三毛職業全身預覽"></canvas>
+        <span class="stage-name" id="stage-name">金箍護園員</span>
       </div>
       <div class="intro-copy">
         <h1>猴三毛<span>割草隊</span></h1>
-        <p>果園的搗蛋鬼全跑出來啦！揮金箍棒、丟火球、射果籽，今天能撐過幾波？</p>
+        <p>從採果棚出發，沿水車渠迎戰第一隻山大王。揮棒、施法或拉弓，今晚要讓猴三毛怎麼守果園？</p>
+        <fieldset class="route-fitting"><legend>職業試裝</legend><div id="route-options"></div></fieldset>
         <a class="start-link" href="#choose-job">選職業，進果園 ↓</a>
       </div>
     </section>
@@ -123,6 +124,6 @@
     </div>
   </main>
   <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
-  <script type="module" src="./game.mjs?v=041"></script>
+  <script type="module" src="./game.mjs?v=050"></script>
 </body>
 </html>

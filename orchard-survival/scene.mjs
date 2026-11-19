@@ -1,9 +1,9 @@
-import { TAU } from './paint.mjs?v=041';
-import { FIELD } from './content.mjs?v=041';
-import { adventurer, creature } from './actors.mjs?v=041';
-import { Garden } from './garden.mjs?v=041';
-import { Radar } from './radar.mjs?v=041';
-import { airborne, groundSpells, spellFlashes } from './spells.mjs?v=041';
+import { TAU } from './paint.mjs?v=050';
+import { FIELD } from './content.mjs?v=050';
+import { adventurer, creature } from './actors.mjs?v=050';
+import { Garden, fieldLight } from './garden.mjs?v=050';
+import { Radar } from './radar.mjs?v=050';
+import { airborne, groundSpells, spellFlashes } from './spells.mjs?v=050';
 const LIMIT=(v,min,max)=>Math.max(min,Math.min(max,v));
 function ellipse(ctx,x,y,rx,ry,color) {
   ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,TAU);ctx.fillStyle=color;ctx.fill();
@@ -83,11 +83,18 @@ export class Scene {
     const y=LIMIT(focusY-rangeY/2,-34,Math.max(-34,FIELD.height-rangeY+30));
     const factor=this.dpr*zoom;
     ctx.setTransform(factor,0,0,factor,-x*factor,-y*factor);
-    this.garden.draw(ctx,x,y,rangeX,rangeY);
+    const light=fieldLight(view.t),props=this.garden.visible(x,y,rangeX,rangeY);
+    this.garden.draw(ctx,x,y,rangeX,rangeY,light);
+    this.garden.shadows(ctx,props,light);
     const show=(px,py,margin=85)=>px>=x-margin&&px<=x+rangeX+margin&&py>=y-margin&&py<=y+rangeY+margin;
     for(const enemy of view.enemies) if(show(enemy[2],enemy[3],700)) danger(ctx,enemy);
     groundSpells(ctx,view);
-    const draw=[];
+    // Let the paths, the characters and the trees share a single ground plane.
+    const protectedActors=[...view.players];
+    for(const enemy of view.enemies){
+      if(enemy[8]>0||['elite','boss','queen'].includes(enemy[1]))protectedActors.push({x:enemy[2],y:enemy[3]});
+    }
+    const draw=props.map(p=>[p.y,()=>this.garden.prop(ctx,p,light,protectedActors)]);
     for(const enemy of view.enemies) {
       const [px,py]=this.position('e'+enemy[0],enemy[2],enemy[3],step);
       if(show(px,py)) draw.push([py,()=>creature(ctx,enemy,view.t,px,py)]);

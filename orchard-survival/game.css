@@ -287,3 +287,30 @@ body.playing #top {display:none}
 .panel:has(.inventory){width:min(1040px,100%)}
 @media(min-width:760px){.inventory{grid-template-columns:minmax(155px,.82fr) minmax(180px,1fr) minmax(180px,1.14fr)}}
 @media(max-width:759px){.inventory .gear-character{grid-column:1/-1}.inventory .attribute-grid,.inventory .derived-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* The fitting stage and the field use the same original Sanmao artwork. */
+.intro {grid-template-columns:1.35fr 1fr;background:#faf1dd;border-radius:18px;border-color:#beaa82}
+.poster {min-height:300px;background:#b4ae83}
+.poster::before,.poster::after {display:none}
+#fitting-stage {display:block;width:100%;height:100%;position:absolute;inset:0;object-fit:cover;object-position:center}
+.stage-name {position:absolute;bottom:11px;left:50%;transform:translateX(-50%);color:#fff6d8;background:#424d3dea;padding:4px 17px;border:1px solid #dfc997;border-radius:3px;font-weight:800;font-size:.85rem;white-space:nowrap}
+.intro-copy {padding:clamp(20px,3vw,38px)}
+.intro-copy h1 {font-size:clamp(2.1rem,4.5vw,3.75rem)}
+.intro-copy p {font-size:.88rem;margin:11px 0 13px}
+.route-fitting {border:0;margin:0 0 13px;padding:0}
+.route-fitting legend {font-size:.77rem;font-weight:800;color:#655c44;padding:0;margin:0 0 5px}
+#route-options {display:flex;flex-wrap:wrap;gap:5px}
+.route-option {border:1px solid #b6a583;background:#fff9ea;color:#4c4b38;padding:6px 8px;border-radius:5px;font-size:.77rem;line-height:1.2}
+.route-option[aria-pressed=true]{background:#3e594b;color:#fff3d4;border-color:#374e42}
+.job {border-radius:10px;background:#f9f2de}
+.job[aria-pressed=true]{background:#e9edd5;border-color:#667b5b}
+.job>.look-preview {width:102px;height:84px}
+@media(max-width:720px){
+  .intro {grid-template-columns:1fr}
+  .poster {min-height:0;aspect-ratio:630/340}
+  .intro-copy {padding:15px 18px}
+  .intro-copy h1 span {display:inline;margin:0 0 0 .13em}
+  .intro-copy p {margin:6px 0 9px}
+  .job>.look-preview {width:76px;height:65px}
+  .stage-name {bottom:7px}
+}

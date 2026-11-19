@@ -1,7 +1,7 @@
 
-import { FIELD } from './content.mjs?v=041';
-import { TRAIL } from './garden.mjs?v=041';
-import { ink, oval, stroke } from './paint.mjs?v=041';
+import { FIELD } from './content.mjs?v=050';
+import { LANDMARKS, ROADS } from './garden.mjs?v=050';
+import { ink, oval, stroke } from './paint.mjs?v=050';
 
 export class Radar {
   constructor(canvas){
@@ -16,7 +16,11 @@ export class Radar {
     const sx=w/FIELD.width,sy=h/FIELD.height;
     c.setTransform(1,0,0,1,0,0);c.fillStyle='#263d37';c.fillRect(0,0,w,h);
     c.save();c.scale(sx,sy);
-    ink(c,TRAIL,null,'#839670',66);
+    for(const [path,width] of ROADS)ink(c,path,null,'#ac9f76',width);
+    for(const p of LANDMARKS){
+      if(p.kind==='post')continue;
+      c.fillStyle=p.kind==='mill'?'#80baae':'#dcaf79';c.fillRect(p.x-24,p.y-22,48,44);
+    }
     c.strokeStyle='#9eab78';c.lineWidth=25;c.strokeRect(0,0,FIELD.width,FIELD.height);
     c.restore();
     c.fillStyle='#ec9b737f';

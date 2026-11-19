@@ -37,12 +37,13 @@ export function poseFor(player,time){
   // Separate anticipation, extension and recovery even when the feet keep running.
   const a=(framesByJob[player.job]||framesByJob.staff)[hit]||0;
   const angle=step*Math.PI/8;
-  return {key:[walking?step:'i'+idle,hit,player.job].join('/'),job:player.job,a,
+  const slope=walking?Math.sign(player.travelY||0):0;
+  return {key:[walking?step:'i'+idle,hit,player.job,slope].join('/'),job:player.job,a,slope,
     stride:walking?Math.sin(angle):0, lift:walking?Math.cos(angle):0,
     bob:walking?-2.8*Math.abs(Math.sin(angle)):Math.sin(idle*Math.PI/4)*.55};
 }
 export function deform(x,y,p){
-  const {a,job,stride,lift,bob}=p;
+  const {a,job,stride,lift,bob,slope=0}=p;
   const upper=1-smooth(-30,5,y);
   const leg=smooth(-8,8,y);
   const right=smooth(-4,4,x)*2-1;
@@ -50,13 +51,18 @@ export function deform(x,y,p){
   const tail=smooth(13,24,x)*smooth(-15,0,y);
   const push=job==='staff'?9.2:job==='mage'?4.6:-5;
   const head=1-smooth(-39,-28,y);
-  const tilt=head*(stride*.038+a*(job==='staff'?.105:job==='scout'?-.092:-.058));
-  let dx=upper*(stride*1.5+a*push)+leg*(stride*right*4.2-a*right*2.2);
-  let dy=bob*(1-leg)+leg*(-Math.max(0,lift*right)*6.5+Math.min(0,lift*right)*.5);
+  const tilt=head*(stride*.048+a*(job==='staff'?.15:job==='scout'?-.11:-.075));
+  let dx=upper*(stride*1.5+a*push)+leg*(stride*right*(slope?3.8:5.6)-a*right*2.8);
+  let dy=bob*(1-leg)+leg*(-Math.max(0,lift*right)*7.6+Math.min(0,lift*right)*.5);
   dx+=hand*(right*(job==='scout'?8.5:6.5)*a-stride*right*3);
   dy+=hand*(-Math.max(0,a)*(job==='mage'?15:job==='staff'?9:6)+stride*right*1.8);
   dy+=upper*(job==='mage'?-4*a:a*2.8)+tail*(stride*5-a*5);
-  dx+=tail*(lift*2.5+a*2);
+  dx+=tail*(lift*3.2+a*2.2);
+  // A planted foot supports the hip. Upper and lower body turn in opposite phases.
+  const hips=smooth(-28,-12,y)*(1-smooth(-8,6,y));
+  dx+=hips*(stride*2.2-a*(job==='staff'?4:2));
+  dy+=leg*stride*right*slope*3.4+upper*slope*(1+Math.abs(stride)*.9);
+  if(job==='scout')dy+=hand*right*a*2;
   return [x+dx-(y+30)*tilt,y+dy+x*tilt];
 }
 const vertices=ys.flatMap(y=>xs.map(x=>[x,y]));

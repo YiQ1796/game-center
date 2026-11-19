@@ -1,5 +1,5 @@
-import { blend, ink, oval, star, stroke } from './paint.mjs?v=041';
-import { getAdvancement } from './advancement.mjs?v=041';
+import { blend, ink, oval, star, stroke } from './paint.mjs?v=050';
+import { getAdvancement } from './advancement.mjs?v=050';
 
 // Costume is permanent illustrated character geometry, not a short-lived particle or filter.
 // Each advanced job has its own silhouette: hat, shoulders, chest, skirt, boots and weapon.
@@ -11,6 +11,13 @@ const palette={
   archmage:['#e6c17a','#fff4d5','#8c667c','#65526e'],
   ranger:['#6b9867','#d6da8d','#52614c','#51503f'],
   shadow:['#536779','#c7dbe1','#31384f','#333649']
+};
+const rarityMetal=['#bfaa85','#a3c789','#81bad4','#c69cda','#f8bf69','#ff9b9e'];
+const metal=code=>rarityMetal[(code-1)%rarityMetal.length];
+const baseDyes={
+  staff:['#be603e','#e4b873','#854532','#5d4940'],
+  mage:['#74608b','#dbb189','#534563','#443e52'],
+  scout:['#557765','#cfbc81','#3d6155','#4d5142']
 };
 const cloth=(c,colors)=>blend(c,-18,-35,18,8,colors[1],colors[0],colors[2]);
 const trim=(c,path,color,width=1.5)=>ink(c,path,null,color,width);
@@ -69,12 +76,59 @@ function shield(c,colors){
   ink(c,'M-23 -24 L-12 -26 L-12 -10 Q-17 -2 -23 -10Z',colors[2],colors[1],1.4);
   star(c,-17,-15,5,colors[1]);
 }
+export function baseCostumeBack(c,job){
+  if(job==='mage'){
+    ink(c,'M-10 -26 Q-18 -30 -21 -20 L-26 2 L-20 0 L-17 7 Q-10 0 -7 -14Z','#5b4a6c',rim,1.15);
+    trim(c,'M-12 -24 Q-18 -13 -20 -3','#cba77f');
+    ink(c,'M-19 -17 L-24 -35 L-19 -37 L-13 -19Z','#a8835e',rim,1);
+    oval(c,-21,-36,4.1,2.4,'#e1c494',-.28);
+  }
+  if(job==='scout')quiver(c,baseDyes.scout);
+}
+export function baseCostume(c,job,look){
+  const colors=baseDyes[job],gear=look.slots;
+  const face=gear[2]?metal(gear[2]):colors[0],edge=colors[1];
+  if(job==='staff'){
+    ink(c,'M-11 -25 L-16 -22 L-12 -13 L-11 -3 L-4 1 L-1 -5 L6 -1 L12 -4 L11 -18 L14 -20 L10 -27 L4 -23 L0 -18Z',blend(c,-11,-23,10,0,face,colors[2]),rim,1);
+    ink(c,'M-11 -26 L-4 -25 L6 -15 L2 -12Z','#e2ba83',rim,.7);
+    ink(c,'M-12 -27 Q-20 -26 -20 -19 L-13 -16 L-6 -20 L-6 -24Z',blend(c,-15,-26,-13,-16,edge,'#987246'),rim,1.1);
+    trim(c,'M-17 -22 L-12 -20 L-8 -23','#fae0a4',.9);
+    ink(c,'M-13 -11 Q0 -8 11 -13 L11 -9 Q3 -5 -7 -6 L-15 0 L-20 -1 L-12 -8Z','#ab4840',rim,.9);
+    oval(c,1,-9,2.3,2,edge);
+  }else if(job==='mage'){
+    ink(c,'M-10 -27 L-17 -21 L-15 -12 L-11 -15 L-15 3 L-6 6 L-1 0 L7 5 L14 2 L10 -15 L16 -12 L17 -21 L10 -27 Q1 -21 -10 -27Z',blend(c,-12,-28,12,6,face,colors[2]),rim,1);
+    ink(c,'M-10 -26 L0 -21 L10 -26 L6 -18 L1 -13 L-4 -19Z','#d0ae83',rim,.85);
+    ink(c,'M-2 -17 L1 -15 L6 2 L2 1Z','#e5c998');
+    trim(c,'M-14 1 L-7 3 L-4 -1 M7 2 L11 1',edge,.8);
+    star(c,0,-20,3.1,'#f8d382');
+    ink(c,'M-21 -54 L-14 -57 L-15 -63 L-10 -60 L-6 -63 L-7 -56 L-12 -52Z','#a38394',rim,.9);
+    oval(c,-13,-55,2.5,2.5,'#ffdaa4');
+  }else{
+    ink(c,'M-11 -26 L-17 -20 L-13 -16 L-10 -17 L-11 -3 L-3 0 L4 -4 L12 -2 L11 -17 L15 -15 L16 -22 L10 -26Z',blend(c,-12,-24,12,0,face,colors[2]),rim,1);
+    ink(c,'M-13 -26 L-6 -25 L0 -21 L11 -27 L14 -23 L6 -18 L2 -14 L-3 -19 L-14 -18 L-18 -20Z','#819070',rim,.9);
+    ink(c,'M8 -24 L12 -22 L-8 -4 L-11 -6Z','#a98054',rim,.65);
+    ink(c,'M-14 -11 L-8 -10 L-8 -4 L-16 -4Z','#be9a65',rim,.8);
+    ink(c,'M-15 -52 Q-25 -56 -23 -65 Q-13 -62 -13 -54Z','#6f8d70',rim,.9);
+    trim(c,'M-21 -62 L-14 -54',edge,.8);
+  }
+  if(gear[2]){
+    for(const x of [-9,7]){oval(c,x,-15,1.4,1.4,metal(gear[2]));}
+    trim(c,'M-8 -4 L-3 -2 L2 -5 L8 -3',metal(gear[2]),1.5);
+  }
+  if(gear[1]){
+    ink(c,'M-17 -54 Q-20 -61 -12 -64 Q-7 -66 -5 -62 L6 -61 L15 -58 L20 -55 Q2 -52 -17 -54Z',blend(c,-11,-65,7,-53,metal(gear[1]),face),rim,1.1);
+    trim(c,'M-15 -57 Q0 -54 13 -57',colors[3],1.2);
+  }
+  if(gear[4])for(const x of [-8,8]){oval(c,x,6,6.3,3.4,colors[3]);stroke(c,[[x-3,4],[x+2,4]],metal(gear[4]),1.7);}
+  if(gear[5]){trim(c,'M-7 -22 Q-2 -10 7 -22','#e9c88f',1.3);star(c,0,-14,3.8,metal(gear[5]));}
+}
+
 export function drawAdvancedCostume(c,job,advancement,look,t){
   const track=getAdvancement(job,advancement);
   if(!track)return false;
-  const colors=palette[track.id];
-  const tier=look?.slots?.[2] ? Math.min(4,(look.slots[2]%6)+1) : 0;
-  const shine=tier?colors[1]:'#f0d6a8';
+  const gear=look.slots,base=palette[track.id];
+  const colors=gear[2]?[metal(gear[2]),base[1],base[2],base[3]]:base;
+  const shine=colors[1];
   c.save();
   if(track.id==='king'){
     ink(c,'M-16 -25 Q-27 -24 -28 8 L-19 7 L-10 -19Z M14 -24 Q30 -23 29 10 L20 7 L9 -19Z',
@@ -113,7 +167,13 @@ export function drawAdvancedCostume(c,job,advancement,look,t){
   }
   boot(c,-9,colors,track.id==='guardian'||track.id==='king');
   boot(c,10,colors,track.id==='guardian'||track.id==='king');
-  if(tier) {oval(c,0,-21,2+tier*.3,2+tier*.3,shine);star(c,0,-21,2,colors[1]);}
+  if(gear[1]){
+    ink(c,'M-17 -54 Q-11 -59 -12 -65 L-8 -61 L-5 -62 L-8 -54Z',metal(gear[1]),rim,.9);
+    oval(c,-11,-55,2.4,2.2,'#ffefd4');
+  }
+  if(gear[2])trim(c,'M-11 -6 Q-5 -3 0 -5 Q6 -2 12 -7',metal(gear[2]),1.8);
+  if(gear[4])for(const x of [-9,10]){stroke(c,[[x-5,6],[x+4,7]],metal(gear[4]),2.5);}
+  if(gear[5]){trim(c,'M-7 -23 Q0 -9 8 -23','#f4d58b',1.2);star(c,0,-16,4,metal(gear[5]));}
   c.restore();
   return true;
 }
@@ -176,6 +236,11 @@ export function drawAdvancedWeapon(c,job,advancement,look,t) {
       ink(c,'M-9 12 L9 12 L9 17 L-9 17Z',colors[3],colors[1],1);
       c.restore();
     }
+  }
+  if(look.slots?.[0]){
+    const accent=metal(look.slots[0]);
+    ink(c,'M-5 -8 L5 -8 L4 -4 L-4 -4Z',accent,rim,.75);
+    ink(c,'M-3 -8 Q-11 -12 -15 -8 L-11 -7 L-14 -4 Q-7 -3 -3 -7Z',accent,rim,.7);
   }
   if(level>=6)star(c,3,-36,2.5,colors[1],t*.7);
   c.restore();

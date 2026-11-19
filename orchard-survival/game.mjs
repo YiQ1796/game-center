@@ -1,10 +1,11 @@
 
-import { stats, banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=041';
-import { MARKET, skillNumbers, ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=041';
-import { adventurer } from './actors.mjs?v=041';
-import { Scene } from './scene.mjs?v=041';
-import { Squad } from './squad.mjs?v=041';
-import { ADVANCEMENTS, getAdvancement } from './advancement.mjs?v=041';
+import { stats, banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=050';
+import { MARKET, skillNumbers, ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=050';
+import { adventurer } from './actors.mjs?v=050';
+import { FittingStage } from './fitting-stage.mjs?v=050';
+import { Scene } from './scene.mjs?v=050';
+import { Squad } from './squad.mjs?v=050';
+import { ADVANCEMENTS, getAdvancement } from './advancement.mjs?v=050';
 
 const $ = id => document.getElementById(id);
 const ui = Object.fromEntries([
@@ -14,6 +15,7 @@ const ui = Object.fromEntries([
   'profile','skillbook','stat-count','boss-banner','boss-name','boss-life','active-skills','battle-count',
   'stick','knob','burst','keyboard','bag','menu','overlay','panel','dialog-title','dialog-copy','dialog-body','dialog-actions'
 ].map(id=>[id,$(id)]));
+const fittingStage=new FittingStage($('fitting-stage'),ui.mascot);
 const scene=new Scene(ui.arena,ui.mascot,$('mini-map'));
 $('radar-toggle').addEventListener('click',event=>{
   const map=$('mini-map');
@@ -57,10 +59,27 @@ const squad=new Squad(message=>{
   if(!ui.home.hidden) renderLobby();
 });
 
+let previewRoute=null;
+function updateFitting(){
+  const track=getAdvancement(job,previewRoute),name=track?.name||CLASSES[job].name;
+  fittingStage.select(job,track?.id||null);
+  $('stage-name').textContent=name;
+  $('fitting-stage').setAttribute('aria-label',name+'的全身職業試裝');
+  const options=[{id:null,name:'起始職業'},...ADVANCEMENTS[job]];
+  $('route-options').replaceChildren(...options.map(option=>{
+    const node=button(option.name,'route-option',()=>{
+      previewRoute=option.id;updateFitting();
+      $('route-options').querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});
+    });
+    node.setAttribute('aria-pressed',String((track?.id||null)===option.id));
+    return node;
+  }));
+}
 function jobButtons() {
   const buttons=Object.entries(CLASSES).map(([key,item])=>{
     const node=button('', 'job', ()=>{
       if(squad.role==='guest'&&!squad.online) return;
+      if(job!==key)previewRoute=null;
       job=key;
       if(squad.role) squad.select(key,false);
       jobButtons();
@@ -80,6 +99,7 @@ function jobButtons() {
     return node;
   });
   ui.jobs.replaceChildren(...buttons);
+  updateFitting();
 }
 
 function renderLobby() {
@@ -209,7 +229,7 @@ function outfitPreview(player,look) {
   canvas.width=176;canvas.height=134;
   const c=canvas.getContext('2d');
   c.scale(1.24,1.24);
-  adventurer(c,{...player,face:1,walk:false,down:false,inv:false,look:{...look,swing:0}},ui.mascot,.4,64,90,true);
+  adventurer(c,{job:player.job,promotion:player.promotion,face:1,walk:false,down:false,inv:false,look:{...look,swing:0}},ui.mascot,.4,64,90,true);
   return canvas;
 }
 
@@ -576,6 +596,7 @@ function frame(now) {
       modal(view,self);
     }
   } else if(activeRound) showHome();
+  if(!ui.home.hidden)fittingStage.draw(now,quiet);
   requestAnimationFrame(frame);
 }
 
