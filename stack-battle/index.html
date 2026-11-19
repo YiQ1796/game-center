@@ -8,7 +8,7 @@
   <title>猴三毛方塊對戰</title>
   <link rel="icon" href="../favicon.ico">
   <link rel="canonical" href="https://yiq1796.github.io/game-center/stack-battle/">
-  <link rel="stylesheet" href="./game.css?v=141">
+  <link rel="stylesheet" href="./game.css?v=142">
   <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js" integrity="sha512-XEKeWX+mI3Ov+tg2evDlVQFzVOIp4T8J3cNcCEPaEUGpxJV3eZaN8rHuvnFPvQpGJBHPmrozJDMpm2xcDvtmyQ==" crossorigin="anonymous"></script>
   <script type="module" src="./game.mjs?v=140"></script>
 </head>
@@ -113,15 +113,15 @@
         <button type="button" id="pause">暫停</button>
         <button type="button" id="end">結束結算</button>
       </div>
-      <div class="controls" id="controls" aria-label="十字方向鍵與快落按鈕" hidden>
+      <div class="controls" id="controls" aria-label="手機精簡操作手把" hidden>
+        <div class="drop-pad" role="group" aria-label="快落控制">
+          <button type="button" class="hard-drop" data-action="h" aria-label="快速落下"><span>⇊</span><small>快落</small></button>
+        </div>
         <div class="move-pad" role="group" aria-label="十字方向鍵：上旋轉、左移、右移、下慢降">
           <button type="button" data-action="s" aria-label="上方向鍵，順時針旋轉"><span>↑</span><small>旋轉</small></button>
           <button type="button" data-action="l" aria-label="左移"><span>←</span><small>左移</small></button>
           <button type="button" data-action="r" aria-label="右移"><span>→</span><small>右移</small></button>
           <button type="button" data-action="d" aria-label="慢降"><span>↓</span><small>慢降</small></button>
-        </div>
-        <div class="piece-pad" role="group" aria-label="快速落下">
-          <button type="button" class="hard-drop" data-action="h" aria-label="快速落下"><span>⇊</span><small>快落</small></button>
         </div>
       </div>
       <div id="room-quick-actions" class="room-quick-actions" hidden>
@@ -151,7 +151,7 @@
 
     </section>
   </main>
-  <footer><a href="../#games">回遊戲中心</a><small>V1.4.1</small></footer>
+  <footer><a href="../#games">回遊戲中心</a><small>V1.4.2</small></footer>
 
   <dialog id="help-dialog">
     <div class="heading-line"><h2>玩法與按鍵</h2><form method="dialog"><button type="submit" aria-label="關閉玩法">✕</button></form></div>

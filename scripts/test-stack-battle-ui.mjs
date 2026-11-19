@@ -9,25 +9,30 @@ const css = read('game.css');
 const ranking = read('ranking.mjs');
 const room = read('room.mjs');
 
-test('Mobile cross D-pad maps up to rotate and retains a separate large hard drop', () => {
+test('Compact phone pad keeps a small left hard-drop and four right-side directional buttons', () => {
   const controls = html.split('<div class="controls"')[1].split('<div id="room-quick-actions"')[0];
+  const dropPad = controls.split('<div class="drop-pad"')[1].split('</div>')[0];
   const directionPad = controls.split('<div class="move-pad"')[1].split('</div>')[0];
-  const hardDropPad = controls.split('<div class="piece-pad"')[1].split('</div>')[0];
   const actions = [...controls.matchAll(/data-action="([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(actions, ['s', 'l', 'r', 'd', 'h']);
+  assert.deepEqual(actions, ['h', 's', 'l', 'r', 'd']);
   assert.equal((controls.match(/data-action="s"/g) || []).length, 1);
+  assert.match(dropPad, /data-action="h"/);
+  assert.doesNotMatch(dropPad, /data-action="s"/);
   assert.match(directionPad, /data-action="s" aria-label="上方向鍵，順時針旋轉"><span>↑<\/span>/);
-  assert.match(hardDropPad, /data-action="h"/);
-  assert.doesNotMatch(hardDropPad, /data-action="s"/);
   assert.doesNotMatch(html, /id="hold"/);
   assert.doesNotMatch(game, /KeyC:|KeyZ:|drawPreview\('hold'/);
   assert.match(game, /ArrowUp: 's'/);
-  assert.match(css, /grid-template-rows: repeat\(3, minmax\(64px, auto\)\)/);
-  assert.match(css, /\[data-action="s"\] \{ grid-area: 1 \/ 2 \/ 2 \/ 3;/);
-  assert.match(css, /\[data-action="l"\] \{ grid-area: 2 \/ 1 \/ 3 \/ 2;/);
-  assert.match(css, /\[data-action="r"\] \{ grid-area: 2 \/ 3 \/ 3 \/ 4;/);
-  assert.match(css, /\[data-action="d"\] \{ grid-area: 3 \/ 2 \/ 4 \/ 3;/);
-  assert.match(css, /\[data-action="h"\] \{ grid-area: 1 \/ 4 \/ 4 \/ 5;/);
+  assert.match(css, /grid-template-columns: minmax\(76px, 88px\) minmax\(0, 174px\)/);
+  assert.match(css, /grid-template-rows: repeat\(3, 50px\)/);
+  assert.match(css, /\.drop-pad \.hard-drop \{/);
+  for (const [action, area] of Object.entries({
+    s: '1 / 2 / 2 / 3',
+    l: '2 / 1 / 3 / 2',
+    r: '2 / 3 / 3 / 4',
+    d: '3 / 2 / 4 / 3'
+  })) {
+    assert.ok(css.includes('[data-action="' + action + '"] { grid-area: ' + area + ';'));
+  }
   assert.match(css, /-webkit-user-select: none/);
   assert.match(css, /touch-action: none/);
   assert.match(game, /\['selectstart', 'contextmenu'\]/);
@@ -73,7 +78,7 @@ test('Active gameplay blocks Safari long-press text selection outside control bu
   assert.match(game, /selection\?\.rangeCount/);
   assert.match(game, /gameplaySurface\(selection\.anchorNode\)/);
   assert.match(game, /\$\('help-dialog'\)\.open/);
-  assert.match(html, /V1\.4\.1/);
+  assert.match(html, /V1\.4\.2/);
 });
 
 test('Guest input prediction and snapshot throttling are present', () => {

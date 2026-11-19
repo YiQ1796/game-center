@@ -596,28 +596,37 @@ body[data-live-duel] .play input, body[data-live-duel] .play textarea {
 
 
 @media (pointer: coarse), (max-width: 750px) {
-  /* True cross-shaped D-pad: up rotates, left/right move, down soft-drops.
-     The hard-drop key stays independent on the right. */
+  /* Compact phone controls: separate round hard-drop on the left, cross D-pad on the right.
+     Keep the board visible; no oversized key may stretch the whole control panel. */
   .controls {
     position: sticky;
     bottom: max(2px, env(safe-area-inset-bottom));
     z-index: 3;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(72px, 1.15fr);
-    grid-template-rows: repeat(3, minmax(64px, auto));
-    gap: 6px;
-    width: min(100%, 560px);
-    margin: 9px auto 1px;
-    padding: 8px;
+    grid-template-columns: minmax(76px, 88px) minmax(0, 174px);
+    align-items: center;
+    justify-content: center;
+    gap: clamp(10px, 3vw, 18px);
+    width: min(100%, 350px);
+    margin: 7px auto 1px;
+    padding: 7px 9px;
     border: 1px solid #b38d74;
     border-radius: 15px;
     background: linear-gradient(145deg, #f3d8bc, #e4bea6);
     box-shadow: 0 4px 0 #8a625e8c, 0 5px 10px #4f333226;
   }
 
-  .move-pad, .piece-pad { display: contents; }
+  /* The independent controls prevent the hard-drop from expanding the D-pad tracks. */
+  .drop-pad { display: flex; justify-content: center; align-items: center; min-width: 0; }
+  .move-pad {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 52px));
+    grid-template-rows: repeat(3, 50px);
+    gap: 5px;
+    justify-content: center;
+    min-width: 0;
+  }
 
-  /* On iOS the descendants also need -webkit-user-select, not just the button. */
   .controls, .controls * {
     -webkit-user-select: none;
     user-select: none;
@@ -629,22 +638,30 @@ body[data-live-duel] .play input, body[data-live-duel] .play textarea {
     display: grid;
     align-content: center;
     justify-items: center;
-    gap: 2px;
+    gap: 1px;
     min-width: 0;
-    min-height: 64px;
-    padding: 5px 2px;
+    min-height: 50px;
+    padding: 3px 1px;
     touch-action: none;
   }
-
   .controls button:active { transform: translateY(2px); background: #ffedb9; }
-  .controls button span { font-size: clamp(1.85rem, 7vw, 2.4rem); line-height: 1; }
-  .controls button small { font-size: clamp(.78rem, 3vw, .94rem); font-weight: 900; line-height: 1.12; }
+  .controls button span { font-size: clamp(1.45rem, 5.2vw, 1.9rem); line-height: 1; }
+  .controls button small { font-size: clamp(.69rem, 2.5vw, .83rem); font-weight: 900; line-height: 1.1; }
 
   .move-pad [data-action="s"] { grid-area: 1 / 2 / 2 / 3; background: #e9eacc; border-color: #889569; }
   .move-pad [data-action="l"] { grid-area: 2 / 1 / 3 / 2; background: #fff0d0; border-color: #a88852; }
   .move-pad [data-action="r"] { grid-area: 2 / 3 / 3 / 4; background: #fff0d0; border-color: #a88852; }
   .move-pad [data-action="d"] { grid-area: 3 / 2 / 4 / 3; background: #f5db9d; }
-  .piece-pad [data-action="h"] { grid-area: 1 / 4 / 4 / 5; background: #af5946; border-color: #923d37; color: #fff9e6; }
+
+  .drop-pad .hard-drop {
+    width: clamp(72px, 22vw, 84px);
+    height: clamp(72px, 22vw, 84px);
+    min-height: 72px;
+    border-radius: 50%;
+    background: #af5946;
+    border-color: #923d37;
+    color: #fff9e6;
+  }
   .controls .hard-drop:active { background: #913e34; }
 }
 
@@ -711,7 +728,8 @@ body[data-live-duel] .play input, body[data-live-duel] .play textarea {
 @media (max-height: 530px) and (orientation: landscape) {
   :root { --board-width: clamp(139px, calc((100svh - 116px) / 2), 279px); }
   .party-art { width: min(40vw, 330px); }
-  /* Keep a full cross D-pad usable on short landscape phone screens. */
-  .controls { grid-template-rows: repeat(3, minmax(54px, auto)); }
-  .controls button { min-height: 54px; }
+  /* Landscape phone: reduce controller height without shrinking touch areas below 44px. */
+  .move-pad { grid-template-rows: repeat(3, 45px); gap: 4px; }
+  .controls button { min-height: 45px; }
+  .drop-pad .hard-drop { width: 72px; height: 72px; }
 }

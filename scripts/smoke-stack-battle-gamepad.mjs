@@ -81,7 +81,7 @@ try {
       width, height: 844, deviceScaleFactor: 2, mobile: true
     });
     await call('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-    await call('Page.navigate', { url: address + '?ci=v141-' + width });
+    await call('Page.navigate', { url: address + '?ci=v142-' + width });
     let ready = false;
     for (let attempt = 0; attempt < 150; attempt++) {
       const result = await call('Runtime.evaluate', {
@@ -107,7 +107,7 @@ try {
           const el = controls.querySelector('[data-action="' + action + '"]');
           if (!el) throw new Error('Missing action ' + action);
           const r = el.getBoundingClientRect();
-          if (r.width < 48 || r.height < 54)
+          if (r.width < 44 || r.height < 44)
             throw new Error('Action ' + action + ' too small: ' + r.width + 'x' + r.height);
           return { x: r.x, y: r.y, w: r.width, h: r.height,
                    cx: r.x + r.width/2, cy: r.y + r.height/2 };
@@ -119,8 +119,10 @@ try {
         assert(left.cx < up.cx && up.cx < right.cx, 'D-pad horizontal cross placement');
         assert(Math.abs(left.cy - right.cy) < 3, 'Left/right must share a row');
         assert(Math.abs(up.cx - down.cx) < 3, 'Up/down must share a column');
-        assert(drop.x > right.x + right.w - 3, 'Hard-drop overlaps the D-pad');
-        assert(drop.h >= 2 * up.h, 'Hard-drop should be independent and large');
+        assert(drop.x + drop.w < left.x - 2, 'Hard-drop must sit separately on the left');
+        assert(drop.h >= 1.25 * up.h && drop.h <= 1.85 * up.h, 'Hard-drop should be a smaller round button');
+        assert(drop.w <= 88 && Math.abs(drop.w - drop.h) < 2, 'Hard-drop must be compact and round');
+        assert(controls.getBoundingClientRect().height <= 184, 'Control panel blocks too much gameplay');
         assert(getComputedStyle(controls).userSelect === 'none' ||
                getComputedStyle(controls).webkitUserSelect === 'none',
                'Gamepad text selection is enabled');
@@ -130,7 +132,7 @@ try {
     });
     if (response.exceptionDetails) throw new Error(response.exceptionDetails.exception?.description);
     assert.equal(response.result.value.width, width);
-    console.log('Stack Battle cross D-pad Chrome ' + width + 'px PASS');
+    console.log('Stack Battle compact cross D-pad Chrome ' + width + 'px PASS');
   }
 } finally {
   socket?.close();
