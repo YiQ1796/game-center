@@ -29,7 +29,7 @@ const point=(x,y)=>({x,y});
 const removeSwap=(items,index)=>{items[index]=items[items.length-1];items.pop()};
 const move=(p,i,dt,s=220)=>{const v=speed(i.x,i.y,s);p.x=clamp(p.x+v.x*dt,27,WIDTH-27);p.y=clamp(p.y+v.y*dt,53,HEIGHT-27)};
 const event=(g,text)=>{g.event=text;g.eventAt=g.elapsed};
-const score=(g,p,n)=>{g.scores[p]+=n;};
+const score=(g,p,n)=>{g.scores[p]=Math.max(0,g.scores[p]+n);};
 function end(g,message){
   if(g.over)return;
   g.over=true;g.reason=message;
@@ -210,7 +210,7 @@ function simulateFishing(g,i,dt,edge){
     if(!hook){if(edge[p])hero.hook={x:hero.x,y:154,fish:-1,reeling:false,time:0};continue}
     hook.time+=dt;
     if(hook.fish>=0){hook.y-=245*dt;g.fish[hook.fish].x=hook.x;g.fish[hook.fish].y=hook.y+15}
-    else if(hook.reeling||i[p].action||hook.y>490){hook.reeling=true;hook.y-=225*dt}
+    else if(hook.reeling||(i[p].action&&hook.time>.85)||hook.y>490){hook.reeling=true;hook.y-=225*dt}
     else hook.y+=205*dt;
     if(hook.fish<0&&!hook.reeling){
       for(let f=0;f<g.fish.length;f++){
