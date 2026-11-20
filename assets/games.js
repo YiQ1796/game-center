@@ -75,10 +75,10 @@ window.SANMAO_GAMES = Object.freeze([
   Object.freeze({
     id: 'mystery-duo',
     name: '午夜奇物館',
-    category: '雙人驚喜・十二種未知挑戰',
-    summary: '兩個人選一扇門，才知道奇物館準備了什麼。可同機一起玩，也可開房邀好友。',
+    category: '12 種遊戲類型・雙人即時操作',
+    summary: '不是猜數字！十二種全新操作型挑戰，選一扇門才揭曉驚喜。同機或好友遠端雙人遊玩。',
     visualType: 'mystery-cabinet',
     status: 'beta',
-    url: 'https://yiq1796.github.io/game-center/mystery-duo/'
+    url: 'https://yiq1796.github.io/game-center/mystery-duo/?v=200'
   })
 ]);
