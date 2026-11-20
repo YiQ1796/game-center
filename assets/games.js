@@ -71,5 +71,14 @@ window.SANMAO_GAMES = Object.freeze([
     imageAlt: '金箍戰神猴三毛站在果園的試裝石台上',
     status: 'beta',
     url: 'https://yiq1796.github.io/game-center/orchard-survival/'
+  }),
+  Object.freeze({
+    id: 'mystery-duo',
+    name: '午夜奇物館',
+    category: '雙人驚喜・十二種未知挑戰',
+    summary: '兩個人選一扇門，才知道奇物館準備了什麼。可同機一起玩，也可開房邀好友。',
+    visualType: 'mystery-cabinet',
+    status: 'beta',
+    url: 'https://yiq1796.github.io/game-center/mystery-duo/'
   })
 ]);
