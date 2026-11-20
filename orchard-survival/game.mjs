@@ -1,22 +1,22 @@
 
-import { stats, banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=051';
-import { MARKET, skillNumbers, ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=051';
-import { adventurer } from './actors.mjs?v=051';
-import { FittingStage } from './fitting-stage.mjs?v=051';
-import { Scene } from './scene.mjs?v=051';
-import { Squad } from './squad.mjs?v=051';
-import { ADVANCEMENTS, getAdvancement } from './advancement.mjs?v=051';
+import { stats, banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=060';
+import { MARKET, skillNumbers, ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=060';
+import { outfitSprite, gearIcon } from './actors.mjs?v=060';
+import { FittingStage } from './fitting-stage.mjs?v=060';
+import { Scene } from './scene.mjs?v=060';
+import { Squad } from './squad.mjs?v=060';
+import { ADVANCEMENTS, getAdvancement } from './advancement.mjs?v=060';
 
 const $ = id => document.getElementById(id);
 const ui = Object.fromEntries([
   'home','play','jobs','solo','room-form','room-status','lobby','nickname','room-code','join',
-  'room-label','copy','seats','ready','host-start','host','leave','retry','mascot','arena',
+  'room-label','copy','seats','ready','host-start','host','leave','retry','arena',
   'clock','wave','life-bar','xp-bar','life','level','squad-hud','field-status','notice',
   'profile','skillbook','stat-count','boss-banner','boss-name','boss-life','active-skills','battle-count',
   'stick','knob','burst','keyboard','bag','menu','overlay','panel','dialog-title','dialog-copy','dialog-body','dialog-actions'
 ].map(id=>[id,$(id)]));
-const fittingStage=new FittingStage($('fitting-stage'),ui.mascot);
-const scene=new Scene(ui.arena,ui.mascot,$('mini-map'));
+const fittingStage=new FittingStage($('fitting-stage'));
+const scene=new Scene(ui.arena,$('mini-map'));
 $('radar-toggle').addEventListener('click',event=>{
   const map=$('mini-map');
   map.hidden=!map.hidden;
@@ -93,7 +93,7 @@ function jobButtons() {
     const label=element('span','');
     label.append(element('strong','',item.name),element('small','',item.role));
     header.append(icon,label);
-    node.append(outfitPreview({job:key}, {level:1,slots:Array(8).fill(0)}),header,element('p','',item.description));
+    node.append(outfitSprite({job:key}, {level:1,slots:Array(8).fill(0)}),header,element('p','',item.description));
     node.append(element('small','job-stats','生命 '+item.hp+'　移速 '+item.speed+'　'+SKILLS[item.skill][0]),
       element('small','job-tracks','Lv.8　'+ADVANCEMENTS[key].map(track=>track.name).join(' ／ ')));
     return node;
@@ -223,15 +223,6 @@ function summaryPanel(view,self,content,actions) {
   actions.append(button(squad.role?'離開房間':'回到首頁','quiet',leaveBattle));
 }
 
-function outfitPreview(player,look) {
-  const canvas=element('canvas','look-preview');
-  canvas.setAttribute('aria-hidden','true');
-  canvas.width=176;canvas.height=134;
-  const c=canvas.getContext('2d');
-  c.scale(1.24,1.24);
-  adventurer(c,{job:player.job,promotion:player.promotion,face:1,walk:false,down:false,inv:false,look:{...look,swing:0}},ui.mascot,.4,64,90,true);
-  return canvas;
-}
 
 function formatPerk(key,value) {
   if(key==='regen')return value.toFixed(2)+'/秒';
@@ -267,7 +258,7 @@ function equipmentPanel(view,content,actions) {
   const self=view.players.find(player=>player.id===owned.id)||view.players[0];
   const look=self.look||{level:owned.skills[CLASSES[self.job].skill]||1,evolved:Boolean(owned.evolution[CLASSES[self.job].skill]),slots:owned.gear.map(item=>item?1+item.rarity+item.rank*6:0)};
   const fitting=element('div','dressing');
-  fitting.append(outfitPreview(self,look),element('strong','',(getAdvancement(self.job,self.promotion)?.name||CLASSES[self.job].name)+' · '+(look.evolved?EVOLUTIONS[CLASSES[self.job].skill][0]:SKILLS[CLASSES[self.job].skill][0])+' Lv.'+look.level));
+  fitting.append(outfitSprite(self,look),element('strong','',(getAdvancement(self.job,self.promotion)?.name||CLASSES[self.job].name)+' · '+(look.evolved?EVOLUTIONS[CLASSES[self.job].skill][0]:SKILLS[CLASSES[self.job].skill][0])+' Lv.'+look.level));
   fitting.append(element('small','gear-vitals','生命 '+self.hp+' / '+Math.round(self.maxHp)+'　傷害 ×'+owned.derived.power.toFixed(2)+'　暴擊 '+Math.round(owned.derived.crit*100)+'%'),
     element('small','gear-vitals','可分配素質 '+owned.statPoints+' 點'));
   content.append(fitting);
@@ -276,9 +267,10 @@ function equipmentPanel(view,content,actions) {
   const found=element('section','');
   const gearList=element('ul','item-list');
   const lootList=element('ul','item-list');
-  function itemRow(item,label,worn) {
+  function itemRow(item,label,worn,slot=item?.slot) {
     const row=element('li','item');
-    if(!item) {row.append(element('small','',label+'・空'));return row;}
+    const icon=gearIcon(slot,self.job,self.promotion);row.append(icon);row.classList.add('has-gear-art');
+    if(!item) {row.classList.add('empty-slot');row.append(element('small','',label+'・空'));return row;}
     const [tier,color]=RARITIES[item.rarity];
     const title=element('strong','',item.name+' · '+tier+(item.rank?' +'+item.rank:''));
     title.style.color=color;
@@ -297,7 +289,7 @@ function equipmentPanel(view,content,actions) {
       button('分解 +' + (2+item.rarity),'quiet',()=>action('salvage',item.id)));
     return row;
   }
-  owned.gear.forEach((item,i)=>gearList.append(itemRow(item,SLOTS[i],true)));
+  owned.gear.forEach((item,i)=>gearList.append(itemRow(item,SLOTS[i],true,i)));
   owned.loot.forEach(item=>lootList.append(itemRow(item,SLOTS[item.slot],false)));
   if(!owned.loot.length) lootList.append(element('li','item','小怪偶爾掉裝，精英與首領必掉。'));
   equipped.append(element('h3','','裝備欄'),gearList);
@@ -355,7 +347,7 @@ function appendCharacterStats(view,self,content){
 function profilePanel(view,self,content,actions) {
   const own=view.own;
   const header=element('div','profile-head');
-  header.append(outfitPreview(self,self.look),element('strong','',
+  header.append(outfitSprite(self,self.look),element('strong','',
     (getAdvancement(self.job,self.promotion)?.name||CLASSES[self.job].name)
       +' ・Lv.'+view.l+' ・未分配 '+own.statPoints+' 點'));
   content.append(header);
@@ -446,10 +438,10 @@ function modal(view,self) {
       if(offer.key===CLASSES[self.job].skill&&(offer.type==='skill'||offer.type==='evolution')){
         const look={level:view.own.skills[CLASSES[self.job].skill]||1,slots:Array(8).fill(0),...self.look};
         if(offer.type==='evolution')look.evolved=true;else look.level=Math.min(10,look.level+(offer.rankGain||1));
-        choice.append(outfitPreview(self,look));
+        choice.append(outfitSprite(self,look));
       }
       choice.append(element('b','',offer.name),element('small','',offer.text));
-      if(isPromotion)choice.prepend(outfitPreview({...self,promotion:offer.key},self.look));
+      if(isPromotion)choice.prepend(outfitSprite({...self,promotion:offer.key},self.look));
       if(offer.type==='skill'||offer.type==='evolution'){
         const old=view.own.skills[offer.key]||0;
         const evolved=Boolean(view.own.evolution[offer.key]);
@@ -673,7 +665,6 @@ for(const name of ['pointerup','pointercancel','lostpointercapture']) {
 }
 
 jobButtons();
-if(!ui.mascot.complete)ui.mascot.addEventListener('load',jobButtons,{once:true});
 if(/^\d{6}$/.test(invitation||'')) ui['room-code'].value=invitation;
 const restore=squad.restoreCode();
 if(restore&&(!invitation||invitation===restore)) {

@@ -1,5 +1,5 @@
 
-import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=051';
+import { blend, glow, ink, oval, star, stroke, TAU } from './paint.mjs?v=060';
 
 function comet(c,length,width,hot,edge){
   c.save();c.scale(length/100,width/16);
@@ -92,7 +92,7 @@ export function groundSpells(c,view){
 export function airborne(c,view,smooth,quiet){
   for(const [id,x,y,angle,color,kind,tier=1] of view.shots){
     const [px,py]=smooth(id,x,y);
-    c.save();c.translate(px,py);c.rotate(angle);
+    c.save();c.translate(px,py-15);c.rotate(angle);
     if(kind==='blast'){
       comet(c,35+tier*6,9+tier*1.3,'#ffb84f','#e35442');
       if(!quiet)star(c,-17,-5,3.2,'#fff1a7',view.t*4);

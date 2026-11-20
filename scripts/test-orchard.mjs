@@ -316,3 +316,52 @@ test('movement pose follows distance and stops advancing against a wall',()=>{
   setMove(p,0,0);tick(g,1);assert.equal(buildView(g,p.id).players[0].gait,moving.gait);
   p.x=21;setMove(p,-1,0);tick(g,1);assert.equal(p.walk,false);
 });
+
+function combatFixture(){
+  const game=newGame(seats('staff'),739);
+  game.spawnClock=Infinity;
+  const player=game.players[0];player.skills={};
+  function target(id,dx,dy=0,hp=80){
+    const enemy={id,kind:'grub',radius:12,x:player.x+dx,y:player.y+dy,hp,maxHp:hp,
+      speed:0,damage:0,flash:0,slow:0,timer:10,wind:0,dash:0,aim:0,face:1,mode:0,tx:0,ty:0};
+    game.enemies.push(enemy);return enemy;
+  }
+  function arrow(pierce=1,life=.2,crit=0,speed=3600){
+    game.shots.push({id:++game.serial,owner:player.id,x:player.x,y:player.y,angle:0,speed,life,
+      reach:speed*life,amount:10,color:'#ffdb86',crit,kind:'pierce',pierce,tier:1,hit:new Set()});
+  }
+  return {game,player,target,arrow};
+}
+
+test('arrows register glancing contact between ticks in flight order and report ordinary hits to allies',()=>{
+  const {game,player,target,arrow}=combatFixture();
+  const far=target(13,105),near=target(12,52,21),miss=target(14,40,23);
+  arrow();advance(game);
+  assert.equal(near.hp,70);
+  assert.equal(far.hp,80);assert.equal(miss.hp,80);
+  const [contact]=buildView(game,player.id).hits;
+  assert.deepEqual([contact[0],contact[4],contact[5],contact[8]],[12,10,false,false]);
+  assert.ok(near.flash>0);
+  tick(game,18);assert.deepEqual(buildView(game,player.id).hits,[]);
+});
+
+test('piercing shots use their final partial tick, retain lethal feedback, and never strike a target twice',()=>{
+  const {game,player,target,arrow}=combatFixture();
+  const first=target(21,25,0,15),second=target(22,65),outside=target(23,97);
+  arrow(4,.020,1);advance(game);
+  assert.ok(!game.enemies.includes(first));assert.equal(second.hp,63);assert.equal(outside.hp,80);
+  const lethal=buildView(game,player.id).hits.find(h=>h[0]===21);
+  assert.deepEqual([lethal[4],lethal[5],lethal[8]],[17,true,true]);
+  assert.equal(game.shots.length,0);
+  const slow=combatFixture();const body=slow.target(24,25);
+  slow.arrow(4,1,0,360);tick(slow.game,5);
+  assert.equal(body.hp,70);
+});
+
+test('staff sweep activates when the target body intersects its reach',()=>{
+  const {game,player,target}=combatFixture();
+  player.skills.sweep=1;
+  const edge=target(31,SKILLS.sweep[3]+6),outside=target(32,SKILLS.sweep[3]+26);
+  advance(game);
+  assert.ok(edge.hp<80);assert.equal(outside.hp,80);assert.ok(buildView(game,player.id).hits.length);
+});

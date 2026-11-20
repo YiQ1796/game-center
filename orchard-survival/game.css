@@ -314,3 +314,42 @@ body.playing #top {display:none}
   .job>.look-preview {width:76px;height:65px}
   .stage-name {bottom:7px}
 }
+
+/* Keep all illustrated units in one depth-sorted world, aligned at their feet. */
+#field-art {position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0;pointer-events:none}
+#field-effects {position:absolute;inset:0;display:block;width:100%;height:100%;pointer-events:none}
+.world-unit {position:absolute;display:block;left:0;top:0;width:0;height:0;line-height:0;pointer-events:none}
+.hero-body,.enemy-body,.sprite-art,.worn-details,.scenery-img,.scenery-night {position:absolute;display:block}
+.hero-body {width:148px;height:89px;left:-62.16px;top:-81.95px;transform-origin:42% 92.08%}
+.enemy-body {width:var(--foe-width);height:var(--foe-height);left:calc(var(--foe-width) * -.5);top:calc(var(--foe-height) * -.89);transform-origin:50% 89%}
+.sprite-art,.worn-details,.scenery-night {inset:0;background-repeat:no-repeat}
+.sprite-art.struck {filter:brightness(1.7) saturate(.76)}
+.sprite-shadow {display:block;position:absolute;width:35px;height:10px;left:0;bottom:-3px;transform:translateX(-50%);background:radial-gradient(ellipse,#25351c69,transparent 72%)}
+.worn-details .worn {position:absolute;display:block;transform:translate(-50%,-50%);margin:0;max-width:none;object-fit:contain;pointer-events:none}
+.worn-cap {width:22px;height:15px}.worn-brooch {width:10px;height:9px}.worn-wrist {width:9px;height:9px}
+.worn-boot-l,.worn-boot-r {width:10px;height:11px}.worn-neck {width:6px;height:10px}
+.worn-ring-l,.worn-ring-r {width:5px;height:5px}
+.sprite-hp {position:absolute;left:-15px;bottom:-8px;width:30px;height:4px;background:#312a26ca;border-radius:5px;overflow:hidden}
+.sprite-hp-fill {display:block;width:100%;height:100%;transform-origin:left;background:#b2dc7e}
+.sprite-hp[data-ally=enemy] .sprite-hp-fill {background:#f57e62}.sprite-hp[data-ally=ally] .sprite-hp-fill {background:#81cfd1}
+.sprite-hp[hidden],.unit-name[hidden] {display:none}
+.unit-name {position:absolute;top:9px;left:0;transform:translateX(-50%);white-space:nowrap;line-height:1.3;color:#fff3d2;font:700 10px system-ui;text-shadow:0 1px 2px #312923,0 -1px 2px #312923}
+.scenery-img {left:-88px;top:-134px;width:176px;height:176px;background-size:100% 100%;transform-origin:88px 134px}
+.scenery-night {background-size:100% 100%}.scenery-lamp {position:absolute;left:76px;top:60px;width:58px;height:58px;background:radial-gradient(circle,#ffdf8f9c,transparent 68%)}
+#stage-unit {position:absolute;left:50%;pointer-events:none}.stage-name {z-index:1}
+.look-preview {position:relative;overflow:hidden}
+.look-preview .preview-unit {left:45%;top:91%;transform:scale(.83)}
+.profile-head .preview-unit,.card-column .preview-unit {transform:scale(.96)}
+.item.has-gear-art {position:relative;min-height:51px;padding-left:51px}
+.item .gear-art {position:absolute;left:4px;top:4px;width:42px;height:42px;object-fit:contain}
+.item.empty-slot .gear-art {opacity:.57}
+@media(max-width:720px){.look-preview .preview-unit {transform:scale(.67)}.profile-head .preview-unit {transform:scale(.89)}}
+
+.orchard-ground {position:absolute;top:0;left:0;transform-origin:0 0;background:#778451 url('./art/orchard-floor.webp') center/100% 100% no-repeat;pointer-events:none}
+.ground-tint {position:absolute;inset:0}
+.scenery-img {filter:brightness(var(--scenery-light,1));background-repeat:no-repeat}
+#fitting-stage {background:#92a17d url('./art/orchard-stage.webp') center/cover no-repeat}
+#stage-unit {top:81%}
+
+#field-illustrations {position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0;pointer-events:none}
+.spell-illustration {position:absolute;left:0;top:0;display:block;background-repeat:no-repeat;background-size:300% 100%;pointer-events:none}

@@ -67,8 +67,8 @@ window.SANMAO_GAMES = Object.freeze([
     name: '猴三毛割草隊',
     category: '無限生存・單人與 2～4 人合作',
     summary: '揮金箍棒、丟火球、射果籽。升級、打首領，揪朋友一起守住香蕉果園！',
-    image: 'one-a-two-b/sanmao-full-body.webp',
-    imageAlt: '猴三毛全身插畫',
+    image: 'orchard-survival/art/orchard-cover.webp',
+    imageAlt: '金箍戰神猴三毛站在果園的試裝石台上',
     status: 'beta',
     url: 'https://yiq1796.github.io/game-center/orchard-survival/'
   })

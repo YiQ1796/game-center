@@ -54,4 +54,12 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
       - name: Verify the public Orchard game in Chrome
+        env:
+          ORCHARD_SCREENSHOTS: ${{ runner.temp }}
         run: node scripts/smoke-orchard.mjs --published
+      - name: Save desktop and mobile Orchard screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: orchard-browser-screenshots
+          path: ${{ runner.temp }}/orchard-*.jpg
+          retention-days: 7

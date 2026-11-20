@@ -1,6 +1,6 @@
 
-import { CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=051';
-import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=051';
+import { CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=060';
+import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=060';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -40,7 +40,7 @@ export function newGame(seats, seed = 1) {
   if (!Array.isArray(seats) || seats.length < 1 || seats.length > 4) throw new Error('需要 1～4 位玩家');
   return {
     seed:(seed >>> 0) || 1, serial:0, players:seats.map(newPlayer), bonusXpCarry:0,
-    enemies:[], gems:[], shots:[], zones:[], fx:[], cells:new Map(),
+    enemies:[], gems:[], shots:[], zones:[], fx:[], hits:new Map(), cells:new Map(),
     elapsed:0, level:1, xp:0, eliteAt:52, bossAt:105, bossCycle:0, spawnClock:0.2,
     modifiers:seats.length, ended:false, reason:'', paused:false,
     notice:'果園開工！先撿果籽，練出你的第一招。', noticeAt:6
@@ -302,14 +302,20 @@ function dropGem(game, target) {
   }
 }
 
-function hurt(game, player, enemy, amount, color, crit, knock=0) {
+function hurt(game, player, enemy, amount, color, crit, knock=0, art=null) {
   if (enemy.hp <= 0) return;
   const critical = random(game) < crit;
   const dealt = Math.round(amount*(critical ? 1.65 : 1));
   player.damage += Math.min(enemy.hp,dealt);
   enemy.hp -= dealt;
-  enemy.flash = .12;
-  if (critical && game.fx.length < 75) effect(game,enemy.x,enemy.y,0,color,.44,'number',0,0,String(dealt));
+  enemy.flash=.24;
+  const previous=game.hits.get(enemy.id);
+  const grouped=previous&&game.elapsed-previous.at<.14;
+  game.hits.delete(enemy.id);
+  game.hits.set(enemy.id,{at:game.elapsed,x:enemy.x,y:enemy.y,r:enemy.radius,
+    amount:dealt+(grouped?previous.amount:0),critical:critical||Boolean(grouped&&previous.critical),
+    direction:enemy.x>=player.x?1:-1,dead:enemy.hp<=0,art:art||({staff:'slash',mage:'magic',scout:'wind'}[player.job])});
+  if(game.hits.size>112)game.hits.delete(game.hits.keys().next().value);
   if (enemy.hp > 0 && knock && enemy.radius < 30) {
     const angle = Math.atan2(enemy.y-player.y,enemy.x-player.x);
     enemy.x = clamp(enemy.x+Math.cos(angle)*knock,17,FIELD.width-17);
@@ -376,9 +382,24 @@ function nearest(game,x,y,radius,exclude) {
   return found;
 }
 
+const BODY_MARGIN=Math.max(...Object.values(ENEMIES).map(type=>type[2]));
+function touching(game,x,y,radius,visit){
+  nearby(game,x,y,radius+BODY_MARGIN,(enemy,distance)=>{
+    if(distance<=radius+enemy.radius)visit(enemy,distance);
+  });
+}
+function nearestBody(game,x,y,radius){
+  let found,best=Infinity;
+  touching(game,x,y,radius,(enemy,distance)=>{
+    const gap=distance-enemy.radius;
+    if(gap<best){best=gap;found=enemy;}
+  });
+  return found;
+}
+
 function blast(game, player, x, y, radius, amount, color, crit, knock=0, slow=0, style='impact') {
-  nearby(game,x,y,radius,(enemy) => {
-    hurt(game,player,enemy,amount,color,crit,knock);
+  touching(game,x,y,radius,(enemy) => {
+    hurt(game,player,enemy,amount,color,crit,knock,style==='sweep'||style==='cyclone'?'slash':style==='impact'?'magic':null);
     enemy.slow=Math.max(enemy.slow,slow);
   });
   effect(game,x,y,radius,color,style==='cyclone' ? 1.04 : .48,style);
@@ -404,12 +425,12 @@ function useSkill(game, player, key, level, config) {
   const {damage:amount,cooldown}=skillNumbers(key,level,config,evolved);
   const scale = config.reach*(evolved ? 1.27 : 1);
   const x = player.x, y = player.y;
-  const target = range && nearest(game,x,y,range*(kind==='ring' ? scale : 1));
+  const target = range && (kind==='ring'?nearestBody(game,x,y,range*scale):nearest(game,x,y,range));
   const targeted = ['blast','pierce','return','chain','slow','field','drop'].includes(kind);
   if (targeted && !target) return;
   const angle = target ? Math.atan2(target.y-y,target.x-x) : 0;
   if (kind === 'ring' || kind === 'orbit' || kind === 'push') {
-    if (!nearest(game,x,y,range*scale)) return;
+    if (!nearestBody(game,x,y,range*scale)) return;
     if (kind === 'orbit') {
       const phase=game.elapsed*5+player.id.length;
       for (let i=0;i<3;i++) {
@@ -520,24 +541,35 @@ function burst(game, player, config) {
 
 function updateShots(game, owners) {
   for (const shot of game.shots) {
-    shot.life-=STEP;
+    const dt=Math.min(shot.life,STEP);
     const owner=owners.get(shot.owner);
-    if (shot.kind==='return' && (shot.returning || shot.life < shot.reach/shot.speed*.50)) {
-      if (!owner) { shot.life=0;continue; }
-      if (!shot.returning) { shot.returning=true; shot.hit.clear(); }
+    if(!owner||dt<=0){shot.life=0;continue;}
+    if(shot.kind==='return'&&(shot.returning||shot.life<=shot.reach/shot.speed*.5)){
+      if(!shot.returning){shot.returning=true;shot.hit.clear();}
       shot.angle=Math.atan2(owner.y-shot.y,owner.x-shot.x);
-      if (dist(shot,owner)<20) { shot.life=0;continue; }
+      if(dist(shot,owner)<20){shot.life=0;continue;}
     }
-    shot.x+=Math.cos(shot.angle)*shot.speed*STEP;
-    shot.y+=Math.sin(shot.angle)*shot.speed*STEP;
-    if (!owner || shot.life<=0) continue;
-    nearby(game,shot.x,shot.y,58,(enemy,distance) => {
-      if (shot.pierce<=0 || shot.hit.has(enemy.id) || distance>enemy.radius+10) return;
-      shot.hit.add(enemy.id);
-      shot.pierce--;
-      if (shot.kind==='blast') blast(game,owner,shot.x,shot.y,74,shot.amount,shot.color,shot.crit);
-      else hurt(game,owner,enemy,shot.amount,shot.color,shot.crit);
+    const x=shot.x,y=shot.y,dx=Math.cos(shot.angle),dy=Math.sin(shot.angle),length=shot.speed*dt;
+    const contacts=[];
+    // Sweep the whole segment against enemy bodies, including the last partial tick.
+    nearby(game,x+dx*length/2,y+dy*length/2,length/2+BODY_MARGIN+10,(enemy)=>{
+      if(shot.hit.has(enemy.id))return;
+      const ex=enemy.x-x,ey=enemy.y-y,radius=enemy.radius+10;
+      const along=ex*dx+ey*dy,across=ex*dy-ey*dx;
+      const discriminant=radius*radius-across*across;
+      if(discriminant<0)return;
+      const root=Math.sqrt(discriminant),entry=Math.max(0,along-root);
+      if(along+root>=0&&entry<=length)contacts.push({enemy,entry});
     });
+    contacts.sort((a,b)=>a.entry-b.entry||a.enemy.id-b.enemy.id);
+    for(const {enemy,entry} of contacts){
+      if(shot.pierce<=0)break;
+      if(enemy.hp<=0)continue;
+      shot.hit.add(enemy.id);shot.pierce--;
+      if(shot.kind==='blast')blast(game,owner,x+dx*entry,y+dy*entry,74,shot.amount,shot.color,shot.crit);
+      else hurt(game,owner,enemy,shot.amount,shot.color,shot.crit,0,'wind');
+    }
+    shot.x=x+dx*length;shot.y=y+dy*length;shot.life-=dt;
   }
   game.shots=game.shots.filter(shot=>shot.life>0&&shot.pierce>0);
 }
@@ -768,6 +800,7 @@ export function advance(game) {
   collect(game,configs);
   updateRescue(game);
   game.enemies=game.enemies.filter(enemy=>enemy.hp>0);
+  for(const [key,hit] of game.hits){if(game.elapsed-hit.at>.55)game.hits.delete(key);}
   game.fx=game.fx.filter(item=>(item.life-=STEP)>0);
   if (game.players.every(player=>player.down)) finish(game,'果園收工！下次再來。');
 }
@@ -803,9 +836,11 @@ export function buildView(game, focusId) {
       .map(e=>({name:ENEMIES[e.kind][5],hp:n(e.hp),maxHp:n(e.maxHp),kind:e.kind}))
       .sort((a,b)=>b.hp-a.hp)[0]||null,
     enemies:game.enemies.filter(see).map(e=>[e.id,e.kind,n(e.x),n(e.y),e.radius,n(100*e.hp/e.maxHp),e.flash>0,e.face,n(e.wind*100),e.mode,n(e.tx),n(e.ty),n(e.aim*100)/100]),
+    hits:[...game.hits].filter(([,h])=>see(h)).slice(-64).map(([id,h])=>
+      [id,n(h.x),n(h.y),h.r,h.amount,h.critical,n((game.elapsed-h.at)*1000),h.direction,h.dead,h.art]),
     gems:game.gems.filter(see).map(g=>[n(g.x),n(g.y),g.value]),
     shots:game.shots.filter(see).map(s=>[s.id,n(s.x),n(s.y),n(s.angle*100)/100,s.color,s.kind,s.tier]),
     zones:game.zones.filter(see).map(z=>[n(z.x),n(z.y),n(z.radius),z.kind,z.color,n(100*z.life/z.max),z.id]),
-    fx:game.fx.filter(see).slice(-44).map(f=>[n(f.x),n(f.y),n(f.radius),f.color,n(f.life/f.max*100),f.kind,n(f.x2),n(f.y2),f.label])
+    fx:game.fx.filter(see).slice(-44).map(f=>[n(f.x),n(f.y),n(f.radius),f.color,n(f.life/f.max*100),f.kind,n(f.x2),n(f.y2),f.label,f.id])
   };
 }

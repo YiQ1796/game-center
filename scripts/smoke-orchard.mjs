@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createServer } from 'node:http';
@@ -18,9 +18,8 @@ async function exercise() {
     throw Error(hint);
   };
   await until(()=>el('jobs')?.children.length===3,'class selection never loaded');
-  await el('mascot').decode();
-  const {adventurer,creature}=await import('./actors.mjs?v=051');
-  const {spellFlashes,airborne}=await import('./spells.mjs?v=051');
+  const {HeroSprite,EnemySprite,gearIcon}=await import('./actors.mjs?v=060');
+  const {spellFlashes,airborne}=await import('./spells.mjs?v=060');
   const target=document.createElement('canvas');target.width=290;target.height=240;
   const ink=target.getContext('2d',{willReadFrequently:true});
   function pixels(draw){
@@ -39,46 +38,84 @@ async function exercise() {
     expect(el('stage-name').textContent===routeName&&stage.getAttribute('aria-label').includes(routeName),'fitting route mismatch');
     expect(el('jobs').children[index].getAttribute('aria-pressed')==='true','audition changed starting class');
   }
-  const {Garden,fieldLight,LANDMARKS}=await import('./garden.mjs?v=051');
+  const {Garden,fieldLight,LANDMARKS}=await import('./garden.mjs?v=060');
   const garden=new Garden(),day=fieldLight(0),night=fieldLight(168);
-  const drawLand=light=>{ink.save();ink.translate(-1230,-820);garden.draw(ink,1230,820,290,240,light);ink.restore();};
-  const meadow=pixels(()=>drawLand(day)),moon=pixels(()=>drawLand(night));
-  expect(difference(meadow,moon)>60000,'night failed to light the world');
+  const fieldImage=new Image();fieldImage.src=new URL('./art/orchard-floor.webp',location.href);await fieldImage.decode();
+  expect(fieldImage.naturalWidth>=1200,'illustrated field missing');
+  garden.light(day);const dayTint=garden.tint.style.backgroundColor;garden.light(night);
+  expect(garden.tint.style.backgroundColor!==dayTint,'night failed to light the world');
   const lamp=LANDMARKS.find(p=>p.kind==='post');
-  const propShot=players=>pixels(()=>{ink.save();ink.translate(135-lamp.x,145-lamp.y);garden.prop(ink,{...lamp,variant:0},day,players);ink.restore();});
-  expect(difference(propShot([]),propShot([{x:lamp.x,y:lamp.y-12}]))>120,'foreground did not reveal player');
-  for(const job of ['staff','mage','scout']){
-    const look={level:1,slots:Array(8).fill(0)};
-    const paint=()=>adventurer(ink,{job,face:1,look},el('mascot'),1,140,140,true);
-    let old=pixels(paint);
-    for(let i=2;i<=5;i++){look.level=i;const next=pixels(paint);expect(difference(old,next)>12,job+' level '+i);old=next;}
-    look.evolved=true;expect(difference(old,pixels(paint))>35,job+' evolution');
-    for(let slot=0;slot<8;slot++){old=pixels(paint);look.slots[slot]=5;expect(difference(old,pixels(paint))>3,job+' slot '+slot);}
+  const prop=garden.propNode({...lamp,variant:0});
+  prop.update(day,[]);
+  expect(Number(prop.el.firstChild.style.opacity)===1,'landmark hidden on an empty field');
+  prop.update(day,[{x:lamp.x,y:lamp.y-12}]);
+  expect(Number(prop.el.firstChild.style.opacity)<.4,'foreground did not reveal player');
+
+  const plates=new Map();
+  async function loadStrip(art,frames){
+    const name=art.dataset.sheet;
+    if(!plates.has(name)){
+      const img=new Image();img.src=new URL('./art/'+name+'.webp',location.href);
+      await img.decode();plates.set(name,img);
+    }
+    const img=plates.get(name);
+    expect(img.naturalWidth===(frames===4?400:192)*frames&&getComputedStyle(art).backgroundImage.includes(name+'.webp'),'missing illustration '+name);
+    return img;
   }
-  // 六套進階服飾與專屬武器必須真的改變角色輪廓，不能只換徽章或閃光。
-  for(const job of ['staff','mage','scout']){
-    const base=pixels(()=>adventurer(ink,{job,face:1,look:{level:8,slots:Array(8).fill(0)}},el('mascot'),1,140,145,true));
-    const options=job==='staff'?['king','guardian']:job==='mage'?['storm','archmage']:['ranger','shadow'];
-    const outfits=options.map(promotion=>pixels(()=>adventurer(ink,{job,promotion,face:1,look:{level:8,slots:Array(8).fill(0)}},el('mascot'),1,140,145,true)));
-    for(const costume of outfits)expect(difference(base,costume)>180,job+' class costume is only a particle');
-    expect(difference(outfits[0],outfits[1])>180,job+' advancement routes share the same silhouette');
-    for(const promotion of options){
-      const look={level:8,slots:Array(8).fill(0)};
-      const paint=()=>adventurer(ink,{job,promotion,face:1,look},el('mascot'),1,140,145,true);
-      for(let slot=0;slot<8;slot++){
-        const old=pixels(paint);look.slots[slot]=5;
-        expect(difference(old,pixels(paint))>3,promotion+' equipped slot '+slot+' did not render');
+  function posePixels(img,count,frame,lower=false){
+    const w=img.width/count,h=img.height;
+    return pixels(()=>ink.drawImage(img,frame*w,lower?h*.62:0,w,lower?h*.38:h,0,0,220,lower?58:150));
+  }
+  const ready=[];
+  for(const [job,paths] of [['staff',['staff','king','guardian']],['mage',['mage','storm','archmage']],['scout',['scout','ranger','shadow']]]){
+    for(const route of paths){
+      const hero=new HeroSprite(),look={level:1,slots:Array(8).fill(0)};
+      const player={job,promotion:route,face:1,look};
+      document.body.append(hero.el);
+      hero.update(player,true,true);
+      const img=await loadStrip(hero.art,4);
+      ready.push(posePixels(img,4,0));
+      expect(difference(posePixels(img,4,1,true),posePixels(img,4,2,true))>65,route+' legs have identical strides');
+      expect(difference(posePixels(img,4,0),posePixels(img,4,3))>700,route+' attack silhouette failed');
+      for(const [gait,frame] of [[48,1],[176,2]]){
+        hero.update({...player,walk:true,gait},true,true);expect(hero.el.dataset.pose===String(frame),route+' walk');
       }
+      look.swing=45;hero.update(player,true,true);expect(hero.el.dataset.pose==='3',route+' strike');look.swing=0;
+      let old=0;
+      for(let level=2;level<=5;level++){
+        look.level=level;hero.update(player,true,true);
+        const size=parseFloat(hero.dress.querySelector('.worn-weapon').style.width);
+        expect(size>old,route+' weapon level '+level);old=size;
+      }
+      look.evolved=true;hero.update(player,true,true);
+      expect(hero.dress.querySelector('.worn-weapon').src.endsWith('evolved-jewel.webp'),route+' evolved equipment');
+      for(let slot=0;slot<8;slot++){
+        const icon=gearIcon(slot,job,route);await icon.decode();
+        const previous=hero.dress.childElementCount;
+        look.slots[slot]=5;hero.update(player,true,true);
+        if(slot>0)expect(hero.dress.childElementCount>previous,route+' slot '+slot);
+      }
+      await Promise.all([...hero.dress.children].map(el=>el.decode()));
+      const links=[...hero.dress.children];
+      expect(links.every(el=>el.style.left&&el.style.top),'missing equipment socket');
+      expect(hero.dress.querySelector('.worn-boot-l').style.left!==hero.dress.querySelector('.worn-boot-r').style.left,'feet overlap');
+      hero.el.remove();
     }
   }
-  const walking={job:'staff',face:1,walk:true,look:{level:1,slots:Array(8).fill(0)}};
-  function lowerBody(gait){
-    ink.clearRect(0,0,290,240);adventurer(ink,{...walking,gait},el('mascot'),1,140,140,true);
-    return ink.getImageData(120,137,40,17).data;
+  for(let i=0;i<ready.length;i++)for(let j=0;j<i;j++)expect(difference(ready[i],ready[j])>800,'outfit illustrations match');
+  const monsters=[];
+  for(const kind of ['grub','shroom','boar','bee','snail','elite','boss','queen']){
+    const enemy=new EnemySprite(),state=[12,kind,0,0,30,65,false,1,0];
+    document.body.append(enemy.el);enemy.update(state,.03,null);
+    const img=await loadStrip(enemy.art,3);
+    monsters.push(posePixels(img,3,0));
+    expect(difference(posePixels(img,3,0),posePixels(img,3,1))>180,kind+' movement failed');
+    enemy.update(state,.03,[12,0,0,30,10,false,49,1,false]);
+    expect(enemy.el.dataset.pose==='2'&&enemy.art.classList.contains('struck')&&!enemy.bar.hidden,kind+' ordinary hit feedback');
+    expect(difference(posePixels(img,3,0),posePixels(img,3,2))>350,kind+' flinch failed');
+    enemy.el.remove();
   }
-  expect(difference(lowerBody(48),lowerBody(176))>65,'feet must change with the stride');
-  const monsters=['grub','shroom','boar','bee','snail','elite','boss','queen'].map(kind=>pixels(()=>creature(ink,[1,kind,0,0,30,100,false,1,0],1,130,140)));
-  for(let i=0;i<monsters.length;i++)for(let j=0;j<i;j++)expect(difference(monsters[i],monsters[j])>75,'enemy silhouette');
+  for(let i=0;i<monsters.length;i++)for(let j=0;j<i;j++)expect(difference(monsters[i],monsters[j])>350,'enemy silhouettes match');
   const ultimateFrames=['staff','mage','scout'].map(job=>pixels(()=>{
     const view={t:1,fx:[[130,128,70,'#ffc285',58,'cast-'+job,0,0,'']],zones:[],shots:[]};
     if(job==='mage')view.zones.push([165,170,110,'meteor','#ffb040',55,91]);
@@ -88,8 +125,8 @@ async function exercise() {
   }));
   for(let i=0;i<3;i++)expect(difference(ultimateFrames[i],ultimateFrames[(i+1)%3])>350,'ultimate frames match');
   // 檢查等級門檻、雙轉職選項、不可重複選擇與多人檢視資料。
-  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=051');
-  const {THRESHOLD}=await import('./content.mjs?v=051');
+  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=060');
+  const {THRESHOLD}=await import('./content.mjs?v=060');
   const progression=newGame([{id:'promotion-test',job:'staff',name:'猴三毛'}],1234);
   const adventurerState=progression.players[0];
   progression.level=7;
@@ -105,13 +142,14 @@ async function exercise() {
   expect(buildView(progression,adventurerState.id).players[0].promotion==='king','promotion omitted from multiplayer view');
   el('jobs').children[1].click();el('solo').click();
   await until(()=>!el('play').hidden&&el('clock').textContent!=='0:00','battle never started');
+  await until(()=>document.querySelector('#field-art [data-route="mage"]')&&document.querySelector('#field-art [data-kind]'),'battle sprites never mounted');
   el('burst').click();
   await until(()=>el('burst').disabled,'burst did not cast');
   expect(el('mini-map').getBoundingClientRect().width>=70,'minimap is hidden');
   expect(el('mini-map').getContext('2d').getImageData(108,76,1,1).data[3]>0,'radar has no paint');
   el('radar-toggle').click();expect(el('mini-map').hidden,'radar did not fold');el('radar-toggle').click();
   el('bag').click();
-  await until(()=>!!document.querySelector('.dressing canvas'),'equipment preview missing');
+  await until(()=>!!document.querySelector('.dressing .hero-body .sprite-art'),'equipment preview missing');
   Array.from(document.querySelectorAll('#dialog-actions button')).find(b=>b.textContent==='果園行商').click();
   await until(()=>document.querySelectorAll('.market-item').length===3,'shop is unreachable from bag');
   Array.from(document.querySelectorAll('#dialog-actions button')).find(b=>b.textContent==='返回戰場').click();
@@ -122,6 +160,7 @@ async function exercise() {
   el('skillbook').click();
   await until(()=>!!document.querySelector('.skill-book-grid'),'skill panel missing');
   expect(document.getElementById('active-skills').children.length>0,'skill hotbar missing');
+  el('skillbook').click();
   return 'PASS';
 }
 const server = createServer(async (request, response) => {
@@ -138,7 +177,7 @@ const server = createServer(async (request, response) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const profile = await mkdtemp(join(tmpdir(), 'orchard-chrome-'));
-const chrome = spawn('google-chrome', ['--headless', '--no-sandbox',  '--window-size=1440,940',
+const chrome = spawn(process.env.CHROME_BIN || 'google-chrome', ['--headless', '--no-sandbox',  '--window-size=1440,940',
   '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank']);
 let diagnostics = '';
 chrome.stderr.on('data', data => { diagnostics += data; });
@@ -185,23 +224,33 @@ try {
   let current=false;
   for(let i=0;i<(publicPage?15:1);i++){
     try{
-      const response=await fetch(address+'?ci=051-'+Date.now(),{signal:AbortSignal.timeout(7000)});
-      if(response.ok&&(await response.text()).includes('data-build="0.5.1"')){current=true;break;}
+      const response=await fetch(address+'?ci=060-'+Date.now(),{signal:AbortSignal.timeout(7000)});
+      if(response.ok&&(await response.text()).includes('data-build="0.6.0"')){current=true;break;}
     }catch(error){console.log('Waiting for Pages:',error.message);}
     if(publicPage)await delay(3000);
   }
-  assert.ok(current,'Orchard v0.5.1 entry not available at '+address);
+  assert.ok(current,'Orchard v0.6.0 entry not available at '+address);
   for(const [width,height] of [[1440,860],[390,844]]){
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
-    await call('Page.navigate',{url:address+'?ci=051-'+width+'-'+Date.now()});
+    await call('Page.navigate',{url:address+'?ci=060-'+width+'-'+Date.now()});
     let loaded=false;
     for(let i=0;i<180;i++){
-      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.5.1' && !!document.getElementById('jobs')?.firstElementChild"});
+      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.6.0' && !!document.getElementById('jobs')?.firstElementChild"});
       if(state.result.value===true){loaded=true;break;}await delay(100);
     }
     assert.ok(loaded,'Game modules failed to initialise: '+JSON.stringify(exceptions));
+    async function captureScene(scene){
+      if(!process.env.ORCHARD_SCREENSHOTS)return;
+      const {data}=await call('Page.captureScreenshot',{format:'jpeg',quality:88});
+      await writeFile(join(process.env.ORCHARD_SCREENSHOTS,'orchard-'+scene+'-'+width+'.jpg'),Buffer.from(data,'base64'));
+    }
+    if(process.env.ORCHARD_SCREENSHOTS){
+      await call('Runtime.evaluate',{expression:"Promise.all(['orchard-stage','staff','mage','scout'].map(name=>{const img=new Image();img.src=new URL('./art/'+name+'.webp',location.href);return img.decode()}))",awaitPromise:true});
+      await captureScene('selection');
+    }
     const checked=await call('Runtime.evaluate',{expression:'('+exercise.toString()+')()',awaitPromise:true,returnByValue:true});
     assert.equal(checked.result.value,'PASS',checked.exceptionDetails?.exception?.description||JSON.stringify(exceptions));
+    await captureScene('battle');
     console.log('Orchard Chrome '+width+'x'+height+' PASS: 3 jobs + 6 visible advancement outfits, weapon levels 1–5 + evolution, 8 equipment slots, 8 monsters, 3 ultimates, radar, normal solo entry and equipment panel');
   }
   assert.deepEqual(exceptions,[]);
