@@ -229,6 +229,8 @@ function readyUp(){
     if(!connection?.open||Date.now()<guestReadyLockedUntil)return;
     guestReadyLockedUntil=Date.now()+700;
     connection.send({type:'ready'});
+    // 不依賴下一個網路快照解除按鈕鎖定，避免準備狀態卡死。
+    setTimeout(()=>{if(role==='guest'&&state?.phase==='lobby')renderLobby()},760);
     return;
   }
   state.ready[0]=!state.ready[0];broadcast();
