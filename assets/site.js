@@ -37,6 +37,17 @@
       board.append(rack);
       artwork.append(mascot, board);
       visual.append(artwork);
+    } else if (game.visualType === 'mystery-cabinet') {
+      // 專屬 CSS 美術，不載入舊圖片，也不使用外部生成素材。
+      const artwork = element('div', 'mystery-showcase');
+      artwork.setAttribute('role', 'img');
+      artwork.setAttribute('aria-label', '午夜星象中的黃銅神祕之門和十二道封印');
+      artwork.append(
+        element('div', 'mystery-cover-orbit', '✧　 ✦　 ✧'),
+        element('div', 'mystery-cover-door', '✦'),
+        element('div', 'mystery-cover-caption', 'TWELVE SEALED CABINETS')
+      );
+      visual.append(artwork);
     } else {
       const picture = element('img', 'game-illustration');
       picture.src = game.image;
