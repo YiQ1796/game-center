@@ -35,7 +35,9 @@ jobs:
           test -s assets/poker-monkey.webp
           node --check assets/site.js
           node --check assets/games.js
-          node scripts/verify-site.mjs
+          mkdir -p "$RUNNER_TEMP/orchard-preview" orchard-survival/previews
+          ORCHARD_SCREENSHOTS="$RUNNER_TEMP/orchard-preview" node scripts/verify-site.mjs
+          cp "$RUNNER_TEMP/orchard-preview/"orchard-*.jpg orchard-survival/previews/
           node scripts/verify-icons.mjs
           node --test scripts/test-stack-battle.mjs scripts/test-stack-battle-ui.mjs
           node scripts/smoke-stack-battle-gamepad.mjs

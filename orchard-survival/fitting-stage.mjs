@@ -1,4 +1,4 @@
-import { HeroSprite } from './actors.mjs?v=060';
+import { HeroSprite } from './actors.mjs?v=061';
 
 export class FittingStage {
   constructor(stage){

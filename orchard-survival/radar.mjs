@@ -1,45 +1,32 @@
-
-import { FIELD } from './content.mjs?v=060';
-import { LANDMARKS, ROADS } from './garden.mjs?v=060';
-import { ink, oval, stroke } from './paint.mjs?v=060';
+import { FIELD } from './content.mjs?v=061';
+import { LANDMARKS } from './garden.mjs?v=061';
 
 export class Radar {
-  constructor(canvas){
-    this.canvas=canvas;
-    this.ctx=canvas.getContext('2d');
-    this.last=-1;
-  }
-  draw(view,self,camera){
-    if(this.canvas.hidden||Math.abs(view.t-this.last)<.095)return;
-    this.last=view.t;
-    const c=this.ctx,w=this.canvas.width,h=this.canvas.height;
-    const sx=w/FIELD.width,sy=h/FIELD.height;
-    c.setTransform(1,0,0,1,0,0);c.fillStyle='#263d37';c.fillRect(0,0,w,h);
-    c.save();c.scale(sx,sy);
-    for(const [path,width] of ROADS)ink(c,path,null,'#ac9f76',width);
+  constructor(map){
+    this.map=map;this.marks=new Map();this.last=-1;
     for(const p of LANDMARKS){
-      if(p.kind==='post')continue;
-      c.fillStyle=p.kind==='mill'?'#80baae':'#dcaf79';c.fillRect(p.x-24,p.y-22,48,44);
+      const el=document.createElement('i');el.className='radar-point site';
+      el.style.left=(100*p.x/FIELD.width)+'%';el.style.top=(100*p.y/FIELD.height)+'%';map.append(el);
     }
-    c.strokeStyle='#9eab78';c.lineWidth=25;c.strokeRect(0,0,FIELD.width,FIELD.height);
-    c.restore();
-    c.fillStyle='#ec9b737f';
-    for(const cell of view.radar?.cells||[])c.fillRect(((cell%32)+.3)*w/32,(Math.floor(cell/32)+.2)*h/20,3,3);
-    const [x,y,worldWidth,worldHeight]=camera;
-    c.strokeStyle='#e0e7baae';c.lineWidth=1.3;c.strokeRect(x*sx,y*sy,worldWidth*sx,worldHeight*sy);
-    for(const [bx,by,type] of view.radar?.bosses||[]){
-      const px=bx*sx,py=by*sy;
-      c.save();c.translate(px,py);
-      ink(c,'M0 -6 L5 0 L0 6 L-5 0Z',type===2?'#ff9565':'#ffda79','#533e39',1.4);c.restore();
+  }
+  draw(view,self,[x,y,w,h]){
+    if(this.map.hidden||Math.abs(view.t-this.last)<.095)return;
+    this.last=view.t;
+    const seen=new Set();
+    const mark=(key,cls,px,py)=>{
+      let el=this.marks.get(key);
+      if(!el){el=document.createElement('i');this.marks.set(key,el);this.map.append(el);}
+      seen.add(key);el.className='radar-point '+cls;
+      el.style.left=(100*px/FIELD.width)+'%';el.style.top=(100*py/FIELD.height)+'%';
+      return el;
+    };
+    const frame=mark('view','camera',x,y);
+    frame.style.width=(100*w/FIELD.width)+'%';frame.style.height=(100*h/FIELD.height)+'%';
+    for(const cell of view.radar?.cells||[]){
+      mark('cell'+cell,'swarm',((cell%32)+.5)*FIELD.width/32,(Math.floor(cell/32)+.5)*FIELD.height/20);
     }
-    for(const player of view.players){
-      const px=player.x*sx,py=player.y*sy;
-      if(player.down){
-        stroke(c,[[px-4,py],[px+4,py]],'#ffbea0',2.2);stroke(c,[[px,py-4],[px,py+4]],'#ffbea0',2.2);
-      }else {
-        oval(c,px,py,player.id===self?5:3.7,player.id===self?5:3.7,'#25483f');
-        oval(c,px,py,player.id===self?3.7:2.8,player.id===self?3.7:2.8,player.id===self?'#ffedb0':'#8ee7dd');
-      }
-    }
+    for(const [i,[bx,by,type]] of (view.radar?.bosses||[]).entries())mark('boss'+i,type===2?'boss':'elite',bx,by);
+    for(const p of view.players)mark('player'+p.id,p.down?'down':p.id===self?'self':'ally',p.x,p.y);
+    for(const [key,el] of this.marks)if(!seen.has(key)){el.remove();this.marks.delete(key);}
   }
 }

@@ -1,6 +1,6 @@
 
-import { CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=060';
-import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=060';
+import { CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=061';
+import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=061';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -838,7 +838,7 @@ export function buildView(game, focusId) {
     enemies:game.enemies.filter(see).map(e=>[e.id,e.kind,n(e.x),n(e.y),e.radius,n(100*e.hp/e.maxHp),e.flash>0,e.face,n(e.wind*100),e.mode,n(e.tx),n(e.ty),n(e.aim*100)/100]),
     hits:[...game.hits].filter(([,h])=>see(h)).slice(-64).map(([id,h])=>
       [id,n(h.x),n(h.y),h.r,h.amount,h.critical,n((game.elapsed-h.at)*1000),h.direction,h.dead,h.art]),
-    gems:game.gems.filter(see).map(g=>[n(g.x),n(g.y),g.value]),
+    gems:game.gems.filter(see).map(g=>[n(g.x),n(g.y),g.value,g.id]),
     shots:game.shots.filter(see).map(s=>[s.id,n(s.x),n(s.y),n(s.angle*100)/100,s.color,s.kind,s.tier]),
     zones:game.zones.filter(see).map(z=>[n(z.x),n(z.y),n(z.radius),z.kind,z.color,n(100*z.life/z.max),z.id]),
     fx:game.fx.filter(see).slice(-44).map(f=>[n(f.x),n(f.y),n(f.radius),f.color,n(f.life/f.max*100),f.kind,n(f.x2),n(f.y2),f.label,f.id])

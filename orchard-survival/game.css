@@ -190,7 +190,6 @@ body.playing #top {display:none}
 .squad-hud {top:max(70px,calc(env(safe-area-inset-top) + 61px))}
 .look-preview {display:block;width:90px;max-width:100%;height:68px;margin:2px auto}
 .dressing {display:flex;align-items:center;gap:7px;background:#e8e9ca;padding:0 9px;border-radius:9px;margin:7px 0}
-.dressing canvas {margin:0}
 .dressing strong {font-size:.83rem}
 @media(max-width:720px){.hud {right:max(8px,env(safe-area-inset-right));left:max(8px,env(safe-area-inset-left));max-width:none;grid-template-columns:auto minmax(85px,1fr) auto;gap:3px}.bars {min-width:0}.radar {top:max(72px,calc(env(safe-area-inset-top) + 63px));width:98px;right:8px}.squad-hud{max-width:calc(100% - 118px)}.notice{top:max(122px,calc(env(safe-area-inset-top) + 113px));left:8px;transform:none;max-width:calc(100% - 119px);font-size:.73rem}.look-preview{height:52px}}
 @media(max-height:480px) and (orientation:landscape){.radar{top:6px;right:8px;width:90px}.hud{max-width:calc(100% - 110px)}.notice{top:75px}.look-preview{height:40px}}
@@ -317,7 +316,6 @@ body.playing #top {display:none}
 
 /* Keep all illustrated units in one depth-sorted world, aligned at their feet. */
 #field-art {position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0;pointer-events:none}
-#field-effects {position:absolute;inset:0;display:block;width:100%;height:100%;pointer-events:none}
 .world-unit {position:absolute;display:block;left:0;top:0;width:0;height:0;line-height:0;pointer-events:none}
 .hero-body,.enemy-body,.sprite-art,.worn-details,.scenery-img,.scenery-night {position:absolute;display:block}
 .hero-body {width:148px;height:89px;left:-62.16px;top:-81.95px;transform-origin:42% 92.08%}
@@ -351,5 +349,22 @@ body.playing #top {display:none}
 #fitting-stage {background:#92a17d url('./art/orchard-stage.webp') center/cover no-repeat}
 #stage-unit {top:81%}
 
-#field-illustrations {position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0;pointer-events:none}
-.spell-illustration {position:absolute;left:0;top:0;display:block;background-repeat:no-repeat;background-size:300% 100%;pointer-events:none}
+
+#field-items,#field-effects {position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0;pointer-events:none}
+.battle-illustration,.area-indicator,.warning,.damage-number {position:absolute;display:block;top:0;left:0;pointer-events:none}
+.battle-illustration {background-repeat:no-repeat;background-position:center}
+.area-indicator {border:1.5px dashed var(--area-color,#d3d59d);border-radius:50%;background:color-mix(in srgb,var(--area-color) 18%,transparent)}
+.warning {z-index:1;border:2px dashed #c44a37;background:#f0563b36}
+.warning.circle,.warning.timer {border-radius:50%}.warning.timer {border:1.5px solid #ffe1b6;background:none}
+.damage-number {z-index:3;font:800 15px/24px system-ui;color:#fff6dc;text-align:center;white-space:nowrap;text-shadow:-1px -1px #382832,1px -1px #382832,-1px 1px #382832,1px 1px #382832,0 2px 2px #382832}
+.damage-number.critical {font-size:19px;font-weight:900;color:#ffcf72}
+#mini-map {position:relative;overflow:hidden;aspect-ratio:216/152;background:linear-gradient(#142c2cc7,#20382fc4),url('./art/orchard-floor.webp') center/100% 100%}
+.radar-point {position:absolute;display:block;transform:translate(-50%,-50%);pointer-events:none}
+.radar-point.camera {transform:none;border:1px solid #e3ecc1a8}
+.radar-point.site {width:3px;height:3px;background:#f1d79c}
+.radar-point.swarm {width:2.5px;height:2.5px;background:#f5a386b8}
+.radar-point.self,.radar-point.ally,.radar-point.down {border-radius:50%;width:7px;height:7px;background:#fff1a9;box-shadow:0 0 0 1px #313a31}
+.radar-point.ally {width:5px;height:5px;background:#91ebdc}
+.radar-point.down {background:#ff9a87;clip-path:polygon(35% 0,65% 0,65% 35%,100% 35%,100% 65%,65% 65%,65% 100%,35% 100%,35% 65%,0 65%,0 35%,35% 35%)}
+.radar-point.boss,.radar-point.elite {width:6px;height:6px;background:#ff9168;transform:translate(-50%,-50%) rotate(45deg);border:1px solid #573e24}
+.radar-point.elite {background:#ffdc7e}

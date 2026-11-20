@@ -1,4 +1,4 @@
-import { SOCKETS } from './sockets.mjs?v=060';
+import { SOCKETS } from './sockets.mjs?v=061';
 
 // Actors are illustrated transparent image strips. The browser composites their
 // frames as DOM sprites in the field, the inventory and the fitting room.

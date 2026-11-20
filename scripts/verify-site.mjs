@@ -50,7 +50,7 @@ for (const game of games) {
     assert.equal(game.status, 'beta');
     assert.equal(game.image, 'orchard-survival/art/orchard-cover.webp');
     assert.ok(existsSync(resolve(root, game.image)), 'Orchard mascot is missing');
-    assert.match(read('orchard-survival/index.html'), /data-build="0\.6\.0"/);
+    assert.match(read('orchard-survival/index.html'), /data-build="0\.6\.1"/);
   } else if (game.id === 'stack-battle') {
     assert.equal(game.status, 'beta');
     assert.equal(game.name, '方塊派對');
@@ -95,7 +95,7 @@ execFileSync(process.execPath, ['--test', resolve(root, 'scripts/test-aqua-world
 await import('./smoke-aqua-world.mjs');
 
 execFileSync(process.execPath, ['--test', resolve(root, 'scripts/test-orchard.mjs')], { stdio: 'inherit' });
-for (const name of ['content', 'advancement', 'sockets', 'arena', 'scene', 'squad', 'game', 'paint', 'actors', 'garden', 'fitting-stage', 'radar', 'spells']) {
+for (const name of ['content', 'advancement', 'sockets', 'arena', 'scene', 'squad', 'game', 'actors', 'garden', 'fitting-stage', 'radar', 'spells']) {
   execFileSync(process.execPath, ['--check', resolve(root, 'orchard-survival', name + '.mjs')]);
 }
 
