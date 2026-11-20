@@ -6,7 +6,7 @@ import {GAMES,createGame,updateGame,WIDTH,HEIGHT} from './engine.js?v=200';
 import {drawGame} from './art.js?v=200';
 
 const $=id=>document.getElementById(id);
-const ROOM_PREFIX='midnight-curio-';
+const ROOM_PREFIX='midnight-curio-v2-';
 const HOST_KEY='midnight-curio-host-room';
 const SAVE_PREFIX='midnight-curio-v2-';
 const NAME_KEY='midnight-curio-name';
