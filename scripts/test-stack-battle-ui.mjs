@@ -32,7 +32,7 @@ test('Compact phone pad keeps a small left hard-drop and four right-side directi
     r: '2 / 3 / 3 / 4',
     d: '3 / 2 / 4 / 3'
   })) {
-    assert.ok(css.includes('[data-action="' + action + '"] { grid-area: ' + area + ';'));
+    assert.match(css, new RegExp('\\[data-action="' + action + '"\\]\\s*\\{\\s*grid-area: ' + area.replaceAll('/', '\\/') + ';'));
   }
   assert.match(css, /-webkit-user-select: none/);
   assert.match(css, /touch-action: none/);

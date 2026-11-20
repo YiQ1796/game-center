@@ -135,7 +135,85 @@ try {
     });
     if (response.exceptionDetails) throw new Error(response.exceptionDetails.exception?.description);
     assert.equal(response.result.value.width, width);
-    console.log('Stack Battle red-box D-pad Chrome ' + width + 'px PASS');
+    // Exercise both event paths in the real browser. Layout-only checks
+    // previously missed a Safari rotation button that silently ignored taps.
+    const pointerCheck = await call('Runtime.evaluate', {
+      expression: `(() => {
+        const rotate = document.querySelector('[data-action="s"]');
+        const hardDrop = document.querySelector('[data-action="h"]');
+        const board = document.getElementById('board');
+        const fingerprint = () => {
+          const pixels = board.getContext('2d').getImageData(0, 0, board.width, board.height).data;
+          let hash = 2166136261;
+          for (let i = 0; i < pixels.length; i += 73) {
+            hash = Math.imul(hash ^ pixels[i], 16777619) >>> 0;
+          }
+          return hash;
+        };
+        const press = id => {
+          rotate.dispatchEvent(new PointerEvent('pointerdown', {
+            bubbles: true, cancelable: true, pointerType: 'touch', pointerId: id, button: 0
+          }));
+          const changed = fingerprint();
+          rotate.dispatchEvent(new PointerEvent('pointerup', {
+            bubbles: true, pointerType: 'touch', pointerId: id, button: 0
+          }));
+          return changed;
+        };
+        let before = fingerprint();
+        let after = press(908);
+        // An O (square) piece does not visibly rotate, so advance one piece.
+        if (after === before) {
+          hardDrop.click();
+          before = fingerprint();
+          after = press(909);
+        }
+        if (after === before) throw new Error('Pointer press did not rotate a rotatable piece');
+        rotate.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+        if (fingerprint() !== after)
+          throw new Error('Pointer press caused duplicate rotation via synthesized click');
+        return true;
+      })()`,
+      returnByValue: true
+    });
+    if (pointerCheck.exceptionDetails || pointerCheck.result.value !== true)
+      throw new Error('Pointer rotation test failed: ' +
+        (pointerCheck.exceptionDetails?.exception?.description ?? JSON.stringify(pointerCheck.result)));
+    await delay(120);
+    const touchCheck = await call('Runtime.evaluate', {
+      expression: `(() => {
+        const rotate = document.querySelector('[data-action="s"]');
+        const board = document.getElementById('board');
+        const fingerprint = () => {
+          const pixels = board.getContext('2d').getImageData(0, 0, board.width, board.height).data;
+          let hash = 2166136261;
+          for (let i = 0; i < pixels.length; i += 73) hash = Math.imul(hash ^ pixels[i], 16777619) >>> 0;
+          return hash;
+        };
+        const before = fingerprint();
+        const box = rotate.getBoundingClientRect();
+        const finger = new Touch({
+          identifier: 911, target: rotate,
+          clientX: box.left + box.width / 2, clientY: box.top + box.height / 2
+        });
+        rotate.dispatchEvent(new TouchEvent('touchstart', {
+          bubbles: true, cancelable: true,
+          touches: [finger], targetTouches: [finger], changedTouches: [finger]
+        }));
+        const after = fingerprint();
+        rotate.dispatchEvent(new TouchEvent('touchend', {
+          bubbles: true, cancelable: true,
+          touches: [], targetTouches: [], changedTouches: [finger]
+        }));
+        if (after === before) throw new Error('Touchstart fallback did not rotate');
+        return true;
+      })()`,
+      returnByValue: true
+    });
+    if (touchCheck.exceptionDetails || touchCheck.result.value !== true)
+      throw new Error('Safari touchstart fallback test failed: ' +
+        (touchCheck.exceptionDetails?.exception?.description ?? JSON.stringify(touchCheck.result)));
+    console.log('Stack Battle red-box D-pad Chrome ' + width + 'px PASS (layout + pointer + touch rotation)');
   }
 } finally {
   socket?.close();
