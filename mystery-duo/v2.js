@@ -215,7 +215,10 @@ function connectGuest(){
     if(!Array.isArray(data.names)||data.names.length!==2||!['lobby','play','result'].includes(data.phase))return;
     const previousId=state?.roundId;
     state=data;
-    if(previousId!==state.roundId)resetInputs();
+    if(previousId!==state.roundId){resetInputs();lastSoundEvent=-1}
+    if(state.phase==='play'&&state.data?.event&&state.data.eventAt!==lastSoundEvent){
+      lastSoundEvent=state.data.eventAt;synth(2);
+    }
     $('welcome-status').textContent='';
     render();
   });
@@ -350,7 +353,9 @@ function keyControl(event,down){
   if(!state||state.phase!=='play'||!KEYS[event.code])return;
   if(event.target instanceof HTMLElement&&event.target.closest('input,textarea,[contenteditable]'))return;
   event.preventDefault();
-  const [p,kind]=KEYS[event.code];
+  const [physicalPlayer,kind]=KEYS[event.code];
+  // 異地加入者可用自己的 WASD／空白鍵，不必改用訪客二鍵位。
+  const p=role==='guest'?1:physicalPlayer;
   if(!myPlayers().includes(p))return;
   const tag=p+':'+kind;
   if(down){
