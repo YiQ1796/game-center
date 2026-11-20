@@ -1,4 +1,4 @@
-import { FIELD } from './content.mjs?v=061';
+import { FIELD } from './content.mjs?v=062';
 function orchardSeed(x,y){
   let n=(Math.imul(x+139,73856093)^Math.imul(y+61,19349663))>>>0;
   return ()=>{n=(Math.imul(n,1664525)+1013904223)>>>0;return n/4294967296;};
@@ -16,7 +16,7 @@ export const LANDMARKS=[
   {kind:'shed',x:641,y:404,scale:.95,name:'北坡果寮'},
   {kind:'mill',x:1954,y:1412,scale:1,name:'南灌渠'}
 ];
-const clearings=[[1330,930,117],...LANDMARKS.map(p=>[p.x,p.y,90])];
+const clearings=[[1330,930,270],...LANDMARKS.map(p=>[p.x,p.y,90])];
 function makeGrove(){
   const list=LANDMARKS.map(item=>({...item,variant:0}));
   function add(kind,x,y,scale,variant){list.push({kind,x,y,scale,variant});}
@@ -24,7 +24,7 @@ function makeGrove(){
     const random=orchardSeed(i,j);
     const cx=i*320+60+random()*150,cy=j*335+82+random()*150;
     const cultivar=Math.floor(random()*3),banana=(i+2*j)%5===1;
-    for(let n=0;n<4;n++){
+    for(let n=0;n<2;n++){
       const x=cx+(random()-.5)*175,y=cy+(random()-.5)*120;
       const size=.70+random()*.53,variant=cultivar+3*Math.floor(random()*3);
       if(x<38||y<40||x>FIELD.width-38||y>FIELD.height-35||clearings.some(([cx,cy,r])=>Math.hypot(x-cx,y-cy)<r))continue;
@@ -32,9 +32,7 @@ function makeGrove(){
       add(banana?'banana':'tree',x,y,size,banana?0:variant);
     }
   }
-  for(const [x,y,variant] of [[1166,1020,1],[1209,1056,4],[1496,805,0],[1555,783,3]]){
-    add('tree',x,y,1.01,variant);
-  }
+  
   for(let x=0;x<FIELD.width+64;x+=77){
     add('tree',x,6+12*Math.sin(x),.94,Math.floor(x/77)%9);
     add('tree',x+24,FIELD.height+38+12*Math.cos(x),.98,Math.floor(x/77)%9);

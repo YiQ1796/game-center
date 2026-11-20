@@ -1,5 +1,5 @@
-import { FIELD } from './content.mjs?v=061';
-import { LANDMARKS } from './garden.mjs?v=061';
+import { FIELD } from './content.mjs?v=062';
+import { LANDMARKS } from './garden.mjs?v=062';
 
 export class Radar {
   constructor(map){

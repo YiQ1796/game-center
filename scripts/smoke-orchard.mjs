@@ -18,8 +18,8 @@ async function exercise() {
     throw Error(hint);
   };
   await until(()=>el('jobs')?.children.length===3,'class selection never loaded');
-  const {HeroSprite,EnemySprite,gearIcon}=await import('./actors.mjs?v=061');
-  const {FieldEffects}=await import('./spells.mjs?v=061');
+  const {HeroSprite,EnemySprite,gearIcon}=await import('./actors.mjs?v=062');
+  const {FieldEffects}=await import('./spells.mjs?v=062');
   expect(document.querySelectorAll('canvas').length===0,'unexpected Canvas renderer in the game');
   const target=document.createElement('canvas');target.width=290;target.height=240;
   const ink=target.getContext('2d',{willReadFrequently:true});
@@ -39,7 +39,7 @@ async function exercise() {
     expect(el('stage-name').textContent===routeName&&stage.getAttribute('aria-label').includes(routeName),'fitting route mismatch');
     expect(el('jobs').children[index].getAttribute('aria-pressed')==='true','audition changed starting class');
   }
-  const {Garden,fieldLight,LANDMARKS}=await import('./garden.mjs?v=061');
+  const {Garden,fieldLight,LANDMARKS}=await import('./garden.mjs?v=062');
   const garden=new Garden(),day=fieldLight(0),night=fieldLight(168);
   const fieldImage=new Image();fieldImage.src=new URL('./art/orchard-floor.webp',location.href);await fieldImage.decode();
   expect(fieldImage.naturalWidth>=1200,'illustrated field missing');
@@ -67,7 +67,7 @@ async function exercise() {
     const w=img.width/count,h=img.height;
     return pixels(()=>ink.drawImage(img,frame*w,lower?h*.62:0,w,lower?h*.38:h,0,0,220,lower?58:150));
   }
-  const ready=[];
+  const ready=new Map();
   for(const [job,paths] of [['staff',['staff','king','guardian']],['mage',['mage','storm','archmage']],['scout',['scout','ranger','shadow']]]){
     for(const route of paths){
       const hero=new HeroSprite(),look={level:1,slots:Array(8).fill(0)};
@@ -75,7 +75,8 @@ async function exercise() {
       document.body.append(hero.el);
       hero.update(player,true,true);
       const img=await loadStrip(hero.art,4);
-      ready.push(posePixels(img,4,0));
+      expect(hero.art.dataset.sheet===job,'promotion replaced the hero body');
+      ready.set(job,posePixels(img,4,0));
       expect(difference(posePixels(img,4,1,true),posePixels(img,4,2,true))>65,route+' legs have identical strides');
       expect(difference(posePixels(img,4,0),posePixels(img,4,3))>700,route+' attack silhouette failed');
       for(const [gait,frame] of [[48,1],[176,2]]){
@@ -103,7 +104,7 @@ async function exercise() {
       hero.el.remove();
     }
   }
-  for(let i=0;i<ready.length;i++)for(let j=0;j<i;j++)expect(difference(ready[i],ready[j])>800,'outfit illustrations match');
+  for(const [job,pose] of ready)for(const [other,otherPose] of ready)if(job!==other)expect(difference(pose,otherPose)>800,'class outfits match');
   const monsters=[];
   for(const kind of ['grub','shroom','boar','bee','snail','elite','boss','queen']){
     const enemy=new EnemySprite(),state=[12,kind,0,0,30,65,false,1,0];
@@ -135,8 +136,8 @@ async function exercise() {
   fxState.shots=[];fxState.hits=[];effects.draw(fxState,projected,true,visible);
   expect(over.childElementCount===0,'expired effects leaked into the next frame');
   // 檢查等級門檻、雙轉職選項、不可重複選擇與多人檢視資料。
-  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=061');
-  const {THRESHOLD}=await import('./content.mjs?v=061');
+  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=062');
+  const {THRESHOLD}=await import('./content.mjs?v=062');
   const progression=newGame([{id:'promotion-test',job:'staff',name:'猴三毛'}],1234);
   const adventurerState=progression.players[0];
   progression.level=7;
@@ -234,18 +235,18 @@ try {
   let current=false;
   for(let i=0;i<(publicPage?15:1);i++){
     try{
-      const response=await fetch(address+'?ci=061-'+Date.now(),{signal:AbortSignal.timeout(7000)});
-      if(response.ok&&(await response.text()).includes('data-build="0.6.1"')){current=true;break;}
+      const response=await fetch(address+'?ci=062-'+Date.now(),{signal:AbortSignal.timeout(7000)});
+      if(response.ok&&(await response.text()).includes('data-build="0.6.2"')){current=true;break;}
     }catch(error){console.log('Waiting for Pages:',error.message);}
     if(publicPage)await delay(3000);
   }
-  assert.ok(current,'Orchard v0.6.1 entry not available at '+address);
+  assert.ok(current,'Orchard v0.6.2 entry not available at '+address);
   for(const [width,height] of [[1440,860],[390,844]]){
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
-    await call('Page.navigate',{url:address+'?ci=061-'+width+'-'+Date.now()});
+    await call('Page.navigate',{url:address+'?ci=062-'+width+'-'+Date.now()});
     let loaded=false;
     for(let i=0;i<180;i++){
-      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.6.1' && !!document.getElementById('jobs')?.firstElementChild"});
+      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.6.2' && !!document.getElementById('jobs')?.firstElementChild"});
       if(state.result.value===true){loaded=true;break;}await delay(100);
     }
     assert.ok(loaded,'Game modules failed to initialise: '+JSON.stringify(exceptions));

@@ -1,5 +1,5 @@
 
-export const BUILD = '0.6.1';
+export const BUILD = '0.6.2';
 export const SKILL_CAP = 10;
 export const PASSIVE_CAP = 10;
 export const ATTRIBUTES = Object.freeze({str:'力量',agi:'敏捷',vit:'體質',int:'智慧',dex:'靈巧',luk:'幸運'});
@@ -11,14 +11,26 @@ export const RARITIES = [
   ['史詩','#783aa5'], ['傳說','#a64b16'], ['神話','#a52459']
 ];
 export const CLASSES = {
-  staff: { name:'金箍護園員', role:'近戰・耐打', icon:'🥢', color:'#f8ab46', hp:132, speed:212, skill:'sweep', burst:'金箍大旋風',
+  staff: { name:'金箍護園員', role:'近戰・耐打', icon:'🥢', color:'#f8ab46', hp:132, speed:178, skill:'sweep', burst:'金箍大旋風',
     description:'揮棒掃開身邊的怪群。被圍住時，用大旋風開路。' },
-  mage: { name:'香蕉魔法師', role:'遠程・範圍', icon:'🔥', color:'#c68af1', hp:96, speed:218, skill:'fire', burst:'果園流星雨',
+  mage: { name:'香蕉魔法師', role:'遠程・範圍', icon:'🔥', color:'#c68af1', hp:96, speed:182, skill:'fire', burst:'果園流星雨',
     description:'火球在怪群中炸開。大招會灑下六次流星。' },
-  scout: { name:'果園巡邏手', role:'遠程・機動', icon:'🏹', color:'#65dce1', hp:106, speed:240, skill:'seed', burst:'連環果籽箭',
+  scout: { name:'果園巡邏手', role:'遠程・機動', icon:'🏹', color:'#65dce1', hp:106, speed:202, skill:'seed', burst:'連環果籽箭',
     description:'靠走位拉開距離。大招向四周射出穿透果籽。' }
 };
+export const CLASS_KITS = {
+  staff:['sweep','nut','puff','echo','fault','wheel'],
+  mage:['fire','spark','frost','hive','comet','stormwell'],
+  scout:['seed','peel','pop','drop','fan','snare']
+};
+export const CLASS_RELICS = {staff:'gauntlet',mage:'grimoire',scout:'quiver'};
 export const SKILLS = {
+  fault:['裂地棍','重擊腳下，震退近身敵人',42,134,2.1,'#efbc69','push'],
+  wheel:['旋身護棍','三處旋擊環繞近身',22,112,.86,'#e7ae57','orbit'],
+  comet:['墜星術','標記遠方敵人，短暫延遲後墜落',53,535,2.65,'#dc93fa','drop'],
+  stormwell:['紫晶法陣','在怪群腳下持續造成傷害',14,435,2.8,'#c19af2','field'],
+  fan:['扇羽箭','朝目標扇射三箭',13,480,1.22,'#95ebce','fan'],
+  snare:['獵人霜箭','凍住目標周邊的地面，使怪物減速',18,490,2.15,'#99dbec','slow'],
   sweep: ['金箍橫掃','近距離環形揮擊',24,121,0.81,'#ffd692','ring'],
   fire: ['焦糖火球','打向最近的怪，命中後爆炸',23,455,1.02,'#ff9859','blast'],
   seed: ['果籽箭','瞄準怪物，箭矢能穿過多個敵人',17,515,0.58,'#abf1df','pierce'],
@@ -33,6 +45,9 @@ export const SKILLS = {
   echo: ['回音竹槍','從身邊朝不同方向射出竹槍',14,380,1.54,'#a8e9a8','radial']
 };
 export const PASSIVES = {
+  gauntlet:['破陣腕甲','每級增加 5% 傷害與 4% 攻擊範圍'],
+  grimoire:['星紋法典','每級增加 6% 傷害並縮短 2% 冷卻'],
+  quiver:['翠羽箭袋','每級增加 3% 暴擊率並縮短 3% 冷卻'],
   power:['果園力氣','傷害 +12%'],
   haste:['快手手套','技能冷卻縮短，最多縮短 55%'],
   reach:['伸縮竹竿','近戰與範圍技能的攻擊半徑增加'],

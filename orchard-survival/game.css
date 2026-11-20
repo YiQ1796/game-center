@@ -368,3 +368,9 @@ body.playing #top {display:none}
 .radar-point.down {background:#ff9a87;clip-path:polygon(35% 0,65% 0,65% 35%,100% 35%,100% 65%,65% 65%,65% 100%,35% 100%,35% 65%,0 65%,0 35%,35% 35%)}
 .radar-point.boss,.radar-point.elite {width:6px;height:6px;background:#ff9168;transform:translate(-50%,-50%) rotate(45deg);border:1px solid #573e24}
 .radar-point.elite {background:#ffdc7e}
+
+.orchard-ground{background-color:#899767;background-blend-mode:soft-light}
+.scenery-img{filter:saturate(.72) brightness(var(--scenery-light,1))}
+.enemy-body .sprite-art{filter:drop-shadow(0 1px 1px #302a1e)}
+.warning.charge{border:0;clip-path:polygon(0 32%,78% 32%,78% 3%,100% 50%,78% 97%,78% 68%,0 68%);background:linear-gradient(90deg,#b15a3155,#de7639ca 60%,#fff0ab);box-shadow:inset 0 0 10px #71311a}
+.warning.circle,.area-indicator{border-style:solid}

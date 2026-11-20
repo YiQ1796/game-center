@@ -1,4 +1,4 @@
-import { SOCKETS } from './sockets.mjs?v=061';
+import { SOCKETS } from './sockets.mjs?v=062';
 
 // Actors are illustrated transparent image strips. The browser composites their
 // frames as DOM sprites in the field, the inventory and the fitting room.
@@ -43,11 +43,15 @@ export class HeroSprite{
   update(p,self=true,preview=false){
     const look=p.look||{},slots=look.slots||[],route=routeFor(p.job,p.promotion);
     const frame=heroFrame(p),swing=look.swing||0;
-    imageStrip(this.art,route,frame,4);
+    imageStrip(this.art,p.job,frame,4);
     const face=p.face<0?-1:1;
     const angle=p.down?-65:swing>85?-7:swing>0&&swing<18?3:0;
     const tilt=p.walk&&p.travelY?Math.sign(p.travelY)*1.5:0;
-    style(this.body,'transform','scaleX('+face+') rotate('+(angle+tilt)+'deg)');
+    const phase=(p.gait||0)*Math.PI/128;
+    const step=p.walk&&!p.down?Math.sin(phase):0;
+    const strike=p.down?0:Math.sin(Math.PI*Math.min(1,swing/100));
+    const lunge=strike*({staff:7,mage:-2,scout:-4}[p.job]||0);
+    style(this.body,'transform','translate('+ (face*lunge).toFixed(1)+'px,'+(-Math.abs(step)*2.5-(p.job==='mage'?strike*4:0)).toFixed(1)+'px) scaleX('+face+') rotate('+(angle+tilt+step*2+strike*(p.job==='staff'?8:-3)).toFixed(1)+'deg)');
     style(this.body,'opacity',p.inv?'.82':'1');
     const build=[route,...slots,look.level||1,Boolean(look.evolved)].join('/');
     if(build!==this.gearKey){
@@ -72,7 +76,7 @@ export class HeroSprite{
         el.style.filter='drop-shadow(0 0 '+(look.evolved?3:1)+'px '+(slots[0]?rarity(slots[0]):'#ffde91')+')';
       }
     }
-    const anchors=SOCKETS[route][frame];
+    const anchors=SOCKETS[p.job][frame];
     for(const [part,el] of this.fittings){
       const a=ANCHOR_INDEX[part],x=anchors[a*2],y=anchors[a*2+1];
       style(el,'left',x+'%');style(el,'top',y+'%');

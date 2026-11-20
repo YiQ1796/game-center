@@ -1,8 +1,8 @@
-import { FIELD } from './content.mjs?v=061';
-import { HeroSprite, EnemySprite } from './actors.mjs?v=061';
-import { Garden, fieldLight } from './garden.mjs?v=061';
-import { Radar } from './radar.mjs?v=061';
-import { FieldEffects } from './spells.mjs?v=061';
+import { FIELD } from './content.mjs?v=062';
+import { HeroSprite, EnemySprite } from './actors.mjs?v=062';
+import { Garden, fieldLight } from './garden.mjs?v=062';
+import { Radar } from './radar.mjs?v=062';
+import { FieldEffects } from './spells.mjs?v=062';
 const LIMIT=(v,min,max)=>Math.max(min,Math.min(max,v));
 export class Scene {
   constructor(viewport,mini) {
@@ -60,7 +60,7 @@ export class Scene {
     // Let the paths, the characters and the trees share a single ground plane.
     const protectedActors=[...view.players];
     for(const enemy of view.enemies){
-      if(enemy[8]>0||['elite','boss','queen'].includes(enemy[1]))protectedActors.push({x:enemy[2],y:enemy[3]});
+      if(show(enemy[2],enemy[3],150))protectedActors.push({x:enemy[2],y:enemy[3]});
     }
     this.world.style.transform='matrix('+[zoom,0,0,zoom,-x*zoom,-y*zoom].join(',')+')';
     this.garden.ground.style.transform=this.world.style.transform;

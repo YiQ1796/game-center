@@ -70,9 +70,13 @@ export class FieldEffects {
       front.art('shot'+id,shotArt[kind]||'seed-arrow',px,py-15,size,kind==='return'?size:kind==='pierce'?size*.26:size*.54,kind==='return'?view.t*12:angle);
     }
     for(const enemy of view.enemies){
-      if(!enemy[8]||!visible(enemy[2],enemy[3],700))continue;
+      if(!(enemy[8]||enemy[13])||!visible(enemy[2],enemy[3],700))continue;
       const [id,kind,x,y,,,,,wind,mode,tx,ty,aim]=enemy;
       if(kind==='boar'){
+        if(enemy[13]){
+          front.art('rush'+id,'wind-trail',x-32*Math.cos(aim),y-32*Math.sin(aim),83,32,aim,.8);
+          continue;
+        }
         front.place('warn'+id,'warning charge',x+86*Math.cos(aim),y+86*Math.sin(aim),172,38,aim);
       }else{
         const points=mode===2?[[tx,ty],[tx-116,ty+66],[tx+116,ty-66]]:[[tx,ty]];

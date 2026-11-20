@@ -1,6 +1,6 @@
 
-import { CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=061';
-import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=061';
+import { CLASS_KITS, CLASS_RELICS, CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=062';
+import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=062';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -70,14 +70,14 @@ export function stats(player, equipment=player.gear) {
   const mainAttribute=player.job==='staff'?'str':player.job==='mage'?'int':'dex';
   const baseAttack=(attr(mainAttribute)-5)*.027;
   return {
-    power:(1 + rank('power')*.12 + bonus('power')) * (1 + .3 * Math.log1p(player.limit/5)) * (1+promoted('power')+baseAttack), 
-    haste:Math.max(.35, 1-rank('haste')*.075-bonus('haste')-promoted('haste')-(attr('agi')-5)*.003),
-    reach:Math.min(2.3, 1+rank('reach')*.09+bonus('reach')+promoted('reach')+(attr('dex')-5)*.003),
+    power:(1 + rank('gauntlet')*.05 + rank('grimoire')*.06 + rank('power')*.12 + bonus('power')) * (1 + .3 * Math.log1p(player.limit/5)) * (1+promoted('power')+baseAttack), 
+    haste:Math.max(.35, 1-rank('grimoire')*.02-rank('quiver')*.03-rank('haste')*.075-bonus('haste')-promoted('haste')-(attr('agi')-5)*.003),
+    reach:Math.min(2.3, 1+rank('gauntlet')*.04+rank('reach')*.09+bonus('reach')+promoted('reach')+(attr('dex')-5)*.003),
     magnet:Math.min(255, 57+rank('magnet')*24+bonus('magnet')),
-    speed:CLASSES[player.job].speed*Math.min(1.82,1+rank('boots')*.06+bonus('boots')+promoted('speed')+(attr('agi')-5)*.006),
+    speed:CLASSES[player.job].speed*Math.min(1.55,1+rank('boots')*.06+bonus('boots')+promoted('speed')+(attr('agi')-5)*.006),
     resist:Math.max(.26, 1-rank('guard')*.08-bonus('guard')-promoted('guard')-(attr('vit')-5)*.002),
     hp:(CLASSES[player.job].hp+rank('heart')*18+bonus('heart')+(attr('vit')-5)*7)*(1+promoted('health')),
-    crit:Math.min(.75,.05+rank('crit')*.06+bonus('crit')+promoted('crit')+(attr('luk')-5)*.006),
+    crit:Math.min(.75,.05+rank('quiver')*.03+rank('crit')*.06+bonus('crit')+promoted('crit')+(attr('luk')-5)*.006),
     regen:rank('regen')*.45+bonus('regen'), wisdom:rank('wisdom')*.08+bonus('wisdom')
   };
 }
@@ -119,6 +119,7 @@ function makeOffers(game, player) {
   const passiveCount = Object.keys(player.passive).length;
   const active = Object.entries(SKILLS).flatMap(([key,skill]) => {
     const level = player.skills[key] || 0;
+    if (!level && !CLASS_KITS[player.job].includes(key)) return [];
     if (level >= SKILL_CAP || (!level && activeCount >= 6)) return [];
     if (player.forgotten.includes(key)) return [];
     return [{ type:'skill', key, name:skill[0],
@@ -127,6 +128,7 @@ function makeOffers(game, player) {
   });
   const passive = Object.entries(PASSIVES).flatMap(([key,perk]) => {
     const level = player.passive[key] || 0;
+    if (!level && Object.values(CLASS_RELICS).includes(key) && CLASS_RELICS[player.job]!==key) return [];
     if (player.forgotten.includes(key) || level >= PASSIVE_CAP || (!level && passiveCount >= 6)) return [];
     return [{ type:'passive', key, name:perk[0], text:'Lv.'+level+' → '+(level+1)+'｜'+perk[1],
       detail:'被動技能｜最高 Lv.'+PASSIVE_CAP }];
@@ -135,12 +137,15 @@ function makeOffers(game, player) {
     player.skills[key] >= 5 && player.passive[perk] && !player.evolution[key]
       ? [{ type:'evolution', key, name, text:'傷害大幅提高，範圍擴張，普攻變為進化版' }] : []);
   shuffled(game, active);
+  const previous=new Set(player.lastOfferKeys||[]);
+  const freshFirst=(left,right)=>Number(previous.has(left.key))-Number(previous.has(right.key));
+  active.sort(freshFirst);
   const primary = CLASSES[player.job].skill;
   const primaryIndex = active.findIndex(option => option.key === primary);
-  if (primaryIndex > 0 && (game.level <= 3 || game.level % 3 === 0)) {
+  if (primaryIndex > 0 && (game.level % 4 === 0)) {
     active.unshift(active.splice(primaryIndex, 1)[0]);
   }
-  shuffled(game, passive);
+  shuffled(game, passive).sort(freshFirst);
   const choices = [...evolutions.slice(0,1)];
   if (active.length) choices.push(active.shift());
   if (passive.length) choices.push(passive.shift());
@@ -163,6 +168,7 @@ function makeOffers(game, player) {
     choices[index]={...original,grade:'epic',rankGain:Math.min(2,SKILL_CAP-current),
       text:'史詩強化！Lv.'+current+' → '+Math.min(SKILL_CAP,current+2)+'｜'+SKILLS[original.key][1]};
   }
+  player.lastOfferKeys=choices.map(option=>option.key);
   player.offers = choices;
   player.offerId += 1;
   player.deadline = game.elapsed + 12;
@@ -426,7 +432,7 @@ function useSkill(game, player, key, level, config) {
   const scale = config.reach*(evolved ? 1.27 : 1);
   const x = player.x, y = player.y;
   const target = range && (kind==='ring'?nearestBody(game,x,y,range*scale):nearest(game,x,y,range));
-  const targeted = ['blast','pierce','return','chain','slow','field','drop'].includes(kind);
+  const targeted = ['fan','blast','pierce','return','chain','slow','field','drop'].includes(kind);
   if (targeted && !target) return;
   const angle = target ? Math.atan2(target.y-y,target.x-x) : 0;
   if (kind === 'ring' || kind === 'orbit' || kind === 'push') {
@@ -459,9 +465,9 @@ function useSkill(game, player, key, level, config) {
     const duration=kind==='mine' ? 7 : kind==='field' ? 2.5 : .48;
     zone(game,player,kind,target?.x ?? x,target?.y ?? y,(kind==='mine' ? 73 : 89)*scale,amount,color,config.crit,duration);
   } else {
-    const angles = kind === 'radial' ? headings : evolved && kind==='return' ? [angle-.19,angle+.19] : evolved && kind==='pierce' ? [angle-.15,angle,angle+.15] : [angle];
+    const angles = kind === 'fan' ? [angle-.21,angle,angle+.21] : kind === 'radial' ? headings : evolved && kind==='return' ? [angle-.19,angle+.19] : evolved && kind==='pierce' ? [angle-.15,angle,angle+.15] : [angle];
     for (const direction of angles) {
-      shoot(game,player,direction,{amount,color,crit:config.crit,reach:(range+40)*scale,kind,tier:evolved?6:level,speed:kind==='blast' ? 445 : 580,
+      shoot(game,player,direction,{amount,color,crit:config.crit,reach:(range+40)*scale,kind:kind==='fan'?'pierce':kind,tier:evolved?6:level,speed:kind==='blast' ? 445 : 580,
         pierce:kind==='pierce' ? 2+Math.floor(level/2)+(evolved ? 2 : 0) : kind==='return' ? 12 : kind==='radial' ? 2 : 1});
     }
     if (evolved && kind === 'blast') zone(game,player,'meteor',target.x,target.y,105*scale,amount*.58,color,config.crit,.58);
@@ -835,7 +841,7 @@ export function buildView(game, focusId) {
     boss:game.enemies.filter(e=>e.hp>0&&['boss','queen'].includes(e.kind))
       .map(e=>({name:ENEMIES[e.kind][5],hp:n(e.hp),maxHp:n(e.maxHp),kind:e.kind}))
       .sort((a,b)=>b.hp-a.hp)[0]||null,
-    enemies:game.enemies.filter(see).map(e=>[e.id,e.kind,n(e.x),n(e.y),e.radius,n(100*e.hp/e.maxHp),e.flash>0,e.face,n(e.wind*100),e.mode,n(e.tx),n(e.ty),n(e.aim*100)/100]),
+    enemies:game.enemies.filter(see).map(e=>[e.id,e.kind,n(e.x),n(e.y),e.radius,n(100*e.hp/e.maxHp),e.flash>0,e.face,n(e.wind*100),e.mode,n(e.tx),n(e.ty),n(e.aim*100)/100,n(Math.max(0,e.dash)*100)]),
     hits:[...game.hits].filter(([,h])=>see(h)).slice(-64).map(([id,h])=>
       [id,n(h.x),n(h.y),h.r,h.amount,h.critical,n((game.elapsed-h.at)*1000),h.direction,h.dead,h.art]),
     gems:game.gems.filter(see).map(g=>[n(g.x),n(g.y),g.value,g.id]),

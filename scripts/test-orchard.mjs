@@ -10,8 +10,8 @@ const seats = (...jobs) => jobs.map((job,i)=>({id:'player-'+i,name:'隊員 '+(i+
 const tick = (game,count) => { for(let i=0;i<count;i++) advance(game); };
 
 test('opening loadouts, bounded movement and world positions',()=>{
-  assert.equal(Object.keys(SKILLS).length,12);
-  assert.equal(Object.keys(PASSIVES).length,10);
+  assert.equal(Object.keys(SKILLS).length,18);
+  assert.equal(Object.keys(PASSIVES).length,13);
   assert.equal(SLOTS.length,8);
   const game=newGame(seats('staff','mage','scout'),27);
   game.players.forEach(player=>assert.equal(player.skills[CLASSES[player.job].skill],1));
