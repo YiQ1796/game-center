@@ -18,6 +18,7 @@ const expected = new Map([
   ['aqua-world', 'https://yiq1796.github.io/game-center/aqua-world/'],
   ['one-a-two-b', 'https://yiq1796.github.io/game-center/one-a-two-b/'],
   ['stack-battle', 'https://yiq1796.github.io/game-center/stack-battle/'],
+  ['mystery-duo', 'https://yiq1796.github.io/game-center/mystery-duo/'],
   ['orchard-survival', 'https://yiq1796.github.io/game-center/orchard-survival/'],
 ]);
 assert.equal(games.length, expected.size, 'Expected one card per game');
@@ -34,6 +35,10 @@ for (const game of games) {
     assert.equal(game.id, 'rummikub', 'Only Rummikub should use DOM tile artwork');
     assert.equal(game.status, 'available', 'Rummikub passed user acceptance');
     assert.ok(existsSync(resolve(root, 'assets/hero-clubhouse.webp')), 'Missing full-size approved monkey artwork');
+  } else if (game.id === 'mystery-duo') {
+    assert.equal(game.visualType, 'mystery-cabinet');
+    assert.ok(existsSync(resolve(root,'mystery-duo/index.html')));
+    assert.ok(read('assets/site.js').includes("game.visualType === 'mystery-cabinet'"));
   } else if (game.id === 'aqua-world') {
     assert.equal(game.image, 'assets/aqua-world-sanmao-cover-v1.webp');
     assert.match(game.imageAlt, /猴三毛/);
@@ -65,7 +70,7 @@ for (const game of games) {
 }
 assert.match(html, /猴三毛遊戲中心/);
 assert.match(html, /https:\/\/yiq1796\.github\.io\/game-center\//);
-assert.match(html, /V0\.8\.8/);
+assert.match(html, /V0\.8\.9/);
 assert.ok(!html.includes('utm_source='), 'Do not include tracking parameters');
 const styleSource = read('assets/site.css');
 const uiSource = read('assets/site.js');
