@@ -81,6 +81,10 @@ export class FieldEffects {
     for(const [x,y,r,kind,color,remaining,id] of view.zones){
       if(!visible(x,y,r+200))continue;
       const life=remaining/100;
+      if(kind==='arrowfall'){
+        for(let i=0;i<3;i++)front.art('rain'+id+'/'+i,'seed-arrow',x+(i-1)*17-22*life,y-125*life-8,38,9,1.36);
+        continue;
+      }
       if(kind==='mine'){ground.art('zone'+id,'seed-mine',x,y-6,29,29);continue;}
       const zone=ground.place('zone'+id,'area-indicator '+kind,x,y,r*2,r*1.4);
       zone.style.setProperty('--area-color',color);
@@ -99,7 +103,7 @@ export class FieldEffects {
         const length=kind==='blast'?26:42,glow=front.place('wake'+id,'shot-wake',px-Math.cos(angle)*length*.6,py-15-Math.sin(angle)*length*.6,length,kind==='blast'?9:4,angle,.75);
         glow.style.setProperty('--light',kind==='blast'?'#ffb76d':'#abf3ce');
       }
-      front.art('shot'+id,shotArt[kind]||'seed-arrow',px,py-15,size,kind==='return'?size:kind==='pierce'?size*.26:size*.54,kind==='return'?view.t*12:angle);
+      front.art('shot'+id,shotArt[kind]||'seed-arrow',px,py-15,size,kind==='return'?size:['pierce','pin','ricochet'].includes(kind)?size*.26:size*.54,kind==='return'?view.t*12:angle);
     }
     for(const [id,x,y,left] of view.hail||[]){
       if(!visible(x,y,240))continue;

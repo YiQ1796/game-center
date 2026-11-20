@@ -18,8 +18,8 @@ async function exercise() {
     throw Error(hint);
   };
   await until(()=>el('jobs')?.children.length===3,'class selection never loaded');
-  const {HeroSprite,EnemySprite,gearIcon}=await import('./actors.mjs?v=070');
-  const {FieldEffects}=await import('./spells.mjs?v=070');
+  const {HeroSprite,EnemySprite,gearIcon}=await import('./actors.mjs?v=071');
+  const {FieldEffects}=await import('./spells.mjs?v=071');
   expect(document.querySelectorAll('canvas').length===0,'unexpected Canvas renderer in the game');
   const target=document.createElement('canvas');target.width=290;target.height=240;
   const ink=target.getContext('2d',{willReadFrequently:true});
@@ -39,7 +39,7 @@ async function exercise() {
     expect(el('stage-name').textContent===routeName&&stage.getAttribute('aria-label').includes(routeName),'fitting route mismatch');
     expect(el('jobs').children[index].getAttribute('aria-pressed')==='true','audition changed starting class');
   }
-  const {Garden,fieldLight,LANDMARKS}=await import('./garden.mjs?v=070');
+  const {Garden,fieldLight,LANDMARKS}=await import('./garden.mjs?v=071');
   const garden=new Garden(),day=fieldLight(0),night=fieldLight(168);
   const fieldImage=new Image();fieldImage.src=new URL('./art/orchard-floor.webp',location.href);await fieldImage.decode();
   expect(fieldImage.naturalWidth>=1200,'illustrated field missing');
@@ -75,10 +75,13 @@ async function exercise() {
       document.body.append(hero.el);
       hero.update(player,true,true);
       const img=await loadStrip(hero.art,4);
-      expect(hero.art.dataset.sheet===job,'promotion replaced the hero body');
-      if(route!==job){
-        expect(hero.dress.querySelector('.worn-held')&&hero.dress.querySelector('.worn-armor'),'missing promotion kit');
-        hero.update({...player,master:true},true,true);expect(hero.dress.querySelector('.worn-mantle'),'third tier missing mantle');
+      const base=job===route;
+      expect(hero.art.dataset.sheet===(base?job:route+'-t2'),'incorrect baked outfit');
+      expect(!hero.body.querySelector('img,.worn-details'),'equipment icon rendered on body');
+      if(!base){
+        hero.update({...player,master:true},true,true);
+        const master=await loadStrip(hero.art,4);
+        expect(hero.art.dataset.sheet===route+'-t3' && difference(posePixels(img,4,0),posePixels(master,4,0))>100,'third tier outfit missing');
         hero.update(player,true,true);
       }
       ready.set(job,posePixels(img,4,0));
@@ -88,24 +91,11 @@ async function exercise() {
         hero.update({...player,walk:true,gait},true,true);expect(hero.el.dataset.pose===String(frame),route+' walk');
       }
       look.swing=45;hero.update(player,true,true);expect(hero.el.dataset.pose==='3',route+' strike');look.swing=0;
-      let old=0;
-      for(let level=2;level<=5;level++){
-        look.level=level;hero.update(player,true,true);
-        const size=parseFloat(hero.dress.querySelector('.worn-weapon').style.width);
-        expect(size>old,route+' weapon level '+level);old=size;
-      }
-      look.evolved=true;hero.update(player,true,true);
-      expect(hero.dress.querySelector('.worn-weapon').src.endsWith('evolved-jewel.webp'),route+' evolved equipment');
       for(let slot=0;slot<8;slot++){
         const icon=gearIcon(slot,job,route);await icon.decode();
-        const previous=hero.dress.childElementCount;
         look.slots[slot]=5;hero.update(player,true,true);
-        if(slot>0)expect(hero.dress.childElementCount>previous,route+' slot '+slot);
+        expect(hero.body.children.length===1,'inventory art was mounted on actor');
       }
-      await Promise.all([...hero.dress.children].map(el=>el.decode()));
-      const links=[...hero.dress.children];
-      expect(links.every(el=>el.style.left&&el.style.top),'missing equipment socket');
-      expect(hero.dress.querySelector('.worn-boot-l').style.left!==hero.dress.querySelector('.worn-boot-r').style.left,'feet overlap');
       hero.el.remove();
     }
   }
@@ -142,8 +132,8 @@ async function exercise() {
   fxState.shots=[];fxState.hits=[];effects.draw(fxState,projected,true,visible);
   expect(over.childElementCount===0,'expired effects leaked into the next frame');
   // 檢查等級門檻、雙轉職選項、不可重複選擇與多人檢視資料。
-  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=070');
-  const {THRESHOLD}=await import('./content.mjs?v=070');
+  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=071');
+  const {THRESHOLD}=await import('./content.mjs?v=071');
   const progression=newGame([{id:'promotion-test',job:'staff',name:'猴三毛'}],1234);
   const adventurerState=progression.players[0];
   progression.level=7;
@@ -241,18 +231,18 @@ try {
   let current=false;
   for(let i=0;i<(publicPage?15:1);i++){
     try{
-      const response=await fetch(address+'?ci=070-'+Date.now(),{signal:AbortSignal.timeout(7000)});
-      if(response.ok&&(await response.text()).includes('data-build="0.7.0"')){current=true;break;}
+      const response=await fetch(address+'?ci=071-'+Date.now(),{signal:AbortSignal.timeout(7000)});
+      if(response.ok&&(await response.text()).includes('data-build="0.7.1"')){current=true;break;}
     }catch(error){console.log('Waiting for Pages:',error.message);}
     if(publicPage)await delay(3000);
   }
-  assert.ok(current,'Orchard v0.7.0 entry not available at '+address);
+  assert.ok(current,'Orchard v0.7.1 entry not available at '+address);
   for(const [width,height] of [[1440,860],[390,844]]){
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
-    await call('Page.navigate',{url:address+'?ci=070-'+width+'-'+Date.now()});
+    await call('Page.navigate',{url:address+'?ci=071-'+width+'-'+Date.now()});
     let loaded=false;
     for(let i=0;i<180;i++){
-      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.7.0' && !!document.getElementById('jobs')?.firstElementChild"});
+      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.7.1' && !!document.getElementById('jobs')?.firstElementChild"});
       if(state.result.value===true){loaded=true;break;}await delay(100);
     }
     assert.ok(loaded,'Game modules failed to initialise: '+JSON.stringify(exceptions));

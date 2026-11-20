@@ -1,12 +1,12 @@
-import { nameChoices,history,publicResults,saveResult,sorted,publishLink,valid } from './ranking.mjs?v=070';
+import { nameChoices,history,publicResults,saveResult,sorted,submitResult,retryPending,valid } from './ranking.mjs?v=071';
 
-import { stats, banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=070';
-import { salePrice,marketPrice,attributeCost, MARKET, skillNumbers, ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=070';
-import { outfitSprite, gearIcon } from './actors.mjs?v=070';
-import { FittingStage } from './fitting-stage.mjs?v=070';
-import { Scene } from './scene.mjs?v=070';
-import { Squad } from './squad.mjs?v=070';
-import { ADVANCEMENTS, getAdvancement } from './advancement.mjs?v=070';
+import { stats, banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=071';
+import { salePrice,marketPrice,attributeCost, MARKET, skillNumbers, ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=071';
+import { outfitSprite, gearIcon } from './actors.mjs?v=071';
+import { FittingStage } from './fitting-stage.mjs?v=071';
+import { Scene } from './scene.mjs?v=071';
+import { Squad } from './squad.mjs?v=071';
+import { ADVANCEMENTS, getAdvancement } from './advancement.mjs?v=071';
 
 const $ = id => document.getElementById(id);
 const ui = Object.fromEntries([
@@ -61,6 +61,8 @@ const squad=new Squad(message=>{
 });
 
 function rollNames(){ui.nickname.replaceChildren(...nameChoices().map(name=>new Option(name,name)));}
+retryPending();window.addEventListener('online',retryPending);
+setInterval(retryPending,90000);
 rollNames();$('reroll').addEventListener('click',rollNames);
 let rankRequest=0;
 async function drawRanks(){
@@ -222,9 +224,10 @@ function leaveBattle() {
 function summaryPanel(view,self,content,actions) {
   const rows=saveResult(view),mine=rows[view.players.findIndex(player=>player.id===self.id)];
   if(valid(mine)){
-    const link=element('a','secondary','登錄公開榜（GitHub）');
-    link.href=publishLink(mine);link.target='_blank';link.rel='noopener noreferrer';
-    actions.append(link);content.append(element('p','loadout','本機已記錄。公開榜需登入 GitHub，確認送出預填的公開戰績。'));
+    const message=element('p','loadout',mine.name+' · 本機已記錄，正在同步公開榜…');
+    content.append(message);
+    submitResult(mine).then(()=>{message.textContent=mine.name+' · 戰績已自動登錄公開榜。';})
+      .catch(()=>{message.textContent=mine.name+' · 本機已記錄，公開榜連線後自動補登。';});
   }
   const stats=element('dl','summary');
   for(const [name,value] of [
@@ -341,8 +344,8 @@ function appendCharacterStats(view,self,content){
   const own=view.own;
   const attributes=element('div','attribute-grid');
   const effects={
-    str:'金箍系傷害',agi:'移動速度／技能冷卻',vit:'最大生命／減傷',
-    int:'法術系傷害',dex:'果籽系傷害／攻擊距離',luk:'暴擊率'
+    str:self.job==='staff'?'棍法傷害':'本職業不使用力量加成',agi:'移動速度／技能冷卻',vit:'最大生命／減傷',
+    int:self.job==='mage'?'法術傷害':'本職業不使用智慧加成',dex:self.job==='scout'?'箭術傷害／範圍':'技能範圍',luk:'暴擊率'
   };
   for(const [key,label] of Object.entries(ATTRIBUTES)){
     const cell=element('div','attribute-row');

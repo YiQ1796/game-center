@@ -1,5 +1,5 @@
 
-export const BUILD = '0.7.0';
+export const BUILD = '0.7.1';
 export const SKILL_CAP = 10;
 export const PASSIVE_CAP = 10;
 export const ATTRIBUTES = Object.freeze({str:'力量',agi:'敏捷',vit:'體質',int:'智慧',dex:'靈巧',luk:'幸運'});
@@ -25,24 +25,24 @@ export const CLASS_KITS = {
 };
 export const CLASS_RELICS = {staff:'gauntlet',mage:'grimoire',scout:'quiver'};
 export const SKILLS = {
-  fault:['裂地棍','重擊腳下，震退近身敵人',42,134,2.1,'#efbc69','push'],
+  fault:['裂地棍','朝目標連續敲出三段地裂',24,178,2.1,'#efbc69','fissure'],
   wheel:['旋身護棍','三處旋擊環繞近身',22,112,.86,'#e7ae57','orbit'],
   comet:['墜星術','標記遠方敵人，短暫延遲後墜落',53,535,2.65,'#dc93fa','drop'],
   stormwell:['紫晶法陣','在怪群腳下持續造成傷害',14,435,2.8,'#c19af2','field'],
   fan:['扇羽箭','朝目標扇射三箭',13,480,1.22,'#95ebce','fan'],
-  snare:['獵人霜箭','凍住目標周邊的地面，使怪物減速',18,490,2.15,'#99dbec','slow'],
+  snare:['縛足箭','箭矢命中後短暫定身',18,490,1.65,'#99dbec','pin'],
   sweep: ['金箍橫掃','近距離環形揮擊',24,121,0.81,'#ffd692','ring'],
   fire: ['焦糖火球','打向最近的怪，命中後爆炸',23,455,1.02,'#ff9859','blast'],
   seed: ['果籽箭','瞄準怪物，箭矢能穿過多個敵人',17,515,0.58,'#abf1df','pierce'],
-  peel: ['香蕉迴旋鏢','朝目標飛出並飛回',16,410,1.42,'#ffd757','return'],
+  peel: ['跳弦箭','命中後彈向附近另一隻敵人',16,410,1.42,'#ffd757','ricochet'],
   spark: ['滋滋落雷','電擊最多三隻相近的怪',19,430,1.59,'#f9ed9e','chain'],
   frost: ['冰果風暴','在目標附近造成傷害並減速',15,415,1.72,'#96ecff','slow'],
-  pop: ['爆米花地雷','在腳下留下一顆靠近就炸的地雷',32,0,2.30,'#ffce8d','mine'],
-  nut: ['山核桃護衛','旋轉的堅果擊退貼近的怪',15,95,0.61,'#e7b878','orbit'],
-  hive: ['蜂蜜陷阱','在怪群腳下留下持續傷害區',10,365,2.48,'#faba53','field'],
-  puff: ['風鈴果','把身邊的怪往外推開',12,164,1.94,'#bdf8d0','push'],
-  drop: ['果箱空投','在目標頭上預告後砸下一箱水果',39,520,2.40,'#fca2aa','drop'],
-  echo: ['回音竹槍','從身邊朝不同方向射出竹槍',14,380,1.54,'#a8e9a8','radial']
+  pop: ['絆索陷阱','腳下設索，觸發時傷害並纏住近敵',32,0,2.30,'#ffce8d','mine'],
+  nut: ['護身反打','挨打後震開近敵並反擊',34,115,0.7,'#e7b878','counter'],
+  hive: ['汲魂術','從目標汲取生命，回復施法者',18,365,2.48,'#ad79ce','drain'],
+  puff: ['震退棍','揮棒把身邊的怪往外推開',12,164,1.94,'#bdf8d0','push'],
+  drop: ['定點箭雨','在敵群落下三波箭雨',18,520,2.40,'#c8df94','volley'],
+  echo: ['穿陣突刺','朝最近敵人直線刺擊，命中沿線怪物',29,178,1.25,'#efc46c','thrust']
 };
 export const PASSIVES = {
   gauntlet:['破陣腕甲','每級增加 5% 傷害與 4% 攻擊範圍'],
@@ -50,7 +50,7 @@ export const PASSIVES = {
   quiver:['翠羽箭袋','每級增加 3% 暴擊率並縮短 3% 冷卻'],
   power:['果園力氣','傷害 +12%'],
   haste:['快手手套','技能冷卻縮短，最多縮短 55%'],
-  reach:['伸縮竹竿','近戰與範圍技能的攻擊半徑增加'],
+  reach:['戰場洞察','擴大本職業技能的作用範圍'],
   magnet:['果籽磁鐵','拾取距離 +24'],
   boots:['草地快鞋','移動速度 +6%'],
   guard:['硬殼背心','受到的傷害降低'],
@@ -61,7 +61,7 @@ export const PASSIVES = {
 };
 export const EVOLUTIONS = {
   sweep: ['金箍風暴','reach'], fire:['焦糖流星','power'], seed:['千籽穿林','crit'],
-  spark:['雷樹開花','wisdom'], frost:['碎冰花園','guard'], peel:['雙月蕉刃','haste']
+  spark:['雷樹開花','wisdom'], frost:['碎冰花園','guard'], peel:['連環跳弦','haste']
 };
 export const ENEMIES = {
   grub:[19,82,12,10,1,'豆豆蟲'],

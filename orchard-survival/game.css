@@ -317,16 +317,12 @@ body.playing #top {display:none}
 /* Keep all illustrated units in one depth-sorted world, aligned at their feet. */
 #field-art {position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0;pointer-events:none}
 .world-unit {position:absolute;display:block;left:0;top:0;width:0;height:0;line-height:0;pointer-events:none}
-.hero-body,.enemy-body,.sprite-art,.worn-details,.scenery-img,.scenery-night {position:absolute;display:block}
+.hero-body,.enemy-body,.sprite-art,.scenery-img,.scenery-night {position:absolute;display:block}
 .hero-body {width:148px;height:89px;left:-62.16px;top:-81.95px;transform-origin:42% 92.08%}
 .enemy-body {width:var(--foe-width);height:var(--foe-height);left:calc(var(--foe-width) * -.5);top:calc(var(--foe-height) * -.89);transform-origin:50% 89%}
-.sprite-art,.worn-details,.scenery-night {inset:0;background-repeat:no-repeat}
+.sprite-art,.scenery-night {inset:0;background-repeat:no-repeat}
 .sprite-art.struck {filter:brightness(1.7) saturate(.76)}
 .sprite-shadow {display:block;position:absolute;width:35px;height:10px;left:0;bottom:-3px;transform:translateX(-50%);background:radial-gradient(ellipse,#25351c69,transparent 72%)}
-.worn-details .worn {position:absolute;display:block;transform:translate(-50%,-50%);margin:0;max-width:none;object-fit:contain;pointer-events:none}
-.worn-cap {width:22px;height:15px}.worn-brooch {width:10px;height:9px}.worn-wrist {width:9px;height:9px}
-.worn-boot-l,.worn-boot-r {width:10px;height:11px}.worn-neck {width:6px;height:10px}
-.worn-ring-l,.worn-ring-r {width:5px;height:5px}
 .sprite-hp {position:absolute;left:-15px;bottom:-8px;width:30px;height:4px;background:#312a26ca;border-radius:5px;overflow:hidden}
 .sprite-hp-fill {display:block;width:100%;height:100%;transform-origin:left;background:#b2dc7e}
 .sprite-hp[data-ally=enemy] .sprite-hp-fill {background:#f57e62}.sprite-hp[data-ally=ally] .sprite-hp-fill {background:#81cfd1}
@@ -375,16 +371,6 @@ body.playing #top {display:none}
 .warning.charge{border:0;clip-path:polygon(0 32%,78% 32%,78% 3%,100% 50%,78% 97%,78% 68%,0 68%);background:linear-gradient(90deg,#b15a3155,#de7639ca 60%,#fff0ab);box-shadow:inset 0 0 10px #71311a}
 .warning.circle,.area-indicator{border-style:solid}
 
-.worn-details .worn-armor{width:29px;height:32px;filter:var(--coat);transform:translate(-50%,-33%)}
-.worn-details .worn-mantle{width:32px;height:15px;filter:var(--coat);transform:translate(-50%,0)}
-[data-route=king]{--coat:sepia(.85) saturate(2.6)}
-[data-route=guardian]{--coat:hue-rotate(65deg) saturate(1.4)}
-[data-route=storm]{--coat:hue-rotate(232deg) saturate(1.8)}
-[data-route=archmage]{--coat:hue-rotate(156deg) saturate(1.6)}
-[data-route=ranger]{--coat:hue-rotate(87deg) saturate(1.5)}
-[data-route=shadow]{--coat:hue-rotate(190deg) brightness(.72)}
-[data-tier="3"] .worn-details .worn-armor{width:34px;height:36px;filter:var(--coat) drop-shadow(0 1px 1px #efbd54)}
-.worn-details .worn-held{z-index:1}
 
 .cast-fragment,.cast-wave,.contact-spark,.hail-target,.hail-fill{position:absolute;top:0;left:0;display:block;pointer-events:none}
 .cast-fragment,.contact-spark{background:linear-gradient(90deg,transparent,var(--light),#fffee3);border-radius:100% 20% 90% 18%}
@@ -398,8 +384,6 @@ body.playing #top {display:none}
 .name-pick,.rank-controls{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:.4rem 0 .8rem}
 .name-pick select,.rank-controls select{color:#433825;background:#fff9e8;border:1px solid #b69660;border-radius:7px;padding:.55em;font:inherit}
 .rank-table{width:100%;text-align:left;font-variant-numeric:tabular-nums}.rank-table td,.rank-table th{padding:.4em;border-bottom:1px solid #cbb68f}
-[data-tier="3"][data-route="ranger"] .worn-held{filter:drop-shadow(0 0 1.5px #ffe37c)}
-[data-tier="3"][data-route="shadow"] .worn-held{filter:drop-shadow(0 0 1.5px #b1a0ff)}
 
 .cast-glint,.shot-wake{position:absolute;top:0;left:0;pointer-events:none;background:linear-gradient(90deg,transparent,var(--light),#fffde1);border-radius:100% 5% 95% 15%}
 .cast-glint{box-shadow:0 0 3px var(--light)}

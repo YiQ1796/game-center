@@ -1,6 +1,6 @@
 
-import { attributeCost,salePrice, marketPrice, CLASS_KITS, CLASS_RELICS, CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=070';
-import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=070';
+import { attributeCost,salePrice, marketPrice, CLASS_KITS, CLASS_RELICS, CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=071';
+import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=071';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -117,9 +117,9 @@ function makeOffers(game, player) {
   }
   const activeCount = Object.keys(player.skills).length;
   const passiveCount = Object.keys(player.passive).length;
-  const active = Object.entries(SKILLS).flatMap(([key,skill]) => {
+  const active = CLASS_KITS[player.job].flatMap(key => {
+    const skill=SKILLS[key];
     const level = player.skills[key] || 0;
-    if (!level && !CLASS_KITS[player.job].includes(key)) return [];
     if (level >= SKILL_CAP || (!level && activeCount >= 6)) return [];
     if (player.forgotten.includes(key)) return [];
     return [{ type:'skill', key, name:skill[0],
@@ -134,7 +134,7 @@ function makeOffers(game, player) {
       detail:'被動技能｜最高 Lv.'+PASSIVE_CAP }];
   });
   const evolutions = Object.entries(EVOLUTIONS).flatMap(([key,[name,perk]]) =>
-    player.skills[key] >= 5 && player.passive[perk] && !player.evolution[key]
+    CLASS_KITS[player.job].includes(key) && player.skills[key] >= 5 && player.passive[perk] && !player.evolution[key]
       ? [{ type:'evolution', key, name, text:'傷害大幅提高，範圍擴張，普攻變為進化版' }] : []);
   shuffled(game, active);
   const previous=new Set(player.lastOfferKeys||[]);
@@ -191,6 +191,7 @@ export function choose(game, player, index, version) {
   const offer = player?.offers[index];
   if (!offer || game.ended || player.down || !Number.isInteger(index) || version !== player.offerId) return false;
   const {type,key} = offer;
+  if ((type==='skill'||type==='evolution')&&!CLASS_KITS[player.job].includes(key))return false;
   if (type === 'skill'){
     player.skills[key]=Math.min(SKILL_CAP,(player.skills[key]||0)+(offer.rankGain||1));
     if(offer.grade==='legendary')player.legendaryTokens=Math.max(0,player.legendaryTokens-1);
@@ -439,11 +440,34 @@ function useSkill(game, player, key, level, config) {
   const scale = config.reach*(evolved ? 1.27 : 1);
   const x = player.x, y = player.y;
   const target = range && (kind==='ring'?nearestBody(game,x,y,range*scale):nearest(game,x,y,range));
-  const targeted = ['fan','blast','pierce','return','chain','slow','field','drop'].includes(kind);
+  const targeted = ['ricochet','pin','volley','thrust','fissure','drain','fan','blast','pierce','return','chain','slow','field','drop'].includes(kind);
   if (targeted && !target) return;
   const angle = target ? Math.atan2(target.y-y,target.x-x) : 0;
   if(key===CLASSES[player.job].skill && target)player.aim=angle;
-  if (kind === 'ring' || kind === 'orbit' || kind === 'push') {
+  if(kind==='counter'){
+    if(!player.counterReady||!nearestBody(game,x,y,range*scale))return;
+    player.counterReady=false;
+    blast(game,player,x,y,range*scale,amount,color,config.crit,38,0,'sweep');
+  }else if(kind==='thrust'){
+    const length=range*scale,dx=Math.cos(angle),dy=Math.sin(angle);
+    touching(game,x,y,length,enemy=>{
+      const ex=enemy.x-x,ey=enemy.y-y,along=ex*dx+ey*dy;
+      if(along>=0&&along<=length+enemy.radius&&Math.abs(ex*dy-ey*dx)<=enemy.radius+10)
+        hurt(game,player,enemy,amount,color,config.crit,12,'slash');
+    });
+    effect(game,x,y,0,color,.23,'trail',x+dx*length,y+dy*length);
+  }else if(kind==='volley'||kind==='fissure'){
+    for(let i=0;i<3;i++){
+      const volley=kind==='volley',d=volley?(i-1)*30:(i+1)*range*scale/3;
+      zone(game,player,volley?'arrowfall':'quake',(volley?target.x:x)+Math.cos(angle)*d,
+        (volley?target.y:y)+Math.sin(angle)*d,(volley?56:44)*scale,amount,color,config.crit,.17+i*.19);
+    }
+  }else if(kind==='drain'){
+    const remaining=target.hp;
+    hurt(game,player,target,amount,color,config.crit,0,'magic');
+    player.hp=Math.min(player.maxHp,player.hp+Math.min(remaining,remaining-target.hp)*.12);
+    effect(game,target.x,target.y,0,color,.44,'line',x,y);
+  }else if (kind === 'ring' || kind === 'orbit' || kind === 'push') {
     if (!nearestBody(game,x,y,range*scale)) return;
     if (kind === 'orbit') {
       const phase=game.elapsed*5+player.id.length;
@@ -471,12 +495,12 @@ function useSkill(game, player, key, level, config) {
     blast(game,player,target.x,target.y,79*scale,amount,color,config.crit,0,1.6,'ice');
   } else if (kind === 'mine' || kind === 'field' || kind === 'drop') {
     const duration=kind==='mine' ? 7 : kind==='field' ? 2.5 : .48;
-    zone(game,player,kind,target?.x ?? x,target?.y ?? y,(kind==='mine' ? 73 : 89)*scale,amount,color,config.crit,duration);
+    zone(game,player,key==='comet'?'meteor':kind,target?.x ?? x,target?.y ?? y,(kind==='mine' ? 73 : 89)*scale,amount,color,config.crit,duration);
   } else {
     const angles = kind === 'fan' ? [angle-.21,angle,angle+.21] : kind === 'radial' ? headings : evolved && kind==='return' ? [angle-.19,angle+.19] : evolved && kind==='pierce' ? [angle-.15,angle,angle+.15] : [angle];
     for (const direction of angles) {
       shoot(game,player,direction,{amount,color,crit:config.crit,reach:(range+40)*scale,kind:kind==='fan'?'pierce':kind,tier:evolved?6:level,speed:kind==='blast' ? 445 : 580,
-        pierce:kind==='pierce' ? 2+Math.floor(level/2)+(evolved ? 2 : 0) : kind==='return' ? 12 : kind==='radial' ? 2 : 1});
+        pierce:kind==='ricochet' ? 2+Math.floor(level/4)+(evolved?2:0) : kind==='pierce' ? 2+Math.floor(level/2)+(evolved ? 2 : 0) : kind==='return' ? 12 : kind==='radial' ? 2 : 1});
     }
     if (evolved && kind === 'blast') zone(game,player,'meteor',target.x,target.y,105*scale,amount*.58,color,config.crit,.58);
   }
@@ -528,12 +552,8 @@ function burst(game, player, config) {
     } else if (promotion.id==='shadow') {
       const dx=Math.cos(player.aim),dy=Math.sin(player.aim);
       player.x=clamp(x+dx*165,21,FIELD.width-21);player.y=clamp(y+dy*165,21,FIELD.height-21);
-      const length=Math.hypot(player.x-x,player.y-y);
-      nearby(game,x,y,length+52,(enemy)=>{
-        const u=clamp(((enemy.x-x)*(player.x-x)+(enemy.y-y)*(player.y-y))/(length*length||1),0,1);
-        if(Math.hypot(enemy.x-x-u*(player.x-x),enemy.y-y-u*(player.y-y))<=45+enemy.radius)
-          hurt(game,player,enemy,136*power,color,config.crit);
-      });
+      const back=target?Math.atan2(target.y-player.y,target.x-player.x):player.aim+Math.PI;
+      for(const turn of [-.12,0,.12])shoot(game,player,back+turn,{amount:56*power,color,crit:config.crit,reach:600*reach,kind:'starArrow',pierce:3,tier:6});
       player.inv=Math.max(1.6,player.inv);
       effect(game,x,y,35,color,.6,'trail',player.x,player.y);
     }
@@ -581,8 +601,18 @@ function updateShots(game, owners) {
       if(enemy.hp<=0)continue;
       shot.hit.add(enemy.id);shot.pierce--;
       if(shot.kind==='blast')blast(game,owner,x+dx*entry,y+dy*entry,74,shot.amount,shot.color,shot.crit);
-      else hurt(game,owner,enemy,shot.amount,shot.color,shot.crit,0,'wind');
+      else {
+        hurt(game,owner,enemy,shot.amount,shot.color,shot.crit,0,'wind');
+        if(shot.kind==='pin')enemy.root=Math.max(enemy.root||0,.65+shot.tier*.09);
+        if(shot.kind==='ricochet'&&shot.pierce>0){
+          let next=null,best=175;
+          nearby(game,enemy.x,enemy.y,best,(e,d)=>{if(!shot.hit.has(e.id)&&d<best){next=e;best=d;}});
+          if(next){shot.angle=Math.atan2(next.y-enemy.y,next.x-enemy.x);shot.x=enemy.x;shot.y=enemy.y;shot.life-=dt;break;}
+          shot.pierce=0;
+        }
+      }
     }
+    if(shot.x!==x||shot.y!==y)continue;
     shot.x=x+dx*length;shot.y=y+dy*length;shot.life-=dt;
   }
   game.shots=game.shots.filter(shot=>shot.life>0&&shot.pierce>0);
@@ -595,9 +625,11 @@ function updateZones(game, owners) {
     if (!owner) { item.life=0; continue; }
     const { x,y,radius,amount,color,crit,kind }=item;
     if ((kind==='drop'||kind==='meteor') && item.life<=0 || kind==='mine' && nearest(game,x,y,47)) {
-      blast(game,owner,x,y,radius,amount,color,crit,19,0,kind==='meteor'?'nova':'impact');
+      if(kind==='mine')touching(game,x,y,radius,e=>{e.root=Math.max(e.root||0,1.4);});
+      blast(game,owner,x,y,radius,amount,color,crit,kind==='mine'?0:19,0,kind==='meteor'?'nova':'impact');
       item.life=0;
     }
+    if(kind==='arrowfall'&&item.life<=0)blast(game,owner,x,y,radius,amount,color,crit,0,0,'cast-scout');
     if(kind==='quake' && item.life<=0) blast(game,owner,x,y,radius,amount,color,crit,16,0,'sweep');
     if ((kind==='field'||kind==='frostfield') && item.life>0) {
       item.tick-=STEP;
@@ -664,6 +696,7 @@ function schedule(game, alive) {
 function hitPlayer(player, amount, config) {
   if (player.inv>0 || player.down) return;
   player.hp=Math.max(0,player.hp-amount*config.resist);
+  player.counterReady=true;
   player.inv=.70;
   if (player.hp>0) return;
   player.down=true;
@@ -696,6 +729,7 @@ function updateEnemies(game, alive, configs) {
     }
     enemy.flash=Math.max(0,enemy.flash-STEP);
     enemy.slow=Math.max(0,enemy.slow-STEP);
+    if(enemy.root>0){enemy.root-=STEP;continue;}
     enemy.timer-=STEP;
     if (enemy.wind>0) {
       enemy.wind=Math.max(0,enemy.wind-STEP);
@@ -802,7 +836,8 @@ export function advance(game) {
     player.walk=stride>.03;
     if(player.walk)player.gait=(player.gait+stride/67) % 1;
     if (Math.abs(x)>.12 && game.elapsed-player.strikeAt>.34) player.face=x>0 ? 1 : -1;
-    for (const [key,level] of Object.entries(player.skills)) {
+    for (const key of CLASS_KITS[player.job]) {
+      const level=player.skills[key];if(!level)continue;
       player.timers[key]=Math.max(0,(player.timers[key]||0)-STEP);
       if (player.timers[key]===0) useSkill(game,player,key,level,config);
     }

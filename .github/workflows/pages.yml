@@ -22,6 +22,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Bundle anonymous leaderboard signing module
+        shell: bash
+        run: |
+          set -euo pipefail
+          lib="$RUNNER_TEMP/orchard-ranking"
+          npm install --prefix "$lib" --no-fund --no-audit --ignore-scripts nostr-tools@2.10.4 esbuild@0.25.12
+          echo "export {generateSecretKey,finalizeEvent,verifyEvent} from 'nostr-tools/pure';" > "$lib/entry.mjs"
+          "$lib/node_modules/.bin/esbuild" "$lib/entry.mjs" --bundle --format=esm --minify --outfile=orchard-survival/rank-sign.mjs
       - name: Validate site
         shell: bash
         run: |
@@ -41,6 +49,8 @@ jobs:
           node scripts/verify-icons.mjs
           node --test scripts/test-stack-battle.mjs scripts/test-stack-battle-ui.mjs
           node scripts/smoke-stack-battle-gamepad.mjs
+      - name: Verify anonymous Orchard leaderboard from an independent connection
+        run: node scripts/check-orchard-ranking.mjs
       - name: Check leaderboard network integration (diagnostic only)
         continue-on-error: true
         run: node scripts/check-stack-battle-leaderboard-live.mjs

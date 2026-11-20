@@ -15,7 +15,7 @@ export const ADVANCEMENTS = Object.freeze({
   scout: Object.freeze([
     {id:'ranger',burst:'穿林箭陣',technique:'朝最近的敵人集中射出九支扇形穿透箭。',name:'疾風神射手',role:'速射暴擊',color:'#79e5b3',haste:.20,crit:.15,power:.08,
       description:'果籽箭連發與高暴擊，精準穿透蜂群。'},
-    {id:'shadow',burst:'穿影突襲',technique:'沿瞄準方向突進，斬擊路徑上的敵人並短暫隱身避傷。',name:'叢林影行者',role:'疾走閃避',color:'#8ad7eb',speed:.21,guard:.10,reach:.12,
+    {id:'shadow',burst:'穿影回射',technique:'沿瞄準方向突進，轉身對鎖定的敵人射出三支穿透箭。',name:'叢林影行者',role:'疾走閃避',color:'#8ad7eb',speed:.21,guard:.10,reach:.12,
       description:'跑得更快、挨打更少，適合拉怪與機動遊走。'}
   ])
 });

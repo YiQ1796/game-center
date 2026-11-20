@@ -304,7 +304,7 @@ test('six advancements perform distinct battle actions, visible to the second se
       if(track.id==='storm'){assert.ok(v.fx.some(f=>f[5]==='bolt'));assert.ok(mob.hp<10000);}
       if(track.id==='archmage'){assert.equal(g.zones.filter(z=>z.kind==='meteor').length,5);assert.ok(mob.slow>1);}
       if(track.id==='ranger'){assert.equal(g.shots.filter(z=>z.kind==='starArrow').length,9);}
-      if(track.id==='shadow'){assert.ok(p.x>start+100);assert.ok(v.fx.some(f=>f[5]==='trail'));assert.ok(mob.hp<10000);}
+      if(track.id==='shadow'){assert.ok(p.x>start+100);assert.ok(v.fx.some(f=>f[5]==='trail'));assert.ok(g.shots.some(s=>s.kind==='starArrow'));tick(g,20);assert.ok(mob.hp<10000);}
     }
   }
 });
@@ -393,4 +393,24 @@ test('third promotion retains route and travels in the multiplayer snapshot',()=
   g.gems.push({id:1,x:p.x,y:p.y,value:THRESHOLD(23)});advance(g);
   assert.equal(g.level,24);assert.equal(p.master,true);
   const row=buildView(g,p.id).players[0];assert.equal(row.master,true);assert.equal(row.promotion,'storm');
+});
+
+test('each job draws, learns and casts only its own active skills',()=>{
+  const expected={staff:['sweep','nut','puff','echo','fault','wheel'],mage:['fire','spark','frost','hive','comet','stormwell'],scout:['seed','peel','pop','drop','fan','snare']};
+  for(const [job,allowed] of Object.entries(expected)){
+    const seen=new Set();
+    for(let seed=1;seed<=32;seed++){
+      const g=newGame(seats(job),seed),p=g.players[0];
+      for(let level=1;level<16;level++){
+        g.gems.push({id:++g.serial,x:p.x,y:p.y,value:THRESHOLD(g.level)});advance(g);
+        for(const o of p.offers)if(['skill','evolution'].includes(o.type)){assert.ok(allowed.includes(o.key));seen.add(o.key);}
+        while(p.offers.length)choose(g,p,0,p.offerId);
+      }
+      const wrong=job==='staff'?'fire':'sweep';
+      p.offers=[{key:wrong,type:'skill'}];
+      assert.equal(choose(g,p,0,p.offerId),false);p.offers=[];p.skills[wrong]=10;
+      advance(g);assert.equal(p.timers[wrong],undefined);
+    }
+    assert.deepEqual([...seen].sort(),[...allowed].sort());
+  }
 });
