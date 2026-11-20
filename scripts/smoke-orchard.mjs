@@ -168,7 +168,7 @@ async function exercise() {
   el('bag').click();
   await until(()=>!!document.querySelector('.dressing .hero-body .sprite-art'),'equipment preview missing');
   Array.from(document.querySelectorAll('#dialog-actions button')).find(b=>b.textContent==='果園行商').click();
-  await until(()=>document.querySelectorAll('.market-item').length===3,'shop is unreachable from bag');
+  await until(()=>['紫晶戰甲','曜金兵裝','赤曜王印'].every(name=>[...document.querySelectorAll('.market-item strong')].some(node=>node.textContent===name)),'high rarity equipment is missing from shop');
   Array.from(document.querySelectorAll('#dialog-actions button')).find(b=>b.textContent==='返回戰場').click();
   el('profile').click();
   await until(()=>!!document.querySelector('.attribute-grid'),'attribute screen missing');
