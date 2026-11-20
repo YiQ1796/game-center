@@ -1,4 +1,4 @@
-import { SOCKETS } from './sockets.mjs?v=062';
+import { SOCKETS } from './sockets.mjs?v=070';
 
 // Actors are illustrated transparent image strips. The browser composites their
 // frames as DOM sprites in the field, the inventory and the fitting room.
@@ -21,9 +21,11 @@ function imageStrip(el,name,frame,count){
     el.style.backgroundPosition=(frame*100/(count-1))+'% center';
   }
 }
-export function gearIcon(slot,job,promotion){
+const masterWeapons={king:'jade-pole',guardian:'king-rod',storm:'sun-wand',archmage:'storm-wand',ranger:'longbow',shadow:'sabres'};
+function weaponFor(route,master){return master&&masterWeapons[route]||weapons[route];}
+export function gearIcon(slot,job,promotion,master=false){
   const el=document.createElement('img');el.className='gear-art';
-  el.src=url(slot===0?weapons[routeFor(job,promotion)]:gearArt[slot]);el.alt='';el.draggable=false;return el;
+  el.src=url(slot===0?weaponFor(routeFor(job,promotion),master):gearArt[slot]);el.alt='';el.draggable=false;return el;
 }
 const gaitFrames=[0,1,1,0,0,2,2,0];
 export function heroFrame(p){
@@ -31,6 +33,21 @@ export function heroFrame(p){
   if(swing>0)return swing<18||swing>85?0:3;
   if(!p.walk||p.down)return 0;
   return gaitFrames[Math.floor((p.gait||0)*8/256)%8];
+}
+// Grip and outer weapon boundary on each 250 by 150 reference pose.
+const grips={
+  staff:[[126,87,15],[117,87,12],[121,83,13],[157,81,8]],
+  mage:[[116,78,52],[113,82,52],[117,76,52],[136,79,19]],
+  scout:[[137,89,0],[130,91,0],[129,89,0],[163,71,0]]
+};
+const trim={
+  staff:[[[131,73],[131,94]],[[120,75],[120,97]],[[125,70],[125,90]],[[161,66],[161,89]]],
+  mage:[[[121,25],[121,59],[114,72],[123,82]],[[125,28],[122,67],[113,78],[120,87]],[[124,26],[124,61],[117,72],[123,80]],[[147,31],[147,66],[136,76],[145,85]]],
+  scout:[[[131,29],[143,62],[136,82],[138,95]],[[137,33],[142,66],[129,86],[134,99]],[[137,33],[141,61],[127,84],[133,98]],[[126,8],[131,32],[143,49],[136,58],[161,62],[161,80],[143,106],[143,119]]]
+};
+function bodyClip(job,frame){
+  const edge=trim[job][frame],percent=([x,y])=>(x*.4)+'% '+(y*2/3)+'%';
+  return 'polygon(0 0,100% 0,100% '+(edge[0][1]*2/3)+'%,'+edge.map(percent).join(',')+',100% '+(edge.at(-1)[1]*2/3)+'%,100% 100%,0 100%)';
 }
 export class HeroSprite{
   constructor(){
@@ -53,7 +70,10 @@ export class HeroSprite{
     const lunge=strike*({staff:7,mage:-2,scout:-4}[p.job]||0);
     style(this.body,'transform','translate('+ (face*lunge).toFixed(1)+'px,'+(-Math.abs(step)*2.5-(p.job==='mage'?strike*4:0)).toFixed(1)+'px) scaleX('+face+') rotate('+(angle+tilt+step*2+strike*(p.job==='staff'?8:-3)).toFixed(1)+'deg)');
     style(this.body,'opacity',p.inv?'.82':'1');
-    const build=[route,...slots,look.level||1,Boolean(look.evolved)].join('/');
+    const changedWeapon=Boolean(p.promotion||slots[0]);
+    style(this.art,'clipPath',changedWeapon?bodyClip(p.job,frame):'none');
+    this.el.dataset.tier=p.master?3:p.promotion?2:1;
+    const build=[route,Boolean(p.master),...slots,look.level||1,Boolean(look.evolved)].join('/');
     if(build!==this.gearKey){
       this.gearKey=build;this.dress.replaceChildren();this.fittings=[];
       const add=(part,item,code)=>{
@@ -61,6 +81,9 @@ export class HeroSprite{
         el.src=url(item);if(code)el.style.filter='drop-shadow(0 0 .6px '+rarity(code)+')';
         this.dress.append(el);this.fittings.push([part,el]);
       };
+      if(p.promotion||slots[2])add('armor','guard-coat',slots[2]);
+      if(p.master)add('mantle','leaf-cap');
+      if(changedWeapon)add('held',weaponFor(route,p.master),slots[0]);
       if(slots[1])add('cap','leaf-cap',slots[1]);
       if(slots[2])add('brooch','coat-clasp',slots[2]);
       if(slots[3])add('wrist','bracer',slots[3]);
@@ -78,6 +101,14 @@ export class HeroSprite{
     }
     const anchors=SOCKETS[p.job][frame];
     for(const [part,el] of this.fittings){
+      if(part==='held'){
+        const [gx,gy,tilt]=grips[p.job][frame],bow=p.job==='scout'&&route!=='shadow';
+        style(el,'left',gx*.4+'%');style(el,'top',gy*2/3+'%');
+        const size=(bow?46:p.job==='staff'?64:49)*(p.master?1.12:1);
+        style(el,'width',size+'px');style(el,'height',size+'px');
+        style(el,'transform','translate(-50%,-50%) rotate('+(bow?-35:47-tilt)+'deg)');
+        continue;
+      }
       const a=ANCHOR_INDEX[part],x=anchors[a*2],y=anchors[a*2+1];
       style(el,'left',x+'%');style(el,'top',y+'%');
     }
@@ -88,7 +119,7 @@ export class HeroSprite{
     this.el.dataset.route=route;this.el.dataset.pose=String(frame);
   }
 }
-const ANCHOR_INDEX={cap:0,brooch:1,wrist:2,'boot-l':3,'boot-r':4,neck:5,'ring-l':6,'ring-r':7,weapon:8};
+const ANCHOR_INDEX={armor:1,mantle:5,cap:0,brooch:1,wrist:2,'boot-l':3,'boot-r':4,neck:5,'ring-l':6,'ring-r':7,weapon:8};
 export class EnemySprite{
   constructor(){
     this.el=node('world-unit');this.shadow=node('sprite-shadow');this.body=node('enemy-body');

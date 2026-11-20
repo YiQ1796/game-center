@@ -1,11 +1,12 @@
+import { nameChoices,history,publicResults,saveResult,sorted,publishLink,valid } from './ranking.mjs?v=070';
 
-import { stats, banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=062';
-import { MARKET, skillNumbers, ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=062';
-import { outfitSprite, gearIcon } from './actors.mjs?v=062';
-import { FittingStage } from './fitting-stage.mjs?v=062';
-import { Scene } from './scene.mjs?v=062';
-import { Squad } from './squad.mjs?v=062';
-import { ADVANCEMENTS, getAdvancement } from './advancement.mjs?v=062';
+import { stats, banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=070';
+import { salePrice,marketPrice,attributeCost, MARKET, skillNumbers, ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=070';
+import { outfitSprite, gearIcon } from './actors.mjs?v=070';
+import { FittingStage } from './fitting-stage.mjs?v=070';
+import { Scene } from './scene.mjs?v=070';
+import { Squad } from './squad.mjs?v=070';
+import { ADVANCEMENTS, getAdvancement } from './advancement.mjs?v=070';
 
 const $ = id => document.getElementById(id);
 const ui = Object.fromEntries([
@@ -59,21 +60,42 @@ const squad=new Squad(message=>{
   if(!ui.home.hidden) renderLobby();
 });
 
-let previewRoute=null;
+function rollNames(){ui.nickname.replaceChildren(...nameChoices().map(name=>new Option(name,name)));}
+rollNames();$('reroll').addEventListener('click',rollNames);
+let rankRequest=0;
+async function drawRanks(){
+  const token=++rankRequest,list=$('rank-list'),global=$('rank-source').value==='公開';
+  list.textContent='讀取中…';
+  try{
+    const rows=global?await publicResults():history();
+    if(token!==rankRequest)return;
+    const best=sorted(rows.filter(r=>r.mode===$('rank-mode').value),$('rank-sort').value).slice(0,30);
+    if(!best.length){list.textContent='這個榜目前還沒有戰績。';return;}
+    const table=element('table','rank-table');
+    const header=table.createTHead().insertRow();for(const label of ['名次','猴名','擊殺','生存'])header.append(element('th','',label));
+    const body=table.createTBody();
+    best.forEach((r,i)=>{const row=body.insertRow();for(const value of [i+1,r.name,r.kills,clock(r.seconds)])row.insertCell().textContent=value;});
+    list.replaceChildren(table);
+  }catch{if(token===rankRequest)list.textContent='暫時無法讀取公開榜。收合後再開可重試。';}
+}
+$('rank-box').addEventListener('toggle',()=>{if($('rank-box').open)drawRanks();});
+for(const id of ['rank-mode','rank-source','rank-sort'])$(id).addEventListener('change',drawRanks);
+let previewRoute=null,previewMaster=false;
 function updateFitting(){
   const track=getAdvancement(job,previewRoute),name=track?.name||CLASSES[job].name;
-  fittingStage.select(job,track?.id||null);
-  $('stage-name').textContent=name;
+  fittingStage.select(job,track?.id||null,Boolean(track&&previewMaster));
+  $('stage-name').textContent=(track&&previewMaster?'三轉 · ':'')+name;
   $('fitting-stage').setAttribute('aria-label',name+'的全身職業試裝');
   const options=[{id:null,name:'起始職業'},...ADVANCEMENTS[job]];
   $('route-options').replaceChildren(...options.map(option=>{
     const node=button(option.name,'route-option',()=>{
-      previewRoute=option.id;updateFitting();
+      previewRoute=option.id;previewMaster=false;updateFitting();
       $('route-options').querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});
     });
     node.setAttribute('aria-pressed',String((track?.id||null)===option.id));
     return node;
   }));
+  if(track)$('route-options').append(button(previewMaster?'看二轉戰裝':'看三轉戰裝','route-option',()=>{previewMaster=!previewMaster;updateFitting();}));
 }
 function jobButtons() {
   const buttons=Object.entries(CLASSES).map(([key,item])=>{
@@ -198,9 +220,15 @@ function leaveBattle() {
 }
 
 function summaryPanel(view,self,content,actions) {
+  const rows=saveResult(view),mine=rows[view.players.findIndex(player=>player.id===self.id)];
+  if(valid(mine)){
+    const link=element('a','secondary','登錄公開榜（GitHub）');
+    link.href=publishLink(mine);link.target='_blank';link.rel='noopener noreferrer';
+    actions.append(link);content.append(element('p','loadout','本機已記錄。公開榜需登入 GitHub，確認送出預填的公開戰績。'));
+  }
   const stats=element('dl','summary');
   for(const [name,value] of [
-    ['生存時間',clock(view.t)],['職業',getAdvancement(self.job,self.promotion)?.name||CLASSES[self.job].name],['擊退',self.kills],['總傷害',self.damage.toLocaleString('zh-TW')],
+    ['個人生存',clock(self.aliveSeconds)],['場次時間',clock(view.t)],['職業',(self.master?'三轉 · ':'')+(getAdvancement(self.job,self.promotion)?.name||CLASSES[self.job].name)],['擊退',self.kills],['總傷害',self.damage.toLocaleString('zh-TW')],
     ['首領',self.bosses],['場次等級',view.l],['救援',self.rescues]
   ]) {
     const pair=element('div','');
@@ -244,9 +272,12 @@ function marketPanel(view,self,content,actions){
   for(const [key,item] of Object.entries(MARKET)){
     const row=element('div','market-item');
     row.append(element('strong','',item.name),element('small','',item.description));
-    const buy=button('購買 · '+item.cost+' 果核','secondary',()=>action('buy',key));
-    buy.disabled=self.down||view.own.crumbs<item.cost||(key==='juice'&&self.hp>=self.maxHp)||
-      (key==='boots'&&view.own.loot.length>=12)||(key==='point'&&view.own.statPoints>=180);
+    if(item.perks)row.append(element('small','gear-comparison','換上後　'+gearDifference(view.own,self,item)));
+    const cost=marketPrice(key,view.own.pointsBought);
+    if(item.rarity){row.style.borderColor=RARITIES[item.rarity][1];row.firstChild.style.color=RARITIES[item.rarity][1];}
+    const buy=button('購買 · '+cost+' 果核','secondary',()=>action('buy',key));
+    buy.disabled=self.down||view.own.crumbs<cost||(key==='juice'&&self.hp>=self.maxHp)||
+      ((key==='boots'||item.perks)&&view.own.loot.length>=12)||(key==='point'&&(view.own.statPoints>=180||view.own.pointsBought>=8||Object.values(view.own.attributes).every(n=>n>=99)));
     row.append(buy);grid.append(row);
   }
   content.append(grid);
@@ -269,7 +300,7 @@ function equipmentPanel(view,content,actions) {
   const lootList=element('ul','item-list');
   function itemRow(item,label,worn,slot=item?.slot) {
     const row=element('li','item');
-    const icon=gearIcon(slot,self.job,self.promotion);row.append(icon);row.classList.add('has-gear-art');
+    const icon=gearIcon(slot,self.job,self.promotion,self.master);row.append(icon);row.classList.add('has-gear-art');
     if(!item) {row.classList.add('empty-slot');row.append(element('small','',label+'・空'));return row;}
     const [tier,color]=RARITIES[item.rarity];
     const title=element('strong','',item.name+' · '+tier+(item.rank?' +'+item.rank:''));
@@ -286,7 +317,7 @@ function equipmentPanel(view,content,actions) {
       const remove=button('卸下','quiet',()=>action('unequip',item.id));remove.disabled=owned.loot.length>=12;row.append(remove);
     }else row.append(element('small','gear-comparison','換上後　'+gearDifference(owned,self,item)));
     if(!worn) row.append(button('裝備','secondary',()=>action('equip',item.id)),
-      button('分解 +' + (2+item.rarity),'quiet',()=>action('salvage',item.id)));
+      button('出售 · '+salePrice(item)+' 果核','quiet',()=>action('sell',item.id)));
     return row;
   }
   owned.gear.forEach((item,i)=>gearList.append(itemRow(item,SLOTS[i],true,i)));
@@ -317,8 +348,9 @@ function appendCharacterStats(view,self,content){
     const cell=element('div','attribute-row');
     const labelBox=element('span','',key.toUpperCase()+' '+label);
     const value=element('strong','',String(own.attributes[key]));
-    const add=button('＋','attribute-add',()=>action('stat',key));
-    add.disabled=own.statPoints<1||own.attributes[key]>=99||view.done||self.down;
+    const cost=attributeCost(own.attributes[key]);
+    const add=button(cost===1?'＋':'＋ ('+cost+'點)','attribute-add',()=>action('stat',key));
+    add.disabled=own.statPoints<cost||own.attributes[key]>=99||view.done||self.down;
     add.setAttribute('aria-label','提升 '+label);
     const note=element('small','',effects[key]);
     cell.append(labelBox,value,add,note);

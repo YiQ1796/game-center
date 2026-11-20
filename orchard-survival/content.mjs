@@ -1,5 +1,5 @@
 
-export const BUILD = '0.6.2';
+export const BUILD = '0.7.0';
 export const SKILL_CAP = 10;
 export const PASSIVE_CAP = 10;
 export const ATTRIBUTES = Object.freeze({str:'力量',agi:'敏捷',vit:'體質',int:'智慧',dex:'靈巧',luk:'幸運'});
@@ -91,7 +91,10 @@ export const isClass = value => typeof value === 'string' && Object.hasOwn(CLASS
 export const MARKET = Object.freeze({
   juice: {name:'蜜桃果汁', cost:5, description:'立即回復最大生命的 35%'},
   boots: {name:'輕羽短靴', cost:12, description:'精良鞋子，跑速 +8%、拾取距離 +12'},
-  point: {name:'見習筆記殘頁', cost:8, description:'取得 1 點可自由分配的素質'}
+  amethyst: {name:'紫晶戰甲',cost:72,slot:2,rarity:3,perks:[['guard',.11],['heart',36]],description:'史詩護甲 · 減傷 +11%、生命 +36'},
+  amber: {name:'曜金兵裝',cost:165,slot:0,rarity:4,perks:[['power',.32],['haste',.085]],description:'傳說武器 · 傷害 +32%、冷卻縮短 8.5%'},
+  scarlet: {name:'赤曜王印',cost:340,slot:5,rarity:5,perks:[['power',.4],['crit',.13],['heart',45]],description:'神話項鍊 · 傷害 +40%、暴擊 +13%、生命 +45'},
+  point: {name:'見習筆記殘頁', cost:8, description:'取得 1 點素質；每局限購 8 次，每次加價 8 果核'}
 });
 export function skillNumbers(key, rank, stats, evolved=false) {
   const skill=SKILLS[key];
@@ -100,3 +103,7 @@ export function skillNumbers(key, rank, stats, evolved=false) {
     cooldown:skill[4]*stats.haste*Math.max(.72,1-(rank-1)*.055)
   };
 }
+
+export const salePrice=item=>[3,6,11,22,40,75][item.rarity]+item.rank*2;
+export const marketPrice=(key,bought=0)=>MARKET[key].cost+(key==='point'?8*bought:0);
+export const attributeCost=current=>current>=80?3:current>=60?2:1;

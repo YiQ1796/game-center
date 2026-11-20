@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant" data-build="0.6.2">
+<html lang="zh-Hant" data-build="0.7.0">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -8,13 +8,13 @@
   <link rel="canonical" href="https://yiq1796.github.io/game-center/orchard-survival/">
   <link rel="icon" href="../favicon.ico">
   <link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon-v070.png">
-  <link rel="stylesheet" href="./game.css?v=062">
+  <link rel="stylesheet" href="./game.css?v=070">
   <title>猴三毛割草隊｜香蕉果園</title>
 </head>
 <body>
   <header class="top" id="top">
     <a class="home" href="../"><img src="../assets/mascot-logo.webp" alt="" width="35" height="35">遊戲中心</a>
-    <span class="version">試玩版 V0.6.2</span>
+    <span class="version">試玩版 V0.7.0</span>
   </header>
   <main id="home">
     <section class="intro">
@@ -39,13 +39,13 @@
       <div class="solo">
         <h2>單人守果園</h2>
         <p>撿果籽升級。第 52 秒有精英，第 1 分 45 秒見首領。</p>
+        <label for="nickname">本局猴名</label>
+        <div class="name-pick"><select id="nickname"></select><button class="quiet" id="reroll" type="button">換一批</button></div>
         <button id="solo" class="primary" type="button">開始單人</button>
       </div>
       <div class="friend">
         <h2>揪朋友開工 <small>2～4 人合作</small></h2>
         <div id="room-form">
-          <label for="nickname">暱稱 <span>可留空</span></label>
-          <input id="nickname" maxlength="16" placeholder="例如：香蕉巡邏隊" autocomplete="nickname">
           <button id="host" class="secondary" type="button">建立房間</button>
           <form id="join">
             <label for="room-code" class="sr">六位數房號</label>
@@ -66,15 +66,20 @@
         <p id="room-status" role="status" hidden></p>
       </div>
     </section>
+    <details class="help" id="rank-box"><summary>果園排行榜</summary>
+      <div class="rank-controls"><select id="rank-source" aria-label="榜單來源"><option>本機</option><option>公開</option></select>
+      <select id="rank-mode" aria-label="遊戲模式"><option>單人</option><option>合作</option></select>
+      <select id="rank-sort" aria-label="排名方式"><option value="kills">擊殺榜</option><option value="seconds">生存榜</option></select></div>
+      <div id="rank-list" aria-live="polite"></div></details>
     <details class="help">
       <summary>操作與玩法</summary>
       <ul>
         <li>電腦用 WASD 或方向鍵移動、空白鍵放大招、C 分配屬性、K 查看技能、E 看裝備、Esc 暫停。</li>
         <li>手機用左下搖桿移動，右下按鈕放大招。武器會自行攻擊。</li>
-        <li>拾取果籽可三選一升級技能，最高 Lv.10。每次升級另外取得 3 點角色素質點，C 可分配 STR／AGI／VIT／INT／DEX／LUK。</li>
-        <li>達 Lv.8 可二選一轉職，六條路線各有專屬大招、服裝與武器；Boss 擊破後，下次升級有機會出現傳奇三階強化卡。</li>
+        <li>拾取果籽可三選一升級技能，最高 Lv.10。每次升級另外取得 3 點角色素質點，單項素質達 60／80 後，每升 1 級消耗 2／3 點，C 可分配 STR／AGI／VIT／INT／DEX／LUK。</li>
+        <li>達 Lv.8 可二選一轉職，Lv.24 自動三轉並獲得戰裝與 12% 攻擊加成，六條路線各有專屬大招、服裝與武器；Boss 擊破後，下次升級有機會出現傳奇三階強化卡。</li>
         <li>金箍橫掃、焦糖火球、果籽箭、落雷、冰果風暴及香蕉迴旋鏢達 Lv.5 並取得對應被動後，可選技能進化；轉職、裝備、技能進化是不同系統。</li>
-        <li>升級時每級可遺忘一項未學技能。裝備欄可比較戰利品、卸下或強化裝備，也可用果核向行商購買果汁、鞋子與素質點。</li>
+        <li>升級時每級可遺忘一項未學技能。裝備欄可比較戰利品、卸下或強化裝備，也可出售戰利品，用果核購入史詩護甲、傳說武器與神話項鍊。</li>
         <li>合作共用經驗、各自選技能和領裝備。隊友倒地後靠近約兩秒可救援。</li>
       </ul>
     </details>
@@ -129,6 +134,6 @@
     </div>
   </main>
   <script defer src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
-  <script type="module" src="./game.mjs?v=062"></script>
+  <script type="module" src="./game.mjs?v=070"></script>
 </body>
 </html>

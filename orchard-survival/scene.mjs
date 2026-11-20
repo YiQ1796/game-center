@@ -1,8 +1,8 @@
-import { FIELD } from './content.mjs?v=062';
-import { HeroSprite, EnemySprite } from './actors.mjs?v=062';
-import { Garden, fieldLight } from './garden.mjs?v=062';
-import { Radar } from './radar.mjs?v=062';
-import { FieldEffects } from './spells.mjs?v=062';
+import { FIELD } from './content.mjs?v=070';
+import { HeroSprite, EnemySprite } from './actors.mjs?v=070';
+import { Garden, fieldLight } from './garden.mjs?v=070';
+import { Radar } from './radar.mjs?v=070';
+import { FieldEffects } from './spells.mjs?v=070';
 const LIMIT=(v,min,max)=>Math.max(min,Math.min(max,v));
 export class Scene {
   constructor(viewport,mini) {

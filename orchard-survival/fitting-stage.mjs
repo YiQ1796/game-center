@@ -1,4 +1,4 @@
-import { HeroSprite } from './actors.mjs?v=062';
+import { HeroSprite } from './actors.mjs?v=070';
 
 export class FittingStage {
   constructor(stage){
@@ -10,8 +10,8 @@ export class FittingStage {
     this.observer=new IntersectionObserver(([entry])=>{this.visible=entry.isIntersecting;});
     this.observer.observe(stage);
   }
-  select(job,promotion){
-    this.job=job;this.promotion=promotion;this.last=-Infinity;
+  select(job,promotion,master=false){
+    this.master=master;this.job=job;this.promotion=promotion;this.last=-Infinity;
   }
   draw(now,quiet){
     if(!this.visible||document.hidden||now-this.last<(quiet?1000:60))return;
@@ -20,7 +20,7 @@ export class FittingStage {
     const swing=phase>=2.83&&phase<3.23?100*(1-(phase-2.83)/.4):0;
     const zoom=Math.min(this.stage.clientWidth/630,this.stage.clientHeight/355);
     this.unit.el.style.transform='scale('+(2.42*zoom)+')';
-    this.unit.update({job:this.job,promotion:this.promotion,face:1,walk:phase>.5&&phase<2.45,
+    this.unit.update({job:this.job,master:this.master,promotion:this.promotion,face:1,walk:phase>.5&&phase<2.45,
       gait:Math.floor((t*1.64%1)*255),look:{level:1,slots:[],swing}},true,true);
   }
 }

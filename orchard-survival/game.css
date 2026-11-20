@@ -374,3 +374,32 @@ body.playing #top {display:none}
 .enemy-body .sprite-art{filter:drop-shadow(0 1px 1px #302a1e)}
 .warning.charge{border:0;clip-path:polygon(0 32%,78% 32%,78% 3%,100% 50%,78% 97%,78% 68%,0 68%);background:linear-gradient(90deg,#b15a3155,#de7639ca 60%,#fff0ab);box-shadow:inset 0 0 10px #71311a}
 .warning.circle,.area-indicator{border-style:solid}
+
+.worn-details .worn-armor{width:29px;height:32px;filter:var(--coat);transform:translate(-50%,-33%)}
+.worn-details .worn-mantle{width:32px;height:15px;filter:var(--coat);transform:translate(-50%,0)}
+[data-route=king]{--coat:sepia(.85) saturate(2.6)}
+[data-route=guardian]{--coat:hue-rotate(65deg) saturate(1.4)}
+[data-route=storm]{--coat:hue-rotate(232deg) saturate(1.8)}
+[data-route=archmage]{--coat:hue-rotate(156deg) saturate(1.6)}
+[data-route=ranger]{--coat:hue-rotate(87deg) saturate(1.5)}
+[data-route=shadow]{--coat:hue-rotate(190deg) brightness(.72)}
+[data-tier="3"] .worn-details .worn-armor{width:34px;height:36px;filter:var(--coat) drop-shadow(0 1px 1px #efbd54)}
+.worn-details .worn-held{z-index:1}
+
+.cast-fragment,.cast-wave,.contact-spark,.hail-target,.hail-fill{position:absolute;top:0;left:0;display:block;pointer-events:none}
+.cast-fragment,.contact-spark{background:linear-gradient(90deg,transparent,var(--light),#fffee3);border-radius:100% 20% 90% 18%}
+.cast-fragment.blade{border:0;background:transparent;border-top:3px solid var(--light);border-radius:85% 80% 0 0;box-shadow:inset 0 2px 1px #fff4bcaa}
+.cast-fragment.crystal,.cast-fragment.feather{clip-path:polygon(0 50%,76% 0,100% 50%,76% 100%)}
+.cast-wave{border:2px solid var(--light);border-radius:50%}
+.hail-target,.hail-fill{border-radius:50%}
+.hail-target{border:3px solid #cf5426;background:#a92b1933}
+.hail-fill{border:2px solid #ffe09c;background:#f1944544}
+
+.name-pick,.rank-controls{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:.4rem 0 .8rem}
+.name-pick select,.rank-controls select{color:#433825;background:#fff9e8;border:1px solid #b69660;border-radius:7px;padding:.55em;font:inherit}
+.rank-table{width:100%;text-align:left;font-variant-numeric:tabular-nums}.rank-table td,.rank-table th{padding:.4em;border-bottom:1px solid #cbb68f}
+[data-tier="3"][data-route="ranger"] .worn-held{filter:drop-shadow(0 0 1.5px #ffe37c)}
+[data-tier="3"][data-route="shadow"] .worn-held{filter:drop-shadow(0 0 1.5px #b1a0ff)}
+
+.cast-glint,.shot-wake{position:absolute;top:0;left:0;pointer-events:none;background:linear-gradient(90deg,transparent,var(--light),#fffde1);border-radius:100% 5% 95% 15%}
+.cast-glint{box-shadow:0 0 3px var(--light)}

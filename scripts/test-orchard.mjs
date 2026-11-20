@@ -365,3 +365,32 @@ test('staff sweep activates when the target body intersects its reach',()=>{
   advance(game);
   assert.ok(edge.hp<80);assert.equal(outside.hp,80);assert.ok(buildView(game,player.id).hits.length);
 });
+
+test('market purchases, sales and escalating training costs stay consistent',()=>{
+  const g=newGame(seats('staff'),42),p=g.players[0];p.crumbs=1000;
+  for(const [key,rarity,cost] of [['amethyst',3,72],['amber',4,165],['scarlet',5,340]]){
+    const before=p.crumbs;
+    assert.ok(purchase(g,p,key));assert.equal(p.crumbs,before-cost);
+    const item=p.loot.at(-1);assert.equal(item.rarity,rarity);
+    assert.ok(gearAction(g,p,'equip',item.id));assert.ok(gearAction(g,p,'unequip',item.id));
+    assert.ok(gearAction(g,p,'sell',item.id));assert.ok(p.crumbs<before);
+    assert.equal(gearAction(g,p,'sell',item.id),false);
+  }
+  p.crumbs=1000;
+  for(let i=0;i<8;i++)assert.ok(purchase(g,p,'point'));
+  assert.equal(p.crumbs,712);assert.equal(purchase(g,p,'point'),false);
+  p.attributes.str=80;p.statPoints=2;
+  assert.equal(allocateAttribute(g,p,'str'),false);p.statPoints=3;
+  assert.ok(allocateAttribute(g,p,'str'));assert.equal(p.statPoints,0);
+});
+test('a moving player can escape a locked late-game impact',()=>{
+  const g=newGame(seats('staff'),3),p=g.players[0];g.elapsed=360;g.eliteAt=g.bossAt=g.spawnClock=900;
+  advance(g);assert.equal(g.hail.length,1);setMove(p,1,0);tick(g,48);
+  assert.equal(p.hp,p.maxHp);assert.equal(g.hail.length,0);
+});
+test('third promotion retains route and travels in the multiplayer snapshot',()=>{
+  const g=newGame(seats('mage'),202),p=g.players[0];p.promotion='storm';g.level=23;
+  g.gems.push({id:1,x:p.x,y:p.y,value:THRESHOLD(23)});advance(g);
+  assert.equal(g.level,24);assert.equal(p.master,true);
+  const row=buildView(g,p.id).players[0];assert.equal(row.master,true);assert.equal(row.promotion,'storm');
+});

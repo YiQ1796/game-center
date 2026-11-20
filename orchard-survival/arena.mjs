@@ -1,6 +1,6 @@
 
-import { CLASS_KITS, CLASS_RELICS, CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=062';
-import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=062';
+import { attributeCost,salePrice, marketPrice, CLASS_KITS, CLASS_RELICS, CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=070';
+import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=070';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -30,7 +30,7 @@ function newPlayer(seat, i) {
     y: FIELD.height / 2 + Math.floor(i / 2) * 39 - 20, face: 1, walk: false,
     hp:type.hp, maxHp:type.hp, inv:0, down:false, rescue:0, burst:0, burstPending:false,
     strikeAt:-5, gait:0, aim:0, forgotten:[], banishedAt:0, promotion:null, move:{x:0,y:0}, skills:{[type.skill]:1}, passive:{}, evolution:{}, timers:{},
-    attributes:{str:5,agi:5,vit:5,int:5,dex:5,luk:5},statPoints:0,legendaryTokens:0,
+    attributes:{str:5,agi:5,vit:5,int:5,dex:5,luk:5},statPoints:0,pointsBought:0,aliveSeconds:0,master:false,legendaryTokens:0,
     gear:Array(SLOTS.length).fill(null), loot:[], crumbs:0, pending:0, offers:[], deadline:0, offerId:0,
     kills:0, damage:0, bosses:0, rescues:0, limit:0
   };
@@ -42,7 +42,7 @@ export function newGame(seats, seed = 1) {
     seed:(seed >>> 0) || 1, serial:0, players:seats.map(newPlayer), bonusXpCarry:0,
     enemies:[], gems:[], shots:[], zones:[], fx:[], hits:new Map(), cells:new Map(),
     elapsed:0, level:1, xp:0, eliteAt:52, bossAt:105, bossCycle:0, spawnClock:0.2,
-    modifiers:seats.length, ended:false, reason:'', paused:false,
+    runId:globalThis.crypto.randomUUID(),hailAt:360,hail:[],modifiers:seats.length, ended:false, reason:'', paused:false,
     notice:'果園開工！先撿果籽，練出你的第一招。', noticeAt:6
   };
 }
@@ -70,7 +70,7 @@ export function stats(player, equipment=player.gear) {
   const mainAttribute=player.job==='staff'?'str':player.job==='mage'?'int':'dex';
   const baseAttack=(attr(mainAttribute)-5)*.027;
   return {
-    power:(1 + rank('gauntlet')*.05 + rank('grimoire')*.06 + rank('power')*.12 + bonus('power')) * (1 + .3 * Math.log1p(player.limit/5)) * (1+promoted('power')+baseAttack), 
+    power:(1 + rank('gauntlet')*.05 + rank('grimoire')*.06 + rank('power')*.12 + bonus('power')) * (1 + .3 * Math.log1p(player.limit/5)) * (1+promoted('power')+baseAttack+(player.master ? .12 : 0)), 
     haste:Math.max(.35, 1-rank('grimoire')*.02-rank('quiver')*.03-rank('haste')*.075-bonus('haste')-promoted('haste')-(attr('agi')-5)*.003),
     reach:Math.min(2.3, 1+rank('gauntlet')*.04+rank('reach')*.09+bonus('reach')+promoted('reach')+(attr('dex')-5)*.003),
     magnet:Math.min(255, 57+rank('magnet')*24+bonus('magnet')),
@@ -84,9 +84,9 @@ export function stats(player, equipment=player.gear) {
 
 export function allocateAttribute(game,player,key) {
   if(game.ended||!player||player.down||!Object.hasOwn(ATTRIBUTES,key) ||
-     !Number.isInteger(player.statPoints)||player.statPoints<1||player.attributes[key]>=99) return false;
+     !Number.isInteger(player.statPoints)||player.statPoints<attributeCost(player.attributes[key])||player.attributes[key]>=99) return false;
+  player.statPoints-=attributeCost(player.attributes[key]);
   player.attributes[key] += 1;
-  player.statPoints -= 1;
   updateMaxHp(player,key==='vit');
   return true;
 }
@@ -204,6 +204,7 @@ export function choose(game, player, index, version) {
     const track = getAdvancement(player.job,key);
     if (!track || player.promotion) return false;
     player.promotion=key;
+    player.master=game.level>=24;
     updateMaxHp(player,true);
     player.hp=Math.min(player.maxHp,player.hp+player.maxHp*.22);
     player.burst=0;
@@ -226,6 +227,11 @@ function gainXp(game, amount) {
   while (game.xp >= THRESHOLD(game.level)) {
     game.xp -= THRESHOLD(game.level++);
     for (const player of game.players) {
+      if(game.level>=24 && player.promotion && !player.master){
+        player.master=true;
+        game.notice=player.name+'完成三轉，獲得專屬戰裝！';game.noticeAt=game.elapsed+6;
+        effect(game,player.x,player.y,90,'#ffc35e',1,'upgrade',0,0,'三轉覺醒');
+      }
       player.pending++;
       player.statPoints=Math.min(180,player.statPoints+3);
       if (!player.down && !player.offers.length) makeOffers(game, player);
@@ -252,13 +258,14 @@ function rollGear(game, high, job) {
 
 export function purchase(game,player,key) {
   if (game.ended || !player || player.down || !Object.hasOwn(MARKET,key)) return false;
-  const item=MARKET[key];
-  if (player.crumbs<item.cost || (key==='juice' && player.hp>=player.maxHp) ||
-      (key==='boots' && player.loot.length>=12) || (key==='point' && player.statPoints>=180)) return false;
-  player.crumbs-=item.cost;
+  const item=MARKET[key],cost=marketPrice(key,player.pointsBought);
+  if (player.crumbs<cost || (key==='juice' && player.hp>=player.maxHp) ||
+      ((key==='boots'||item.perks) && player.loot.length>=12) || (key==='point' && (player.statPoints>=180||player.pointsBought>=8||Object.values(player.attributes).every(n=>n>=99)))) return false;
+  player.crumbs-=cost;
+  if(item.perks)player.loot.push({id:++game.serial,name:item.name,slot:item.slot,rarity:item.rarity,rank:0,perks:item.perks.map(pair=>[...pair])});
   if (key==='juice') player.hp=Math.min(player.maxHp,player.hp+player.maxHp*.35);
   if (key==='boots') player.loot.push({id:++game.serial,slot:4,name:item.name,rarity:1,rank:0,perks:[['boots',.08],['magnet',12]]});
-  if (key==='point') player.statPoints++;
+  if (key==='point'){player.statPoints++;player.pointsBought++;}
   effect(game,player.x,player.y,38,'#f6da90',.65,'upgrade',0,0,item.name);
   return true;
 }
@@ -273,10 +280,10 @@ export function gearAction(game, player, action, id) {
     return true;
   }
   const lootIndex = player.loot.findIndex(item => item.id === id);
-  if (lootIndex !== -1 && (action === 'equip' || action === 'salvage')) {
+  if (lootIndex !== -1 && ['equip','sell','salvage'].includes(action)) {
     const [item] = player.loot.splice(lootIndex,1);
     if (action === 'equip') effect(game,player.x,player.y,48,'#ffc46e',.76,'upgrade',0,0,item.name);
-    if (action === 'salvage') player.crumbs += 2+item.rarity;
+    if (action !== 'equip') player.crumbs += salePrice(item);
     else {
       const old = player.gear[item.slot];
       if (old) player.loot.push(old);
@@ -337,7 +344,7 @@ function hurt(game, player, enemy, amount, color, crit, knock=0, art=null) {
   if(!boss&&!elite&&random(game)<.018){
     const item=rollGear(game,false,player.job);
     if(player.loot.length<12)player.loot.push(item);
-    else player.crumbs+=2+item.rarity;
+    else player.crumbs+=salePrice(item);
   }
   if(!boss&&!elite&&random(game)<.15)player.crumbs++;
   effect(game,enemy.x,enemy.y,enemy.radius*(boss ? 4 : 1.85),color,.42,'pop');
@@ -345,7 +352,7 @@ function hurt(game, player, enemy, amount, color, crit, knock=0, art=null) {
     for (const ally of game.players) {
       const item = rollGear(game,boss,ally.job);
       if (ally.loot.length < 12) ally.loot.push(item);
-      else ally.crumbs += 2+item.rarity;
+      else ally.crumbs += salePrice(item);
       ally.crumbs += boss ? 8 : 3;
       if(boss)ally.legendaryTokens=Math.min(3,ally.legendaryTokens+1);
       if (!ally.down) ally.hp = Math.min(ally.maxHp,ally.hp+ally.maxHp*(boss ? .3 : .14));
@@ -408,7 +415,7 @@ function blast(game, player, x, y, radius, amount, color, crit, knock=0, slow=0,
     hurt(game,player,enemy,amount,color,crit,knock,style==='sweep'||style==='cyclone'?'slash':style==='impact'?'magic':null);
     enemy.slow=Math.max(enemy.slow,slow);
   });
-  effect(game,x,y,radius,color,style==='cyclone' ? 1.04 : .48,style);
+  effect(game,x,y,radius,color,style==='cyclone' ? 1.04 : .48,style,player.aim);
 }
 
 function shoot(game, player, angle, {amount,color,crit,reach,kind,speed=485,pierce=1,tier=1}) {
@@ -435,6 +442,7 @@ function useSkill(game, player, key, level, config) {
   const targeted = ['fan','blast','pierce','return','chain','slow','field','drop'].includes(kind);
   if (targeted && !target) return;
   const angle = target ? Math.atan2(target.y-y,target.x-x) : 0;
+  if(key===CLASSES[player.job].skill && target)player.aim=angle;
   if (kind === 'ring' || kind === 'orbit' || kind === 'push') {
     if (!nearestBody(game,x,y,range*scale)) return;
     if (kind === 'orbit') {
@@ -489,7 +497,7 @@ function burst(game, player, config) {
   player.aim=target?Math.atan2(target.y-y,target.x-x):(player.face===1?0:Math.PI);
   player.strikeAt=game.elapsed;
   if(Math.abs(Math.cos(player.aim))>.18)player.face=Math.cos(player.aim)>0?1:-1;
-  effect(game,x,y,promotion ? 150 : 110,promotion?.color||type.color,1.0,'cast-'+player.job,0,0,promotion ? promotion.burst : type.burst);
+  effect(game,x,y,promotion ? 150 : 110,promotion?.color||type.color,.72,'cast-'+player.job,player.aim,0,promotion ? promotion.burst : type.burst);
   if (promotion) {
     const power=config.power, color=promotion.color, reach=config.reach;
     if (promotion.id==='king') {
@@ -608,12 +616,13 @@ function spawn(game, kind, around) {
   const distance=big ? 340 : game.elapsed<2 ? 143+random(game)*85 : 330+random(game)*130;
   const angle=random(game)*TAU;
   const minutes=game.elapsed/60;
-  const strength=(1+minutes*.21+Math.sqrt(minutes)*.15)*(1+(game.modifiers-1)*(big ? .58 : .28));
+  const late=Math.max(0,minutes-5);
+  const strength=(1+minutes*.21+Math.sqrt(minutes)*.15+late*late*.16)*(1+(game.modifiers-1)*(big ? .58 : .28));
   const enemy={
     id:++game.serial,kind,x:clamp(around.x+Math.cos(angle)*distance,22,FIELD.width-22),
     y:clamp(around.y+Math.sin(angle)*distance,22,FIELD.height-22), radius,
     hp:baseHp*strength,maxHp:baseHp*strength,speed:speed*Math.min(1.8,1+minutes*.022),
-    damage:damage*(1+minutes*.082),flash:0,slow:0,timer:1.5+random(game)*2,
+    damage:damage*(1+minutes*.082+late*late*.045),flash:0,slow:0,timer:1.5+random(game)*2,
     wind:0,dash:0,aim:0,face:1,mode:0,tx:0,ty:0
   };
   game.enemies.push(enemy);
@@ -780,6 +789,7 @@ export function advance(game) {
   for (const player of alive) {
     const config=stats(player);
     configs.set(player.id,config);
+    player.aliveSeconds+=STEP;
     player.pickup=config.magnet;
     player.inv=Math.max(0,player.inv-STEP);
     player.burst=Math.max(0,player.burst-STEP);
@@ -803,6 +813,16 @@ export function advance(game) {
   updateShots(game,owners);
   updateZones(game,owners);
   updateEnemies(game,alive,configs);
+  if(game.elapsed>=game.hailAt){
+    const late=(game.elapsed-360)/60;
+    game.hailAt=game.elapsed+Math.max(6,14-late*.4);
+    for(const p of alive)game.hail.push({id:++game.serial,x:p.x,y:p.y,at:game.elapsed+1.45,damage:45+late*9+late*late*2.4});
+  }
+  for(const stone of game.hail)if(stone.at<=game.elapsed){
+    for(const p of alive)if(Math.hypot(p.x-stone.x,p.y-stone.y)<68)hitPlayer(p,stone.damage,configs.get(p.id));
+    effect(game,stone.x,stone.y,68,'#fc9e50',.48,'impact');
+  }
+  game.hail=game.hail.filter(s=>s.at>game.elapsed);
   collect(game,configs);
   updateRescue(game);
   game.enemies=game.enemies.filter(enemy=>enemy.hp>0);
@@ -827,14 +847,14 @@ export function buildView(game, focusId) {
   const see=object=>Math.abs(object.x-focus.x)<760&&Math.abs(object.y-focus.y)<660;
   const n=Math.round;
   return {
-    radar:radarContacts(game.enemies), t:game.elapsed,l:game.level,xp:game.xp,xpMax:THRESHOLD(game.level),done:game.ended,reason:game.reason,
+    runId:game.runId,hail:game.hail.filter(see).map(s=>[s.id,n(s.x),n(s.y),Math.max(0,s.at-game.elapsed)]),radar:radarContacts(game.enemies), t:game.elapsed,l:game.level,xp:game.xp,xpMax:THRESHOLD(game.level),done:game.ended,reason:game.reason,
     notice:game.elapsed<game.noticeAt ? game.notice : '', nextBoss:game.bossAt, paused:game.paused,
     players:game.players.map(p=>({
-      id:p.id,name:p.name,job:p.job,promotion:p.promotion,x:n(p.x),y:n(p.y),face:p.face,walk:p.walk,gait:n(p.gait*255),travelY:p.walk&&Math.abs(p.move.y)>.35?Math.sign(p.move.y):0,down:p.down,
+      id:p.id,name:p.name,aliveSeconds:Math.floor(p.aliveSeconds),master:p.master,job:p.job,promotion:p.promotion,x:n(p.x),y:n(p.y),face:p.face,walk:p.walk,gait:n(p.gait*255),travelY:p.walk&&Math.abs(p.move.y)>.35?Math.sign(p.move.y):0,down:p.down,
       look:{ level:p.skills[CLASSES[p.job].skill], evolved:Boolean(p.evolution[CLASSES[p.job].skill]), slots:p.gear.map(item=>item ? 1+item.rarity+item.rank*6 : 0), swing:n(Math.max(0,1-(game.elapsed-p.strikeAt)/.4)*100), aim:n(p.aim*100)/100 },
       hp:n(p.hp),maxHp:p.maxHp,rev:p.rescue,inv:p.inv>0,kills:p.kills,damage:n(p.damage),bosses:p.bosses,rescues:p.rescues
     })),
-    own:{id:focus.id,limit:focus.limit,forgotten:focus.forgotten,canBanish:focus.banishedAt!==game.level,promotion:focus.promotion,burst:focus.burst,offers:focus.offers,offerId:focus.offerId,deadline:focus.deadline,
+    own:{id:focus.id,master:focus.master,pointsBought:focus.pointsBought,limit:focus.limit,forgotten:focus.forgotten,canBanish:focus.banishedAt!==game.level,promotion:focus.promotion,burst:focus.burst,offers:focus.offers,offerId:focus.offerId,deadline:focus.deadline,
       gear:focus.gear,loot:focus.loot,crumbs:focus.crumbs,skills:focus.skills,passive:focus.passive,evolution:focus.evolution,
       attributes:focus.attributes,statPoints:focus.statPoints,legendaryTokens:focus.legendaryTokens,
       timers:focus.timers,derived:stats(focus)},
@@ -847,6 +867,6 @@ export function buildView(game, focusId) {
     gems:game.gems.filter(see).map(g=>[n(g.x),n(g.y),g.value,g.id]),
     shots:game.shots.filter(see).map(s=>[s.id,n(s.x),n(s.y),n(s.angle*100)/100,s.color,s.kind,s.tier]),
     zones:game.zones.filter(see).map(z=>[n(z.x),n(z.y),n(z.radius),z.kind,z.color,n(100*z.life/z.max),z.id]),
-    fx:game.fx.filter(see).slice(-44).map(f=>[n(f.x),n(f.y),n(f.radius),f.color,n(f.life/f.max*100),f.kind,n(f.x2),n(f.y2),f.label,f.id])
+    fx:game.fx.filter(see).slice(-44).map(f=>[n(f.x),n(f.y),n(f.radius),f.color,n(f.life/f.max*100),f.kind,Math.round(f.x2*100)/100,n(f.y2),f.label,f.id])
   };
 }
