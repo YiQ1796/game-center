@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111326">
+<meta name="description" content="午夜奇物館：兩個人、十二道未知封印、無數種驚喜。">
+<title>午夜奇物館｜雙人神祕挑戰</title>
+<link rel="icon" href="../favicon.ico">
+<link rel="stylesheet" href="./style.css?v=100">
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js" defer></script>
+<script src="./game.js?v=100" defer></script>
+</head>
+<body>
+<div class="ambient" aria-hidden="true"><span class="moon"></span><span class="nebula"></span><span class="stars"></span></div>
+<header class="topbar">
+  <a class="back-link" href="../"><span aria-hidden="true">✧</span> 猴三毛遊戲中心</a>
+  <div class="top-brand"><i class="top-brand-spark">✦</i> MIDNIGHT ARCADE</div>
+  <div class="top-right"><span id="connection-dot" class="connection-dot"></span><span id="connection-state">尚未連線</span><span class="version">V1.0.0</span></div>
+</header>
+<main class="shell">
+  <section id="welcome" class="welcome">
+    <div class="hero-copy">
+      <div class="eyebrow"><span>✦</span> THE CABINET OF CURIOSITIES <span>✦</span></div>
+      <h1>午夜<span>奇物館</span></h1>
+      <p class="hero-subtitle">兩位訪客。一座神祕遊樂館。<br>十二扇沒有標籤的門，今晚由你們決定打開哪一扇。</p>
+      <div class="hero-rule"><span class="star-separator">✶</span> 不先說明驚喜。進場後，才知道挑戰。 <span class="star-separator">✶</span></div>
+      <div class="entry-panel">
+        <div class="name-row">
+          <label>你的冒險者名字<input id="player-name" maxlength="16" autocomplete="nickname" placeholder="輸入暱稱"></label>
+          <button class="dice-btn" id="random-name" aria-label="更換隨機暱稱">⚄</button>
+        </div>
+        <div class="entry-actions">
+          <button class="btn btn-gold" id="local-start"><span>✧</span> 同機兩人</button>
+          <button class="btn btn-outline" id="host-start"><span>♜</span> 線上開房</button>
+        </div>
+        <form class="join-row" id="join-form">
+          <label for="join-code">收到邀請？</label>
+          <input id="join-code" required maxlength="6" pattern="[A-Za-z0-9]{6}" placeholder="輸入 6 位房號" autocomplete="off">
+          <button class="btn btn-small" type="submit">加入好友 ↗</button>
+        </form>
+        <div id="welcome-status" class="status-line" role="status"></div>
+      </div>
+    </div>
+    <div class="hero-art" aria-label="發光的午夜星象之門">
+      <svg class="portal" viewBox="0 0 540 550" role="img" aria-label="星光環繞的神祕黃銅之門">
+        <defs>
+          <linearGradient id="brass" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#fff0c0"/><stop offset=".36" stop-color="#ae783b"/><stop offset=".68" stop-color="#f7c87c"/><stop offset="1" stop-color="#765031"/></linearGradient>
+          <radialGradient id="door-glow"><stop stop-color="#ad9be9" stop-opacity=".85"/><stop offset=".55" stop-color="#594d9b" stop-opacity=".5"/><stop offset="1" stop-color="#19182d" stop-opacity="0"/></radialGradient>
+          <filter id="glow"><feGaussianBlur stdDeviation="6"/></filter>
+        </defs>
+        <ellipse cx="270" cy="280" rx="248" ry="244" fill="url(#door-glow)" />
+        <g class="orbit"><circle cx="270" cy="276" r="219" fill="none" stroke="#fff5cb" stroke-width="1.5" stroke-dasharray="2 15" opacity=".42"/><circle cx="270" cy="276" r="187" fill="none" stroke="#dac18a" opacity=".4"/><path d="M45 276H495M270 51V501" stroke="#dac18a" opacity=".16"/><path d="M112 118L428 434M428 118L112 434" stroke="#dac18a" opacity=".12"/></g>
+        <g class="door-frame"><path d="M146 431V219C146 122 202 80 270 80S394 122 394 219V431Z" fill="#12152c" stroke="url(#brass)" stroke-width="14"/><path d="M164 414V224C164 142 208 100 270 100S376 142 376 224V414Z" fill="#28234e" stroke="#f3d6a0" stroke-width="2"/><path d="M181 404V225C181 152 217 117 270 117S359 152 359 225V404Z" fill="#333060" stroke="#ad98cf" stroke-width="2"/>
+          <path d="M270 120V414M183 263H356" stroke="#dac08a" opacity=".3"/>
+          <path d="M270 170L306 226L270 286L234 226Z" fill="none" stroke="url(#brass)" stroke-width="4"/><circle cx="270" cy="225" r="15" fill="#f4ce82"/><circle cx="270" cy="225" r="6" fill="#fff8dc"/>
+          <path d="M207 336Q270 301 333 336M207 367Q270 333 333 367" fill="none" stroke="#e7c596" stroke-width="2" opacity=".52"/>
+          <circle cx="342" cy="312" r="10" fill="#dba457" stroke="#fff4c9" stroke-width="2"/><circle cx="342" cy="312" r="3" fill="#fff3c1"/>
+        </g>
+        <g class="sparkles" fill="#fff2bb"><path d="M77 184l5 16 16 5-16 5-5 16-5-16-16-5 16-5z"/><path d="M441 133l5 16 16 5-16 5-5 16-5-16-16-5 16-5z"/><path d="M458 359l4 12 12 4-12 4-4 12-4-12-12-4 12-4z"/><circle cx="111" cy="349" r="4"/><circle cx="430" cy="231" r="4"/><circle cx="146" cy="98" r="3"/><circle cx="363" cy="69" r="3"/></g>
+        <path d="M93 432Q270 493 446 432" stroke="url(#brass)" stroke-width="5" fill="none"/><path d="M139 461H404" stroke="#d8ad78" opacity=".48"/>
+      </svg>
+      <div class="floating-seal seal-a">✷</div><div class="floating-seal seal-b">☾</div>
+      <div class="hero-art-caption">EST. WHEN THE CLOCK STRIKES TWELVE</div>
+    </div>
+  </section>
+  <section id="lobby" class="lobby" hidden>
+    <div class="section-heading"><div><p class="eyebrow">THE TWELVE SEALED CABINETS</p><h2>選一扇門，<em>看看命運怎麼說。</em></h2></div><button id="exit-room" class="btn btn-ghost">離開房間 ✕</button></div>
+    <div class="party-bar">
+      <div class="seat"><span class="seat-mark">I</span><div><small>訪客一號</small><strong id="seat-0">等待入座</strong><span id="seat-status-0">尚未就緒</span></div></div>
+      <span class="party-tether" aria-hidden="true">✧━━✦━━✧</span>
+      <div class="seat"><span class="seat-mark">II</span><div><small>訪客二號</small><strong id="seat-1">等待入座</strong><span id="seat-status-1">尚未就緒</span></div></div>
+      <div class="room-actions"><div id="room-code-wrap" hidden><small>房間密語</small><strong id="room-code-label">——</strong></div><button class="btn btn-small btn-outline" id="invite-button" hidden>複製邀請連結</button><button id="ready-button" class="btn btn-small btn-gold" hidden>我準備好了</button></div>
+    </div>
+    <p id="lobby-note" class="lobby-note" role="status">等待兩位訪客入座。</p>
+    <div class="cabinet-grid" id="cabinet-grid"></div>
+    <div class="lobby-bottom"><span>✦</span> 十二道不同的封印・每次挑戰都會留下戰績 <span>✦</span></div>
+  </section>
+  <section id="playing" class="playing" hidden>
+    <div class="game-heading"><button id="back-lobby" class="btn btn-ghost">← 返回大廳</button><div><p class="eyebrow">THE SEAL HAS BEEN BROKEN</p><h2 id="mode-title">未知封印</h2></div><div class="game-round" id="game-round"></div></div>
+    <div class="scorebar"><div><small id="score-name-0">訪客一號</small><strong id="score-0">0</strong></div><span class="score-ornament">✧　VS　✧</span><div><small id="score-name-1">訪客二號</small><strong id="score-1">0</strong></div></div>
+    <div id="instruction" class="instruction"></div>
+    <div id="arena" class="arena" aria-live="polite"></div>
+    <div id="play-notice" class="play-notice" role="status"></div>
+  </section>
+  <section id="results" class="results" hidden>
+    <div class="results-panel"><div class="result-crown">✦</div><p class="eyebrow">CABINET CLOSED</p><h2 id="result-title">命運揭曉</h2><p id="result-detail"></p><div id="result-scores" class="result-scores"></div><div class="result-buttons"><button id="again-button" class="btn btn-gold">回到奇物館</button><button id="rematch-button" class="btn btn-outline">再挑戰一次</button></div></div>
+  </section>
+</main>
+<footer class="footer"><span>✦</span> 午夜奇物館 <span>✦</span> 一場不必預先知道結局的雙人冒險 <span>✦</span><small>免費試玩・V1.0.0</small></footer>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
