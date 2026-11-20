@@ -1,5 +1,5 @@
 
-export const BUILD = '0.7.2';
+export const BUILD = '0.7.3';
 export const SKILL_CAP = 10;
 export const PASSIVE_CAP = 10;
 export const ATTRIBUTES = Object.freeze({str:'力量',agi:'敏捷',vit:'體質',int:'智慧',dex:'靈巧',luk:'幸運'});
@@ -11,11 +11,11 @@ export const RARITIES = [
   ['史詩','#783aa5'], ['傳說','#a64b16'], ['神話','#a52459']
 ];
 export const CLASSES = {
-  staff: { name:'金箍護園員', role:'近戰・耐打', icon:'🥢', color:'#f8ab46', hp:132, speed:178, skill:'sweep', burst:'金箍大旋風',
+  staff: { name:'金箍護園員', role:'近戰・耐打', icon:'🥢', color:'#f8ab46', hp:132, speed:166, skill:'sweep', burst:'金箍大旋風',
     description:'揮棒掃開身邊的怪群。被圍住時，用大旋風開路。' },
-  mage: { name:'香蕉魔法師', role:'遠程・範圍', icon:'🔥', color:'#c68af1', hp:96, speed:182, skill:'fire', burst:'果園流星雨',
+  mage: { name:'香蕉魔法師', role:'遠程・範圍', icon:'🔥', color:'#c68af1', hp:96, speed:170, skill:'fire', burst:'果園流星雨',
     description:'火球在怪群中炸開。大招會灑下六次流星。' },
-  scout: { name:'果園巡邏手', role:'遠程・機動', icon:'🏹', color:'#65dce1', hp:106, speed:202, skill:'seed', burst:'連環果籽箭',
+  scout: { name:'果園巡邏手', role:'遠程・機動', icon:'🏹', color:'#65dce1', hp:106, speed:188, skill:'seed', burst:'連環果籽箭',
     description:'靠走位拉開距離。大招向四周射出穿透果籽。' }
 };
 export const CLASS_KITS = {

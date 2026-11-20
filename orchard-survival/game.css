@@ -339,7 +339,7 @@ body.playing #top {display:none}
 .item.empty-slot .gear-art {opacity:.57}
 @media(max-width:720px){.look-preview .preview-unit {transform:scale(.67)}.profile-head .preview-unit {transform:scale(.89)}}
 
-.orchard-ground {position:absolute;top:0;left:0;transform-origin:0 0;background:#778451 url('./art/orchard-floor.webp') center/100% 100% no-repeat;pointer-events:none}
+.orchard-ground {position:absolute;top:0;left:0;transform-origin:0 0;background:#778451 url('./art/orchard-meadow.webp') center/100% 100% no-repeat;pointer-events:none}
 .ground-tint {position:absolute;inset:0}
 .scenery-img {filter:brightness(var(--scenery-light,1));background-repeat:no-repeat}
 #fitting-stage {background:#92a17d url('./art/orchard-stage.webp') center/cover no-repeat}
@@ -354,7 +354,7 @@ body.playing #top {display:none}
 .warning.circle,.warning.timer {border-radius:50%}.warning.timer {border:1.5px solid #ffe1b6;background:none}
 .damage-number {z-index:3;font:800 15px/24px system-ui;color:#fff6dc;text-align:center;white-space:nowrap;text-shadow:-1px -1px #382832,1px -1px #382832,-1px 1px #382832,1px 1px #382832,0 2px 2px #382832}
 .damage-number.critical {font-size:19px;font-weight:900;color:#ffcf72}
-#mini-map {position:relative;overflow:hidden;aspect-ratio:216/152;background:linear-gradient(#142c2cc7,#20382fc4),url('./art/orchard-floor.webp') center/100% 100%}
+#mini-map {position:relative;overflow:hidden;aspect-ratio:216/152;background:linear-gradient(#142c2cc7,#20382fc4),url('./art/orchard-meadow.webp') center/100% 100%}
 .radar-point {position:absolute;display:block;transform:translate(-50%,-50%);pointer-events:none}
 .radar-point.camera {transform:none;border:1px solid #e3ecc1a8}
 .radar-point.site {width:3px;height:3px;background:#f1d79c}

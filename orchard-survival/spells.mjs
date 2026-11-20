@@ -92,6 +92,24 @@ const sceneArt={ward:'leaf-ward',trail:'wind-trail',line:'wind-trail',bolt:'ligh
   cyclone:'leaf-cyclone',gale:'leaf-cyclone',sweep:'fx-slash','cast-staff':'leaf-cyclone','cast-mage':'fx-magic','cast-scout':'fx-wind',
   nova:'meteor',impact:'fx-magic'};
 const shotArt={blast:'fireball',return:'boomerang',starArrow:'star-arrow',pierce:'seed-arrow'};
+function displayDrops(gems,players,visible){
+  const nearby=gems.filter(([x,y])=>visible(x,y,20));
+  if(nearby.length<40)return nearby;
+  const singles=[],cells=new Map();
+  for(const gem of nearby){
+    const [x,y]=gem;
+    if(players.some(p=>!p.down&&Math.abs(x-p.x)<85&&Math.abs(y-p.y)<85)){singles.push(gem);continue;}
+    const key=Math.floor(x/42)+','+Math.floor(y/42);
+    if(!cells.has(key))cells.set(key,[]);
+    cells.get(key).push(gem);
+  }
+  for(const [key,cell] of cells){
+    if(cell.length<3){singles.push(...cell);continue;}
+    const marker=cell.reduce((a,b)=>a[2]>=b[2]?a:b);
+    singles.push([marker[0],marker[1],cell.reduce((sum,item)=>sum+item[2],0),'pile'+key]);
+  }
+  return singles;
+}
 export class FieldEffects {
   constructor(ground,front){this.ground=new SpriteLayer(ground);this.front=new SpriteLayer(front);}
   transform(matrix){this.ground.root.style.transform=this.front.root.style.transform=matrix;}
@@ -99,8 +117,7 @@ export class FieldEffects {
   draw(view,smooth,quiet,visible){
     const ground=this.ground,front=this.front;
     ground.begin();front.begin();
-    for(const [x,y,value,id] of view.gems){
-      if(!visible(x,y,20))continue;
+    for(const [x,y,value,id] of displayDrops(view.gems,view.players||[],visible)){
       const big=value>8,size=big?20:14;
       ground.art('gem'+(id??(x+'-'+y)),big?'gold-seed':'green-seed',x,y-3+(quiet?0:Math.sin(view.t*3+x)*1.4),size,size);
     }

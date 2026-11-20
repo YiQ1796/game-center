@@ -1,14 +1,23 @@
-import { FIELD } from './content.mjs?v=072';
+import { FIELD } from './content.mjs?v=073';
 function orchardSeed(x,y){
   let n=(Math.imul(x+139,73856093)^Math.imul(y+61,19349663))>>>0;
   return ()=>{n=(Math.imul(n,1664525)+1013904223)>>>0;return n/4294967296;};
 }
 
-export const ROADS=[
-  ['M-90 1250 C320 994 595 1340 960 1114 S1320 924 1570 886 S2225 633 2800 808',83],
-  ['M670 -90 C540 325 862 455 997 689 S1080 873 1282 976',52],
-  ['M1570 886 C1740 1010 1930 1166 1970 1418 S1790 1760 1850 2000',55]
+// Coordinates follow the painted map. Reserve space on both sides of each lane.
+const paths=[
+  [[0,214],[65,199],[120,183],[166,189],[208,183],[246,158],[282,135],[337,118],[417,120],[520,109]],
+  [[56,0],[71,24],[68,56],[72,83],[112,103],[129,124],[133,146],[118,175]],
+  [[393,130],[374,156],[365,191],[380,218],[419,240],[450,252],[478,280],[497,319],[515,347]]
 ];
+function onPath(x,y){
+  const px=x/FIELD.width*520,py=y/FIELD.height*347;
+  return paths.some((line,index)=>line.slice(1).some(([bx,by],i)=>{
+    const [ax,ay]=line[i],dx=bx-ax,dy=by-ay;
+    const t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy)));
+    return Math.hypot(px-ax-t*dx,py-ay-t*dy)<(index===0?23:13);
+  }));
+}
 export const LANDMARKS=[
   {kind:'shed',x:1130,y:861,scale:1.05,name:'採果棚'},
   {kind:'mill',x:1554,y:1036,scale:1.04,name:'水車渠'},
@@ -28,7 +37,7 @@ function makeGrove(){
       const x=cx+(random()-.5)*175,y=cy+(random()-.5)*120;
       const size=.70+random()*.53,variant=cultivar+3*Math.floor(random()*3);
       if(x<38||y<40||x>FIELD.width-38||y>FIELD.height-35||clearings.some(([cx,cy,r])=>Math.hypot(x-cx,y-cy)<r))continue;
-      if(list.some(p=>Math.abs(p.x-x)<45&&Math.abs(p.y-y)<33))continue;
+      if(onPath(x,y)||list.some(p=>Math.abs(p.x-x)<76&&Math.abs(p.y-y)<52))continue;
       add(banana?'banana':'tree',x,y,size,banana?0:variant);
     }
   }
