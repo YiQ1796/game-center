@@ -14,6 +14,7 @@ const namePool=['霧中的黑貓','遲到的魔術師','愛吃布丁的幽靈','
 let role='none',room='',peer=null,connection=null,state=null,joinAttempt=0,retryHandle=0,toastTimer=0;
 const drafts=[[],[]];
 let partyReady=false;
+let guestReadyLockedUntil=0;
 const clampName=value=>String(value??'').replace(/[\x00-\x1f\x7f]/g,'').trim().slice(0,16)||namePool[Math.floor(Math.random()*namePool.length)];
 const safe=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const makeCode=()=>{
@@ -66,8 +67,9 @@ function dispose(){
   connection=null;peer=null;joinAttempt=0;
 }
 function exitToWelcome(){
+  const oldRoom=room,wasHost=role==='host';
   dispose();role='none';room='';state=null;resetDrafts();partyReady=false;
-  try{sessionStorage.removeItem(HOST_ROOM_KEY)}catch{}
+  try{sessionStorage.removeItem(HOST_ROOM_KEY);if(wasHost)sessionStorage.removeItem(STORAGE_PREFIX+oldRoom)}catch{}
   history.replaceState(null,'',location.pathname);
   $('welcome-status').textContent='';
   status('尚未連線');render();
@@ -223,7 +225,12 @@ function returnLobby(){
 }
 function readyUp(){
   if(!state||state.phase!=='lobby'||role==='local')return;
-  if(role==='guest'){if(connection?.open)connection.send({type:'ready'});return;}
+  if(role==='guest'){
+    if(!connection?.open||Date.now()<guestReadyLockedUntil)return;
+    guestReadyLockedUntil=Date.now()+700;
+    connection.send({type:'ready'});
+    return;
+  }
   state.ready[0]=!state.ready[0];broadcast();
 }
 function doGameAction(p,kind,value){
@@ -248,7 +255,7 @@ function renderLobby(){
   $('ready-button').hidden=role==='local';
   const myself=role==='host'?0:1;
   $('ready-button').textContent=state.ready[myself]?'取消準備':'我準備好了';
-  $('ready-button').disabled=role==='host'&&!partyReady;
+  $('ready-button').disabled=(role==='host'&&!partyReady)||(role==='guest'&&Date.now()<guestReadyLockedUntil);
   const allReady=state.connected.every(Boolean)&&state.ready.every(Boolean);
   $('lobby-note').textContent=!state.connected[1]&&role!=='local'?'將房號或邀請連結傳給好友，等他加入。':!allReady?'兩人都按下「準備」，就能開啟十二扇封印。':role==='guest'?'兩位訪客已準備，請房主選擇封印。':'兩位訪客都準備好了，請選擇任意一扇門。';
   $('cabinet-grid').innerHTML=CATALOG.map((entry,i)=>{
