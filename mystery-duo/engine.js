@@ -351,7 +351,8 @@ function simulateSnake(g,i,dt){
     const next={x:head.x+vectors[s.dir][0],y:head.y+vectors[s.dir][1]};
     const eat=next.x===g.food.x&&next.y===g.food.y;
     const hit=next.x<0||next.y<0||next.x>=26||next.y>=14||
-      g.snakes.some(other=>other.body.slice(0,other===s&&!eat?-1:undefined).some(body=>body.x===next.x&&body.y===next.y));
+      g.snakes.some(other=>other.body.some((body,index)=>
+        !(other===s&&!eat&&index===other.body.length-1)&&body.x===next.x&&body.y===next.y));
     if(hit){s.dead=1.3;score(g,p,-3);event(g,'撞到障礙，重新出發！');continue}
     s.body.unshift(next);if(!eat)s.body.pop();
     else{score(g,p,5);createFood(g);event(g,'靈蛇吃到了星果！')}
