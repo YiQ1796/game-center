@@ -5,18 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#111326">
 <meta name="description" content="午夜奇物館：兩個人、十二道未知封印、無數種驚喜。">
-<title>午夜奇物館｜雙人神祕挑戰</title>
+<title>午夜奇物館｜十二種雙人即時冒險</title>
 <link rel="icon" href="../favicon.ico">
-<link rel="stylesheet" href="./style.css?v=100">
+<link rel="stylesheet" href="./style.css?v=200">
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js" defer></script>
-<script type="module" src="./game.js?v=100"></script>
+<script type="module" src="./v2.js?v=200"></script>
 </head>
 <body>
 <div class="ambient" aria-hidden="true"><span class="moon"></span><span class="nebula"></span><span class="stars"></span></div>
 <header class="topbar">
   <a class="back-link" href="../"><span aria-hidden="true">✧</span> 猴三毛遊戲中心</a>
   <div class="top-brand"><i class="top-brand-spark">✦</i> MIDNIGHT ARCADE</div>
-  <div class="top-right"><span id="connection-dot" class="connection-dot"></span><span id="connection-state">尚未連線</span><span class="version">V1.0.0</span></div>
+  <div class="top-right"><span id="connection-dot" class="connection-dot"></span><span id="connection-state">尚未連線</span><span class="version">V2.0.0</span></div>
 </header>
 <main class="shell">
   <section id="welcome" class="welcome">
@@ -77,17 +77,29 @@
     <div class="lobby-bottom"><span>✦</span> 十二道不同的封印・每次挑戰都會留下戰績 <span>✦</span></div>
   </section>
   <section id="playing" class="playing" hidden>
-    <div class="game-heading"><button id="back-lobby" class="btn btn-ghost">← 返回大廳</button><div><p class="eyebrow">THE SEAL HAS BEEN BROKEN</p><h2 id="mode-title">未知封印</h2></div><div class="game-round" id="game-round"></div></div>
-    <div class="scorebar"><div><small id="score-name-0">訪客一號</small><strong id="score-0">0</strong></div><span class="score-ornament">✧　VS　✧</span><div><small id="score-name-1">訪客二號</small><strong id="score-1">0</strong></div></div>
-    <div id="instruction" class="instruction"></div>
-    <div id="arena" class="arena" aria-live="polite"></div>
-    <div id="play-notice" class="play-notice" role="status"></div>
+    <div class="game-heading">
+      <button id="back-lobby" class="btn btn-ghost" type="button">← 返回大廳</button>
+      <div><p class="eyebrow">THE SEAL IS OPEN</p><h2 id="mode-title">未知封印</h2></div>
+      <div class="game-round" id="game-round"></div>
+    </div>
+    <div class="scorebar">
+      <div><small id="score-name-0">訪客一號</small><strong id="score-0">0</strong></div>
+      <span class="score-ornament">✧　VS　✧</span>
+      <div><small id="score-name-1">訪客二號</small><strong id="score-1">0</strong></div>
+    </div>
+    <p id="instruction" class="instruction"></p>
+    <div class="arcade-frame" id="arena">
+      <canvas id="game-canvas" width="960" height="540" role="img" aria-label="兩名玩家的即時互動遊戲場景；使用下方方向鍵與動作鍵操作"></canvas>
+    </div>
+    <p id="play-notice" class="play-notice" role="status"></p>
+    <div class="controls-topline"><span>鍵盤：訪客一 WASD / 空白鍵　✦　訪客二方向鍵 / Enter</span><button type="button" class="sound-toggle" id="audio-toggle">♪ 音效開啟</button></div>
+    <div id="touch-controls" class="touch-controls" aria-label="手機與平板觸控操作區"></div>
   </section>
   <section id="results" class="results" hidden>
     <div class="results-panel"><div class="result-crown">✦</div><p class="eyebrow">CABINET CLOSED</p><h2 id="result-title">命運揭曉</h2><p id="result-detail"></p><div id="result-scores" class="result-scores"></div><div class="result-buttons"><button id="again-button" class="btn btn-gold">回到奇物館</button><button id="rematch-button" class="btn btn-outline">再挑戰一次</button></div></div>
   </section>
 </main>
-<footer class="footer"><span>✦</span> 午夜奇物館 <span>✦</span> 一場不必預先知道結局的雙人冒險 <span>✦</span><small>免費試玩・V1.0.0</small></footer>
+<footer class="footer"><span>✦</span> 午夜奇物館 <span>✦</span> 一場不必預先知道結局的雙人冒險 <span>✦</span><small>免費試玩・V2.0.0</small></footer>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
