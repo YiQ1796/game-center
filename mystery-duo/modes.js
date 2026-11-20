@@ -53,7 +53,13 @@ function newMaze(){
   return walls;
 }
 function newStarSet(n){
-  return valuesRange(n).map(i=>({x:5+randomInt(90),y:8+randomInt(84),delay:(i%5)*-.4}));
+  // 均勻分區放星：避免兩顆星相互遮住，導致計數關卡無法公平作答。
+  const chosen=shuffle(valuesRange(24)).slice(0,n);
+  return chosen.map((cell,i)=>({
+    x:8+(cell%6)*15+randomInt(5),
+    y:12+Math.floor(cell/6)*22+randomInt(6),
+    delay:(i%5)*-.4
+  }));
 }
 function nextRound(s){
   const d=s.data; d.round+=1;
