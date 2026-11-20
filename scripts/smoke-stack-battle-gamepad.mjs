@@ -81,7 +81,7 @@ try {
       width, height: 844, deviceScaleFactor: 2, mobile: true
     });
     await call('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-    await call('Page.navigate', { url: address + '?ci=v142-' + width });
+    await call('Page.navigate', { url: address + '?ci=v143-' + width });
     let ready = false;
     for (let attempt = 0; attempt < 150; attempt++) {
       const result = await call('Runtime.evaluate', {
@@ -120,9 +120,12 @@ try {
         assert(Math.abs(left.cy - right.cy) < 3, 'Left/right must share a row');
         assert(Math.abs(up.cx - down.cx) < 3, 'Up/down must share a column');
         assert(drop.x + drop.w < left.x - 2, 'Hard-drop must sit separately on the left');
-        assert(drop.h >= 1.25 * up.h && drop.h <= 1.85 * up.h, 'Hard-drop should be a smaller round button');
-        assert(drop.w <= 88 && Math.abs(drop.w - drop.h) < 2, 'Hard-drop must be compact and round');
-        assert(controls.getBoundingClientRect().height <= 184, 'Control panel blocks too much gameplay');
+        assert(drop.h >= 2.3 * up.h && drop.h <= 3.0 * up.h, 'Hard-drop height must fill the marked red touch area');
+        assert(drop.w >= (innerWidth <= 355 ? 84 : 100), 'Hard-drop width is below the marked touch area');
+        assert(Math.abs(left.h - 64) <= (innerWidth <= 355 ? 7 : 2), 'Left button must match its marked height');
+        assert(Math.abs(right.h - left.h) < 2, 'Left/right button heights must match');
+        assert(up.w >= (innerWidth <= 355 ? 70 : 82), 'Up rotation button remains too small');
+        assert(controls.getBoundingClientRect().height <= 205, 'Controller should not obscure the board');
         assert(getComputedStyle(controls).userSelect === 'none' ||
                getComputedStyle(controls).webkitUserSelect === 'none',
                'Gamepad text selection is enabled');
@@ -132,7 +135,7 @@ try {
     });
     if (response.exceptionDetails) throw new Error(response.exceptionDetails.exception?.description);
     assert.equal(response.result.value.width, width);
-    console.log('Stack Battle compact cross D-pad Chrome ' + width + 'px PASS');
+    console.log('Stack Battle red-box D-pad Chrome ' + width + 'px PASS');
   }
 } finally {
   socket?.close();

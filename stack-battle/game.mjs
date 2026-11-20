@@ -572,18 +572,57 @@ window.addEventListener('blur', cancelInputs);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && mode === 'solo' && soloStatus === 'playing') togglePause();
 });
+/*
+ * Safari may omit pointerdown during rapid/multi-touch play and can throw from
+ * setPointerCapture on a cancelled pointer. Trigger the action before capture,
+ * fall back to touchstart and click, and suppress duplicates from the same tap.
+ * Rotation and hard-drop remain single-press actions; l/r/d still auto-repeat.
+ */
 for (const button of document.querySelectorAll('[data-action]')) {
   const action = button.dataset.action;
+  let pointerStartedAt = -Infinity;
+  let touchStartedAt = -Infinity;
+  let physicalGestureEndedAt = -Infinity;
+  const startPress = key => startInput(key, action);
+  const endTouch = event => {
+    physicalGestureEndedAt = performance.now();
+    for (const touch of event.changedTouches) stopInput('touch:' + touch.identifier);
+  };
+
   button.addEventListener('pointerdown', event => {
-    if (event.button !== 0) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
     event.preventDefault();
     clearGameplaySelection();
-    button.setPointerCapture(event.pointerId);
-    startInput(event.pointerId, action);
+    const now = performance.now();
+    const wasHandledByTouch = event.pointerType === 'touch' && now - touchStartedAt < 85;
+    pointerStartedAt = now;
+    // Capture is optional: input must never depend on setPointerCapture succeeding.
+    if (!wasHandledByTouch) startPress('pointer:' + event.pointerId);
+    try { button.setPointerCapture(event.pointerId); } catch { /* iOS cancelled pointer */ }
   });
   for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'])
-    button.addEventListener(name, event => stopInput(event.pointerId));
-  button.addEventListener('click', event => { if (event.detail === 0) gameInput(action); });
+    button.addEventListener(name, event => {
+      physicalGestureEndedAt = performance.now();
+      stopInput('pointer:' + event.pointerId);
+    });
+
+  button.addEventListener('touchstart', event => {
+    const now = performance.now();
+    touchStartedAt = now;
+    // On some WebKit touches, no pointerdown follows: do not drop the press.
+    if (now - pointerStartedAt > 85) {
+      for (const touch of event.changedTouches) startPress('touch:' + touch.identifier);
+    }
+  }, { passive: true });
+  button.addEventListener('touchend', endTouch, { passive: true });
+  button.addEventListener('touchcancel', endTouch, { passive: true });
+  button.addEventListener('click', event => {
+    if (event.detail === 0) {
+      gameInput(action); // Keyboard / accessibility activation.
+    } else if (performance.now() - Math.max(pointerStartedAt, touchStartedAt, physicalGestureEndedAt) > 350) {
+      gameInput(action); // Browser synthesized click with missing touch/pointer events.
+    }
+  });
 }
 // Safari may select text in the monkey dialogue just above the control pad.
 // Suppress selection only while a game is actively being played; keep normal

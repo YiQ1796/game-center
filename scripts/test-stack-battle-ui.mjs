@@ -22,8 +22,9 @@ test('Compact phone pad keeps a small left hard-drop and four right-side directi
   assert.doesNotMatch(html, /id="hold"/);
   assert.doesNotMatch(game, /KeyC:|KeyZ:|drawPreview\('hold'/);
   assert.match(game, /ArrowUp: 's'/);
-  assert.match(css, /grid-template-columns: minmax\(76px, 88px\) minmax\(0, 174px\)/);
-  assert.match(css, /grid-template-rows: repeat\(3, 50px\)/);
+  assert.match(css, /grid-template-columns: minmax\(0, 112px\) minmax\(0, 228px\)/);
+  assert.match(css, /grid-template-rows: 54px 64px 48px/);
+  assert.match(css, /grid-template-columns: minmax\(0, 112px\) minmax\(0, 228px\)/);
   assert.match(css, /\.drop-pad \.hard-drop \{/);
   for (const [action, area] of Object.entries({
     s: '1 / 2 / 2 / 3',
@@ -78,7 +79,7 @@ test('Active gameplay blocks Safari long-press text selection outside control bu
   assert.match(game, /selection\?\.rangeCount/);
   assert.match(game, /gameplaySurface\(selection\.anchorNode\)/);
   assert.match(game, /\$\('help-dialog'\)\.open/);
-  assert.match(html, /V1\.4\.2/);
+  assert.match(html, /V1\.4\.3/);
 });
 
 test('Guest input prediction and snapshot throttling are present', () => {
@@ -101,4 +102,17 @@ test('Updated room and shared peer loader bust old relay caches', () => {
   assert.match(room, /peer-room.mjs\?v=stack-140/);
   const peer = readFileSync(new URL('../one-a-two-b/peer-room.mjs', import.meta.url), 'utf8');
   assert.match(peer, /relay-transport.mjs\?v=5/);
+});
+
+test('Mobile touch input remains responsive when Safari skips pointerdown or capture throws', () => {
+  assert.match(game, /startPress\('pointer:' \+ event\.pointerId\)/);
+  assert.match(game, /try \{ button\.setPointerCapture\(event\.pointerId\); \} catch/);
+  assert.match(game, /button\.addEventListener\('touchstart'/);
+  assert.match(game, /now - pointerStartedAt > 85/);
+  assert.match(game, /button\.addEventListener\('touchend', endTouch/);
+  assert.match(game, /button\.addEventListener\('touchcancel', endTouch/);
+  assert.match(game, /physicalGestureEndedAt/);
+  assert.match(game, /event\.detail === 0/);
+  assert.match(game, /const repeating = 'lrd'/);
+  assert.doesNotMatch(game, /const repeating = 'lrds'/);
 });
