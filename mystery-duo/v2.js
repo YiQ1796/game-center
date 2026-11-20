@@ -28,7 +28,7 @@ let role='none',room='',peer=null,connection=null,state=null;
 let peerRetry=0,connTimer=0,toastTimer=0;
 let localInputs=[neutral(),neutral()],remoteInput=neutral();
 let buttonsHeld=new Set(),pointerBindings=new Map(),audioEnabled=true,audio=null;
-let controlKey='',lastFrame=0,accumulator=0,lastSent=0,lastSave=0,lastSoundEvent=-1;
+let controlKey='',lastFrame=0,accumulator=0,lastSent=0,lastSave=0,lastHud=0,lastSoundEvent=-1;
 let gameCtx=null,renderCtx=null,renderScale=1;
 let pageVisible=true;
 const keysHeld=new Set();
@@ -286,7 +286,7 @@ function renderControls(){
   if(key===controlKey)return;
   controlKey=key;
   const labels=mode.rhythm?[['up','↑'],['right','→'],['down','↓'],['left','←']]:[['up','↑'],['left','←'],['down','↓'],['right','→']];
-  $('touch-controls').innerHTML=pids.map(p=>'<section class="touch-player touch-p'+p+'"><div class="touch-heading"><span class="player-dot dot-'+p+'"></span>'+escapeHTML(state.names[p])+'</div><div class="touch-key-grid '+(mode.rhythm?'touch-rhythm':'')+'">'+labels.map(([key,symbol])=>'<button type="button" data-player="'+p+'" data-control="'+key+'" aria-label="'+['up','left','down','right'].includes(key)?'':key+'">'+symbol+'</button>').join('')+'</div>'+(mode.rhythm?'':'<button type="button" class="touch-action" data-player="'+p+'" data-control="action">✦ 動作</button>')+'</section>').join('');
+  $('touch-controls').innerHTML=pids.map(p=>'<section class="touch-player touch-p'+p+'"><div class="touch-heading"><span class="player-dot dot-'+p+'"></span>'+escapeHTML(state.names[p])+'</div><div class="touch-key-grid '+(mode.rhythm?'touch-rhythm':'')+'">'+labels.map(([key,symbol])=>'<button type="button" data-player="'+p+'" data-control="'+key+'" aria-label="'+({up:'上',left:'左',down:'下',right:'右'})[key]+'">'+symbol+'</button>').join('')+'</div>'+(mode.rhythm?'':'<button type="button" class="touch-action" data-player="'+p+'" data-control="action">✦ 動作</button>')+'</section>').join('');
   // Data-driven HTML controls: pointer state is rebuilt when the round changes.
 }
 function renderPlaying(){
@@ -408,9 +408,8 @@ function paintFrame(now){
   try{drawGame(gameCtx,state.data,state.names)}catch(error){
     if(!window.__mysteryRenderWarned){window.__mysteryRenderWarned=true;console.error('Canvas error:',error);note('畫面繪製異常，請重新整理頁面。')}
   }
-  if(now-lastSent>120&&role!=='host')renderPlaying();
-  if(role==='host'&&now%280<17)renderPlaying();
-  if(role==='guest'&&now%280<17)sendInput();
+  if(now-lastHud>180){lastHud=now;renderPlaying()}
+  if(role==='guest'&&now-lastSent>95){lastSent=now;sendInput()}
 }
 function bind(){
   try{$('player-name').value=localStorage.getItem(NAME_KEY)||pickName()}catch{$('player-name').value=pickName()}
