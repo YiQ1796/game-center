@@ -1,6 +1,6 @@
 
-import { attributeCost,salePrice, marketPrice, CLASS_KITS, CLASS_RELICS, CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=071';
-import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=071';
+import { attributeCost,salePrice, marketPrice, CLASS_KITS, allowsPassive, marketItem, CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=072';
+import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=072';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -56,14 +56,14 @@ export function setMove(player, x, y) {
 }
 
 export function stats(player, equipment=player.gear) {
-  const points = {...player.passive};
+  const points = player.passive;
   const gear = {};
   for (const item of equipment) {
     if (!item) continue;
     for (const [key,value] of item.perks) gear[key] = (gear[key] || 0) + value;
   }
   const bonus = key => gear[key] || 0;
-  const rank = key => points[key] || 0;
+  const rank = key => allowsPassive(player.job,key) ? points[key] || 0 : 0;
   const promotion = getAdvancement(player.job,player.promotion);
   const promoted = key => promotion?.[key] || 0;
   const attr = key => Math.max(0,player.attributes?.[key] || 0);
@@ -115,8 +115,8 @@ function makeOffers(game, player) {
     player.deadline = game.elapsed + 25;
     return;
   }
-  const activeCount = Object.keys(player.skills).length;
-  const passiveCount = Object.keys(player.passive).length;
+  const activeCount = CLASS_KITS[player.job].filter(key=>player.skills[key]>0).length;
+  const passiveCount = Object.keys(player.passive).filter(key=>allowsPassive(player.job,key)).length;
   const active = CLASS_KITS[player.job].flatMap(key => {
     const skill=SKILLS[key];
     const level = player.skills[key] || 0;
@@ -128,7 +128,7 @@ function makeOffers(game, player) {
   });
   const passive = Object.entries(PASSIVES).flatMap(([key,perk]) => {
     const level = player.passive[key] || 0;
-    if (!level && Object.values(CLASS_RELICS).includes(key) && CLASS_RELICS[player.job]!==key) return [];
+    if (!allowsPassive(player.job,key)) return [];
     if (player.forgotten.includes(key) || level >= PASSIVE_CAP || (!level && passiveCount >= 6)) return [];
     return [{ type:'passive', key, name:perk[0], text:'Lv.'+level+' → '+(level+1)+'｜'+perk[1],
       detail:'被動技能｜最高 Lv.'+PASSIVE_CAP }];
@@ -197,10 +197,14 @@ export function choose(game, player, index, version) {
     if(offer.grade==='legendary')player.legendaryTokens=Math.max(0,player.legendaryTokens-1);
   }
   if (type === 'passive') {
+    if(!allowsPassive(player.job,key))return false;
     player.passive[key] = Math.min(PASSIVE_CAP,(player.passive[key] || 0) + 1);
     updateMaxHp(player, key === 'heart');
   }
-  if (type === 'evolution') player.evolution[key] = true;
+  if (type === 'evolution') {
+    if(!EVOLUTIONS[key]||(player.skills[key]||0)<5||!player.passive[EVOLUTIONS[key][1]]||player.evolution[key])return false;
+    player.evolution[key]=true;
+  }
   if (type === 'promotion') {
     const track = getAdvancement(player.job,key);
     if (!track || player.promotion) return false;
@@ -259,7 +263,7 @@ function rollGear(game, high, job) {
 
 export function purchase(game,player,key) {
   if (game.ended || !player || player.down || !Object.hasOwn(MARKET,key)) return false;
-  const item=MARKET[key],cost=marketPrice(key,player.pointsBought);
+  const item=marketItem(key,player.job),cost=marketPrice(key,player.pointsBought);
   if (player.crumbs<cost || (key==='juice' && player.hp>=player.maxHp) ||
       ((key==='boots'||item.perks) && player.loot.length>=12) || (key==='point' && (player.statPoints>=180||player.pointsBought>=8||Object.values(player.attributes).every(n=>n>=99)))) return false;
   player.crumbs-=cost;
@@ -421,6 +425,7 @@ function blast(game, player, x, y, radius, amount, color, crit, knock=0, slow=0,
 
 function shoot(game, player, angle, {amount,color,crit,reach,kind,speed=485,pierce=1,tier=1}) {
   if (game.shots.length >= 192) return;
+  if(kind==='pierce' && player.job==='scout')pierce+=Math.ceil((player.passive.broadhead||0)/2);
   game.shots.push({
     id:++game.serial,x:player.x,y:player.y,owner:player.id,angle,speed,amount,color,crit,
     life:reach/speed,reach,kind,pierce,tier,hit:new Set(),returning:false
@@ -447,6 +452,7 @@ function useSkill(game, player, key, level, config) {
   if(kind==='counter'){
     if(!player.counterReady||!nearestBody(game,x,y,range*scale))return;
     player.counterReady=false;
+    player.hp=Math.min(player.maxHp,player.hp+(player.passive.bracers||0));
     blast(game,player,x,y,range*scale,amount,color,config.crit,38,0,'sweep');
   }else if(kind==='thrust'){
     const length=range*scale,dx=Math.cos(angle),dy=Math.sin(angle);
@@ -466,7 +472,7 @@ function useSkill(game, player, key, level, config) {
     const remaining=target.hp;
     hurt(game,player,target,amount,color,config.crit,0,'magic');
     player.hp=Math.min(player.maxHp,player.hp+Math.min(remaining,remaining-target.hp)*.12);
-    effect(game,target.x,target.y,0,color,.44,'line',x,y);
+    effect(game,target.x,target.y,0,color,.44,'siphon',x,y);
   }else if (kind === 'ring' || kind === 'orbit' || kind === 'push') {
     if (!nearestBody(game,x,y,range*scale)) return;
     if (kind === 'orbit') {
@@ -480,7 +486,7 @@ function useSkill(game, player, key, level, config) {
     let head=target, previous=player;
     const hitIds=new Set();
     for (let i=0;i<3+Math.floor(level/3)+(evolved?2:0)&&head;i++) {
-      effect(game,previous.x,previous.y,0,color,.26,'line',head.x,head.y);
+      effect(game,previous.x,previous.y,0,color,.26,'arc',head.x,head.y);
       hurt(game,player,head,amount*Math.max(.35,1-i*.11),color,config.crit);
       hitIds.add(head.id);
       previous=head;
@@ -506,6 +512,7 @@ function useSkill(game, player, key, level, config) {
   }
   if (key===CLASSES[player.job].skill) {
     player.strikeAt=game.elapsed;
+    player.lastTarget=target;
     player.aim=angle;
     if (target && Math.abs(Math.cos(angle))>.18) player.face=Math.cos(angle)>0?1:-1;
   }
@@ -600,7 +607,7 @@ function updateShots(game, owners) {
       if(shot.pierce<=0)break;
       if(enemy.hp<=0)continue;
       shot.hit.add(enemy.id);shot.pierce--;
-      if(shot.kind==='blast')blast(game,owner,x+dx*entry,y+dy*entry,74,shot.amount,shot.color,shot.crit);
+      if(shot.kind==='blast')blast(game,owner,x+dx*entry,y+dy*entry,74+6*(owner.passive.emberglass||0),shot.amount,shot.color,shot.crit,0,0,'flame');
       else {
         hurt(game,owner,enemy,shot.amount,shot.color,shot.crit,0,'wind');
         if(shot.kind==='pin')enemy.root=Math.max(enemy.root||0,.65+shot.tier*.09);
@@ -877,20 +884,29 @@ function radarContacts(enemies) {
   return { cells:[...cells], bosses };
 }
 
+function preparingStrike(player){
+  const primary=CLASSES[player.job].skill,remaining=player.timers[primary],target=player.lastTarget;
+  return Boolean(!player.down && remaining>0 && remaining<=.12 && target?.hp>0 &&
+    dist(player,target)<=SKILLS[primary][3]+target.radius);
+}
+
 export function buildView(game, focusId) {
   const focus=game.players.find(player=>player.id===focusId) || game.players[0];
   const see=object=>Math.abs(object.x-focus.x)<760&&Math.abs(object.y-focus.y)<660;
+  const kit=CLASS_KITS[focus.job];
+  const eligible=entries=>Object.fromEntries(Object.entries(entries).filter(([key])=>kit.includes(key)));
   const n=Math.round;
   return {
     runId:game.runId,hail:game.hail.filter(see).map(s=>[s.id,n(s.x),n(s.y),Math.max(0,s.at-game.elapsed)]),radar:radarContacts(game.enemies), t:game.elapsed,l:game.level,xp:game.xp,xpMax:THRESHOLD(game.level),done:game.ended,reason:game.reason,
     notice:game.elapsed<game.noticeAt ? game.notice : '', nextBoss:game.bossAt, paused:game.paused,
     players:game.players.map(p=>({
       id:p.id,name:p.name,aliveSeconds:Math.floor(p.aliveSeconds),master:p.master,job:p.job,promotion:p.promotion,x:n(p.x),y:n(p.y),face:p.face,walk:p.walk,gait:n(p.gait*255),travelY:p.walk&&Math.abs(p.move.y)>.35?Math.sign(p.move.y):0,down:p.down,
-      look:{ level:p.skills[CLASSES[p.job].skill], evolved:Boolean(p.evolution[CLASSES[p.job].skill]), slots:p.gear.map(item=>item ? 1+item.rarity+item.rank*6 : 0), swing:n(Math.max(0,1-(game.elapsed-p.strikeAt)/.4)*100), aim:n(p.aim*100)/100 },
+      look:{ ready:preparingStrike(p),level:p.skills[CLASSES[p.job].skill], evolved:Boolean(p.evolution[CLASSES[p.job].skill]), slots:p.gear.map(item=>item ? 1+item.rarity+item.rank*6 : 0), swing:n(Math.max(0,1-(game.elapsed-p.strikeAt)/.4)*100), aim:n(p.aim*100)/100 },
       hp:n(p.hp),maxHp:p.maxHp,rev:p.rescue,inv:p.inv>0,kills:p.kills,damage:n(p.damage),bosses:p.bosses,rescues:p.rescues
     })),
-    own:{id:focus.id,master:focus.master,pointsBought:focus.pointsBought,limit:focus.limit,forgotten:focus.forgotten,canBanish:focus.banishedAt!==game.level,promotion:focus.promotion,burst:focus.burst,offers:focus.offers,offerId:focus.offerId,deadline:focus.deadline,
-      gear:focus.gear,loot:focus.loot,crumbs:focus.crumbs,skills:focus.skills,passive:focus.passive,evolution:focus.evolution,
+    own:{id:focus.id,master:focus.master,pointsBought:focus.pointsBought,limit:focus.limit,forgotten:focus.forgotten.filter(key=>kit.includes(key)||allowsPassive(focus.job,key)),canBanish:focus.banishedAt!==game.level,promotion:focus.promotion,burst:focus.burst,offers:focus.offers,offerId:focus.offerId,deadline:focus.deadline,
+      gear:focus.gear,loot:focus.loot,crumbs:focus.crumbs,skills:eligible(focus.skills),passive:Object.fromEntries(Object.entries(focus.passive).filter(([key])=>allowsPassive(focus.job,key))),
+      evolution:Object.fromEntries(Object.entries(focus.evolution).filter(([key,on])=>on&&kit.includes(key)&&EVOLUTIONS[key]&&focus.skills[key])),
       attributes:focus.attributes,statPoints:focus.statPoints,legendaryTokens:focus.legendaryTokens,
       timers:focus.timers,derived:stats(focus)},
     boss:game.enemies.filter(e=>e.hp>0&&['boss','queen'].includes(e.kind))

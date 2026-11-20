@@ -18,8 +18,8 @@ async function exercise() {
     throw Error(hint);
   };
   await until(()=>el('jobs')?.children.length===3,'class selection never loaded');
-  const {HeroSprite,EnemySprite,gearIcon}=await import('./actors.mjs?v=071');
-  const {FieldEffects}=await import('./spells.mjs?v=071');
+  const {HeroSprite,EnemySprite,gearIcon}=await import('./actors.mjs?v=072');
+  const {FieldEffects}=await import('./spells.mjs?v=072');
   expect(document.querySelectorAll('canvas').length===0,'unexpected Canvas renderer in the game');
   const target=document.createElement('canvas');target.width=290;target.height=240;
   const ink=target.getContext('2d',{willReadFrequently:true});
@@ -39,7 +39,7 @@ async function exercise() {
     expect(el('stage-name').textContent===routeName&&stage.getAttribute('aria-label').includes(routeName),'fitting route mismatch');
     expect(el('jobs').children[index].getAttribute('aria-pressed')==='true','audition changed starting class');
   }
-  const {Garden,fieldLight,LANDMARKS}=await import('./garden.mjs?v=071');
+  const {Garden,fieldLight,LANDMARKS}=await import('./garden.mjs?v=072');
   const garden=new Garden(),day=fieldLight(0),night=fieldLight(168);
   const fieldImage=new Image();fieldImage.src=new URL('./art/orchard-floor.webp',location.href);await fieldImage.decode();
   expect(fieldImage.naturalWidth>=1200,'illustrated field missing');
@@ -60,7 +60,7 @@ async function exercise() {
       await img.decode();plates.set(name,img);
     }
     const img=plates.get(name);
-    expect(img.naturalWidth===(frames===4?400:192)*frames&&getComputedStyle(art).backgroundImage.includes(name+'.webp'),'missing illustration '+name);
+    expect(img.naturalWidth===(frames===6?400:192)*frames&&getComputedStyle(art).backgroundImage.includes(name+'.webp'),'missing illustration '+name);
     return img;
   }
   function posePixels(img,count,frame,lower=false){
@@ -74,23 +74,29 @@ async function exercise() {
       const player={job,promotion:route,face:1,look};
       document.body.append(hero.el);
       hero.update(player,true,true);
-      const img=await loadStrip(hero.art,4);
+      const img=await loadStrip(hero.art,6);
       const base=job===route;
-      expect(hero.art.dataset.sheet===(base?job:route+'-t2'),'incorrect baked outfit');
+      expect(hero.art.dataset.sheet===(base?job+'-poses1':route+'-poses2'),'incorrect baked outfit');
       expect(!hero.body.querySelector('img,.worn-details'),'equipment icon rendered on body');
       if(!base){
         hero.update({...player,master:true},true,true);
-        const master=await loadStrip(hero.art,4);
-        expect(hero.art.dataset.sheet===route+'-t3' && difference(posePixels(img,4,0),posePixels(master,4,0))>100,'third tier outfit missing');
+        const master=await loadStrip(hero.art,6);
+        expect(hero.art.dataset.sheet===route+'-poses3' && difference(posePixels(img,6,0),posePixels(master,6,0))>100,'third tier outfit missing');
         hero.update(player,true,true);
       }
-      ready.set(job,posePixels(img,4,0));
-      expect(difference(posePixels(img,4,1,true),posePixels(img,4,2,true))>65,route+' legs have identical strides');
-      expect(difference(posePixels(img,4,0),posePixels(img,4,3))>700,route+' attack silhouette failed');
+      ready.set(job,posePixels(img,6,0));
+      expect(difference(posePixels(img,6,1,true),posePixels(img,6,2,true))>65,route+' legs have identical strides');
+      expect(difference(posePixels(img,6,0),posePixels(img,6,3))>700,route+' attack silhouette failed');
       for(const [gait,frame] of [[48,1],[176,2]]){
         hero.update({...player,walk:true,gait},true,true);expect(hero.el.dataset.pose===String(frame),route+' walk');
       }
-      look.swing=45;hero.update(player,true,true);expect(hero.el.dataset.pose==='3',route+' strike');look.swing=0;
+      for(const [swing,ready,frame] of [[0,true,4],[98,false,3],[25,false,5]]){
+        look.swing=swing;look.ready=ready;hero.update(player,true,true);
+        expect(hero.el.dataset.pose===String(frame),route+' attack timing '+swing);
+      }
+      expect(difference(posePixels(img,6,0),posePixels(img,6,4))>300,route+' missing wind-up');
+      expect(difference(posePixels(img,6,3),posePixels(img,6,5))>300,route+' missing follow-through');
+      look.swing=0;
       for(let slot=0;slot<8;slot++){
         const icon=gearIcon(slot,job,route);await icon.decode();
         look.slots[slot]=5;hero.update(player,true,true);
@@ -125,6 +131,9 @@ async function exercise() {
     const before=spell.style.transform;fxState.fx[0][4]=29;effects.draw(fxState,projected,false,visible);
     expect(spell.style.transform!==before,'cast did not travel across frames');
   }
+  fxState.fx=[[50,90,0,'#f2da91',50,'arc',150,110,'',4],[150,110,0,'#ad79ce',55,'siphon',50,90,'',5]];
+  effects.draw(fxState,projected,false,visible);
+  expect(over.querySelectorAll('.arc-stroke').length>2&&over.querySelectorAll('.soul-mote').length>1,'lightning or drain particles missing');
   fxState.fx=[];fxState.shots=[[3,0,0,0,'#fff','starArrow',6]];
   fxState.hits=[[17,0,0,14,23,false,55,1,false,'wind']];
   effects.draw(fxState,projected,true,visible);
@@ -132,8 +141,8 @@ async function exercise() {
   fxState.shots=[];fxState.hits=[];effects.draw(fxState,projected,true,visible);
   expect(over.childElementCount===0,'expired effects leaked into the next frame');
   // 檢查等級門檻、雙轉職選項、不可重複選擇與多人檢視資料。
-  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=071');
-  const {THRESHOLD}=await import('./content.mjs?v=071');
+  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=072');
+  const {THRESHOLD}=await import('./content.mjs?v=072');
   const progression=newGame([{id:'promotion-test',job:'staff',name:'猴三毛'}],1234);
   const adventurerState=progression.players[0];
   progression.level=7;
@@ -147,9 +156,12 @@ async function exercise() {
   expect(adventurerState.promotion==='king','promotion state not applied');
   expect(!choose(progression,adventurerState,0,offerVersion),'promotion double-choice accepted');
   expect(buildView(progression,adventurerState.id).players[0].promotion==='king','promotion omitted from multiplayer view');
-  el('jobs').children[1].click();el('solo').click();
+  el('jobs').children[2].click();
+  el('nickname').selectedIndex=2;
+  const selectedName=el('nickname').value;
+  el('solo').click();
   await until(()=>!el('play').hidden&&el('clock').textContent!=='0:00','battle never started');
-  await until(()=>document.querySelector('#field-art [data-route="mage"]')&&document.querySelector('#field-art [data-kind]'),'battle sprites never mounted');
+  await until(()=>document.querySelector('#field-art [data-route="scout"]')&&document.querySelector('#field-art [data-kind]'),'battle sprites never mounted');
   el('burst').click();
   await until(()=>el('burst').disabled,'burst did not cast');
   expect(el('mini-map').getBoundingClientRect().width>=70,'minimap is hidden');
@@ -158,7 +170,7 @@ async function exercise() {
   el('bag').click();
   await until(()=>!!document.querySelector('.dressing .hero-body .sprite-art'),'equipment preview missing');
   Array.from(document.querySelectorAll('#dialog-actions button')).find(b=>b.textContent==='果園行商').click();
-  await until(()=>['紫晶戰甲','曜金兵裝','赤曜王印'].every(name=>[...document.querySelectorAll('.market-item strong')].some(node=>node.textContent===name)),'high rarity equipment is missing from shop');
+  await until(()=>['紫晶戰甲','曜金穿雲弓','赤曜王印'].every(name=>[...document.querySelectorAll('.market-item strong')].some(node=>node.textContent===name)),'high rarity equipment is missing from shop');
   Array.from(document.querySelectorAll('#dialog-actions button')).find(b=>b.textContent==='返回戰場').click();
   el('profile').click();
   await until(()=>!!document.querySelector('.attribute-grid'),'attribute screen missing');
@@ -167,7 +179,34 @@ async function exercise() {
   el('skillbook').click();
   await until(()=>!!document.querySelector('.skill-book-grid'),'skill panel missing');
   expect(document.getElementById('active-skills').children.length>0,'skill hotbar missing');
+  expect(el('active-skills').textContent.includes('果籽箭')&&!el('active-skills').textContent.includes('金箍'),'wrong archer starter');
   el('skillbook').click();
+  // Exercise the real finish screen and offline retry without putting QA runs on the public board.
+  const NativeSocket=window.WebSocket;
+  let available=false,publication=null;
+  class ScoreSocket {
+    constructor(){queueMicrotask(()=>available?this.onopen?.():this.onerror?.());}
+    close(){}
+    send(raw){
+      const [command,event]=JSON.parse(raw);
+      if(command!=='EVENT')throw Error('unexpected relay command in end-screen test');
+      publication=JSON.parse(event.content);
+      queueMicrotask(()=>this.onmessage?.({data:JSON.stringify(['OK',event.id,true,''])}));
+    }
+  }
+  window.WebSocket=ScoreSocket;
+  try{
+    el('menu').click();
+    const endButton=()=>[...el('dialog-actions').querySelectorAll('button')].find(b=>b.textContent==='提前結算');
+    await until(endButton,'early finish button missing');endButton().click();
+    await until(()=>el('score-status')?.textContent.includes('連線後自動補登'),'offline score was not queued');
+    const run=el('score-status').dataset.run;
+    expect(JSON.parse(localStorage.getItem('orchard-rank-pending/'+run)).name===selectedName,'opening name not retained');
+    available=true;window.dispatchEvent(new Event('online'));
+    await until(()=>el('score-status')?.textContent.includes('已自動登錄公開榜'),'result did not update after reconnect');
+    expect(publication?.id===run&&publication.name===selectedName&&publication.job==='scout'&&Number.isInteger(publication.kills)&&publication.seconds>0,'wrong run published');
+    expect(!localStorage.getItem('orchard-rank-pending/'+run),'confirmed score still queued');
+  }finally{window.WebSocket=NativeSocket;}
   return 'PASS';
 }
 const server = createServer(async (request, response) => {
@@ -231,18 +270,18 @@ try {
   let current=false;
   for(let i=0;i<(publicPage?15:1);i++){
     try{
-      const response=await fetch(address+'?ci=071-'+Date.now(),{signal:AbortSignal.timeout(7000)});
-      if(response.ok&&(await response.text()).includes('data-build="0.7.1"')){current=true;break;}
+      const response=await fetch(address+'?ci=072-'+Date.now(),{signal:AbortSignal.timeout(7000)});
+      if(response.ok&&(await response.text()).includes('data-build="0.7.2"')){current=true;break;}
     }catch(error){console.log('Waiting for Pages:',error.message);}
     if(publicPage)await delay(3000);
   }
-  assert.ok(current,'Orchard v0.7.1 entry not available at '+address);
+  assert.ok(current,'Orchard v0.7.2 entry not available at '+address);
   for(const [width,height] of [[1440,860],[390,844]]){
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
-    await call('Page.navigate',{url:address+'?ci=071-'+width+'-'+Date.now()});
+    await call('Page.navigate',{url:address+'?ci=072-'+width+'-'+Date.now()});
     let loaded=false;
     for(let i=0;i<180;i++){
-      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.7.1' && !!document.getElementById('jobs')?.firstElementChild"});
+      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.7.2' && !!document.getElementById('jobs')?.firstElementChild"});
       if(state.result.value===true){loaded=true;break;}await delay(100);
     }
     assert.ok(loaded,'Game modules failed to initialise: '+JSON.stringify(exceptions));
@@ -252,7 +291,7 @@ try {
       await writeFile(join(process.env.ORCHARD_SCREENSHOTS,'orchard-'+scene+'-'+width+'.jpg'),Buffer.from(data,'base64'));
     }
     if(process.env.ORCHARD_SCREENSHOTS){
-      await call('Runtime.evaluate',{expression:"Promise.all(['orchard-stage','staff','mage','scout'].map(name=>{const img=new Image();img.src=new URL('./art/'+name+'.webp',location.href);return img.decode()}))",awaitPromise:true});
+      await call('Runtime.evaluate',{expression:"Promise.all(['orchard-stage','staff-poses1','mage-poses1','scout-poses1'].map(name=>{const img=new Image();img.src=new URL('./art/'+name+'.webp',location.href);return img.decode()}))",awaitPromise:true});
       await captureScene('selection');
     }
     const checked=await call('Runtime.evaluate',{expression:'('+exercise.toString()+')()',awaitPromise:true,returnByValue:true});
@@ -274,7 +313,7 @@ try {
       assert.ok(hit,'normal opening attack did not generate visible damage');
       await captureScene('battle');
     }
-    console.log('Orchard Chrome '+width+'x'+height+' PASS: 3 jobs + 6 visible advancement outfits, weapon levels 1–5 + evolution, 8 equipment slots, 8 monsters, 3 ultimates, radar, normal solo entry and equipment panel');
+    console.log('Orchard Chrome '+width+'x'+height+' PASS: 3 jobs, 12 advancement outfits, six poses, 8 equipment slots, 8 monsters, 3 ultimates, radar, solo entry and end-of-run score sync');
   }
   assert.deepEqual(exceptions,[]);
 } finally {

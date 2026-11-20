@@ -1,4 +1,4 @@
-import {signRow,sendEvent,fetchBoard} from './board-relay.mjs?v=071';
+import {signRow,sendEvent,fetchBoard} from './board-relay.mjs?v=072';
 const adjectives=['晨霧','琥珀','晚霞','玉露','銀月','赤楓','春雷','星河','青竹','霜花','金穗','翠羽'];
 const roles=['巡山客','採桃手','守林人','踏風客','追星猴','摘月客','尋泉人','聽雨猴','斥候','果園長','鈴弓手','搗藥師'];
 const validName=name=>adjectives.some(a=>roles.some(b=>name===a+b));
@@ -72,13 +72,20 @@ export function submitResult(row){
     await sendEvent(event);cache=null;
     write(sent+row.id,'1');waiting.delete(row.id);
     try{localStorage.removeItem(pending+row.id);}catch{}
+    window.dispatchEvent(new CustomEvent('orchard-score-synced',{detail:row}));
   })().finally(()=>inflight.delete(row.id));
   inflight.set(row.id,task);return task;
 }
 export function retryPending(){
-  try{for(const key of Object.keys(localStorage))if(key.startsWith(pending)){
-    const row=JSON.parse(read(key));if(valid(row))waiting.set(row.id,row);
-  }}catch{}
+  try{
+    for(const key of Object.keys(localStorage)){
+      if(!key.startsWith(pending))continue;
+      try{
+        const row=JSON.parse(read(key));
+        if(valid(row)&&!read(sent+row.id))waiting.set(row.id,row);
+      }catch{}
+    }
+  }catch{}
   for(const row of waiting.values())submitResult(row).catch(()=>{});
 }
 export async function publicResults(){

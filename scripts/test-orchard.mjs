@@ -11,7 +11,7 @@ const tick = (game,count) => { for(let i=0;i<count;i++) advance(game); };
 
 test('opening loadouts, bounded movement and world positions',()=>{
   assert.equal(Object.keys(SKILLS).length,18);
-  assert.equal(Object.keys(PASSIVES).length,13);
+  assert.equal(Object.keys(PASSIVES).length,16);
   assert.equal(SLOTS.length,8);
   const game=newGame(seats('staff','mage','scout'),27);
   game.players.forEach(player=>assert.equal(player.skills[CLASSES[player.job].skill],1));
@@ -409,8 +409,50 @@ test('each job draws, learns and casts only its own active skills',()=>{
       const wrong=job==='staff'?'fire':'sweep';
       p.offers=[{key:wrong,type:'skill'}];
       assert.equal(choose(g,p,0,p.offerId),false);p.offers=[];p.skills[wrong]=10;
+      p.evolution[wrong]=true;
+      const relic=job==='mage'?'bracers':'emberglass';
+      p.offers=[{key:relic,type:'passive'}];
+      assert.equal(choose(g,p,0,p.offerId),false);p.offers=[];p.passive[relic]=3;
       advance(g);assert.equal(p.timers[wrong],undefined);
+      const own=buildView(g,p.id).own;
+      assert.equal(own.skills[wrong],undefined);assert.equal(own.evolution[wrong],undefined);
+      assert.equal(own.passive[relic],undefined);
     }
     assert.deepEqual([...seen].sort(),[...allowed].sort());
   }
+});
+
+test('career relics alter counter healing, fire splash and arrow penetration',()=>{
+  const dummy=(g,p,offset)=>({id:++g.serial,kind:'grub',x:p.x+offset,y:p.y,radius:12,hp:500,maxHp:500,speed:0,damage:0,flash:0,slow:0,timer:20,wind:0,dash:0,face:1,mode:0,aim:0});
+  for(const rank of [0,3]){
+    const warrior=newGame(seats('staff'),5),w=warrior.players[0];warrior.spawnClock=Infinity;
+    w.skills={nut:1};w.passive.bracers=rank;w.hp=50;w.counterReady=true;
+    warrior.enemies.push(dummy(warrior,w,90));advance(warrior);assert.equal(w.hp,50+rank);
+    const archer=newGame(seats('scout'),5),a=archer.players[0];archer.spawnClock=Infinity;
+    a.passive.broadhead=rank;archer.enemies.push(dummy(archer,a,250));advance(archer);
+    assert.equal(archer.shots[0].pierce,2+Math.ceil(rank/2));
+    const mage=newGame(seats('mage'),5),p=mage.players[0];mage.spawnClock=Infinity;
+    p.skills={};p.passive.emberglass=rank;
+    const direct=dummy(mage,p,80),near=dummy(mage,p,80);near.y+=99;
+    mage.enemies.push(direct,near);
+    mage.shots.push({id:++mage.serial,owner:p.id,x:direct.x,y:direct.y,angle:0,speed:1,life:1,reach:100,amount:30,color:'#fff',crit:0,kind:'blast',pierce:1,tier:1,hit:new Set()});
+    advance(mage);assert.equal(near.hp,rank?470:500);
+  }
+});
+
+test('the bow reaches release on the same tick as the arrow',()=>{
+  const g=newGame(seats('scout'),42),p=g.players[0];g.spawnClock=Infinity;
+  const target={id:++g.serial,kind:'grub',x:p.x+180,y:p.y,radius:12,hp:1000,maxHp:1000,speed:0,damage:0,flash:0,slow:0,timer:20,wind:0,dash:0};
+  g.enemies.push(target);advance(g);
+  assert.equal(buildView(g,p.id).players[0].look.ready,false);
+  assert.ok(g.shots.length && buildView(g,p.id).players[0].look.swing>=95);
+  let sawDraw=false;
+  for(let i=0;i<44;i++){
+    const previous=p.strikeAt;
+    advance(g);
+    const look=buildView(g,p.id).players[0].look;
+    if(look.ready)sawDraw=true;
+    if(p.strikeAt!==previous){assert.ok(sawDraw);assert.equal(look.ready,false);return;}
+  }
+  assert.fail('second shot did not fire');
 });

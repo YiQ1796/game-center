@@ -387,3 +387,12 @@ body.playing #top {display:none}
 
 .cast-glint,.shot-wake{position:absolute;top:0;left:0;pointer-events:none;background:linear-gradient(90deg,transparent,var(--light),#fffde1);border-radius:100% 5% 95% 15%}
 .cast-glint{box-shadow:0 0 3px var(--light)}
+
+.arc-stroke,.soul-mote,.snare-cord,.snare-stake,.rush-dust,.charge-fill,.flame-core{position:absolute;top:0;left:0;display:block;pointer-events:none}
+.arc-stroke{border-radius:50%;background:#fff8da;box-shadow:0 0 3px var(--light)}
+.soul-mote{border-radius:80% 15% 80% 15%;background:linear-gradient(90deg,transparent,var(--light),#fae1fc)}
+.snare-cord{box-sizing:border-box;border-bottom:2px solid #8b562c;border-radius:50%;box-shadow:0 1px 0 #f2cf80}
+.snare-stake{border-radius:50% 50% 0 0;background:linear-gradient(90deg,#614023,#edcd86,#794e2b)}
+.rush-dust{border-radius:50%;background:radial-gradient(ellipse,#d5b37dcc 8%,#ad835489 42%,transparent 73%)}
+.charge-fill{clip-path:polygon(0 35%,83% 35%,83% 5%,100% 50%,83% 95%,83% 65%,0 65%);background:linear-gradient(90deg,#cc743c,#ffe29e)}
+.flame-core{border-radius:50%;background:radial-gradient(ellipse,#fff9d6,var(--light) 36%,#c3502870 65%,transparent 76%)}

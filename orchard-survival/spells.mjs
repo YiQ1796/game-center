@@ -62,6 +62,32 @@ function castMotion(layer,key,kind,x,y,r,color,t,aim,id,quiet){
     ring.style.setProperty('--light',color);
   }
 }
+function lightning(layer,key,x,y,dx,dy,age,color,quiet){
+  const distance=Math.hypot(dx,dy);
+  if(distance<1)return;
+  const nx=-dy/distance,ny=dx/distance,count=quiet?3:6;
+  const reach=clamp(age*5.5,0,1),fade=Math.min(1,(1-age)*2.6);
+  let lastX=x,lastY=y-21;
+  for(let i=1;i<=count;i++){
+    const t=Math.min(reach,i/count);
+    const offset=Math.sin(t*Math.PI)*Math.sin(i*8.7+Math.floor(age*7))*Math.min(14,distance*.10);
+    const px=x+dx*t+nx*offset,py=y-21+dy*t+ny*offset;
+    const segment=layer.place(key+'/'+i,'arc-stroke',(lastX+px)/2,(lastY+py)/2,
+      Math.hypot(px-lastX,py-lastY)+1,quiet?2:3,Math.atan2(py-lastY,px-lastX),fade);
+    segment.style.setProperty('--light',color);
+    lastX=px;lastY=py;
+    if(t===reach)break;
+  }
+}
+function siphon(layer,key,x,y,dx,dy,t,color,quiet){
+  const count=quiet?2:5,length=Math.max(1,Math.hypot(dx,dy));
+  for(let i=0;i<count;i++){
+    const a=clamp(t*1.5-i*.095,0,1),curl=Math.sin(a*Math.PI)*Math.sin(a*6+i*.8)*13;
+    const bead=layer.place(key+'/mote'+i,'soul-mote',x+dx*a-dy/length*curl,
+      y-21+dy*a+dx/length*curl,9-i*.65,5,Math.atan2(dy,dx),Math.sin(Math.PI*a));
+    bead.style.setProperty('--light',color);
+  }
+}
 const sceneArt={ward:'leaf-ward',trail:'wind-trail',line:'wind-trail',bolt:'lightning',ice:'frost-bloom',upgrade:'pollen',pop:'pollen',
   cyclone:'leaf-cyclone',gale:'leaf-cyclone',sweep:'fx-slash','cast-staff':'leaf-cyclone','cast-mage':'fx-magic','cast-scout':'fx-wind',
   nova:'meteor',impact:'fx-magic'};
@@ -85,7 +111,12 @@ export class FieldEffects {
         for(let i=0;i<3;i++)front.art('rain'+id+'/'+i,'seed-arrow',x+(i-1)*17-22*life,y-125*life-8,38,9,1.36);
         continue;
       }
-      if(kind==='mine'){ground.art('zone'+id,'seed-mine',x,y-6,29,29);continue;}
+      if(kind==='mine'){
+        const span=32+8*Math.min(1,(1-life)*15);
+        ground.place('trap/'+id,'snare-cord',x,y-2,span,10,-.18,.84);
+        for(const side of [-1,1])ground.place('stake/'+id+'/'+side,'snare-stake',x+side*span*.47,y-3-side*3,3,9,side*.24);
+        continue;
+      }
       const zone=ground.place('zone'+id,'area-indicator '+kind,x,y,r*2,r*1.4);
       zone.style.setProperty('--area-color',color);
       if(kind==='field'||kind==='frostfield'){
@@ -117,10 +148,18 @@ export class FieldEffects {
       const [id,kind,x,y,,,,,wind,mode,tx,ty,aim]=enemy;
       if(kind==='boar'){
         if(enemy[13]){
-          front.art('rush'+id,'wind-trail',x-32*Math.cos(aim),y-32*Math.sin(aim),83,32,aim,.8);
+          const age=1-enemy[13]/37,dx=Math.cos(aim),dy=Math.sin(aim);
+          for(let i=0;i<(quiet?1:3);i++){
+            const a=(age*1.5+i/3)%1,dist=12+45*a,side=Math.sin(i*4.1)*8*a;
+            ground.place('dust/'+id+'/'+i,'rush-dust',x-dx*dist-dy*side,y-dy*dist+dx*side-5-9*a,
+              9+19*a,6+8*a,aim,.68*(1-a));
+          }
           continue;
         }
-        front.place('warn'+id,'warning charge',x+86*Math.cos(aim),y+86*Math.sin(aim),172,38,aim);
+        const ready=clamp(1-wind/52,0,1),dx=Math.cos(aim),dy=Math.sin(aim);
+        ground.place('warn'+id,'warning charge',x+86*dx,y+86*dy,172,33,aim,.58);
+        const length=18+154*ready;
+        ground.place('charge-fill'+id,'charge-fill',x+length*.5*dx,y+length*.5*dy,length,21,aim,.78);
       }else{
         const points=mode===2?[[tx,ty],[tx-116,ty+66],[tx+116,ty-66]]:[[tx,ty]];
         const diameter=mode===1?214:150;
@@ -137,7 +176,18 @@ export class FieldEffects {
       const stage=1-strength/100,alpha=Math.min(1,(1-stage)*3)*(quiet?.72:1);
       const art=sceneArt[kind]||'pollen',key='fx'+id;
       if(kind==='number'){if(!quiet)front.label(key,label,x,y-30-stage*18,true,alpha);continue;}
-      if(kind==='bolt'||kind==='trail'||kind==='line'){
+      if(kind==='bolt'||kind==='arc'){
+        lightning(front,key,x,y,x2-x,y2-y,stage,color,quiet);continue;
+      }
+      if(kind==='siphon'){
+        siphon(front,key,x,y,x2-x,y2-y,stage,color,quiet);continue;
+      }
+      if(kind==='flame'){
+        const core=front.place(key+'/core','flame-core',x,y-15-13*stage,
+          9+32*Math.sin(stage*Math.PI),8+22*Math.sin(stage*Math.PI),0,alpha*(1-stage));
+        core.style.setProperty('--light',color);
+      }
+      if(kind==='trail'||kind==='line'){
         const dx=x2-x,dy=y2-y;
         const reach=clamp(stage*5,0,1),tail=clamp((stage-.34)*1.5,0,reach),mid=(reach+tail)*.5;
         front.art(key,art,x+dx*mid,y+dy*mid-12,Math.max(2,Math.hypot(dx,dy)*(reach-tail)),kind==='bolt'?17:12,Math.atan2(dy,dx),alpha);

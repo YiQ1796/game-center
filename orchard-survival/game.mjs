@@ -1,12 +1,12 @@
-import { nameChoices,history,publicResults,saveResult,sorted,submitResult,retryPending,valid } from './ranking.mjs?v=071';
+import { nameChoices,history,publicResults,saveResult,sorted,submitResult,retryPending,valid } from './ranking.mjs?v=072';
 
-import { stats, banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=071';
-import { salePrice,marketPrice,attributeCost, MARKET, skillNumbers, ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=071';
-import { outfitSprite, gearIcon } from './actors.mjs?v=071';
-import { FittingStage } from './fitting-stage.mjs?v=071';
-import { Scene } from './scene.mjs?v=071';
-import { Squad } from './squad.mjs?v=071';
-import { ADVANCEMENTS, getAdvancement } from './advancement.mjs?v=071';
+import { stats, banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=072';
+import { salePrice,marketPrice,attributeCost, marketItem, MARKET, skillNumbers, ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=072';
+import { outfitSprite, gearIcon } from './actors.mjs?v=072';
+import { FittingStage } from './fitting-stage.mjs?v=072';
+import { Scene } from './scene.mjs?v=072';
+import { Squad } from './squad.mjs?v=072';
+import { ADVANCEMENTS, getAdvancement } from './advancement.mjs?v=072';
 
 const $ = id => document.getElementById(id);
 const ui = Object.fromEntries([
@@ -63,6 +63,11 @@ const squad=new Squad(message=>{
 function rollNames(){ui.nickname.replaceChildren(...nameChoices().map(name=>new Option(name,name)));}
 retryPending();window.addEventListener('online',retryPending);
 setInterval(retryPending,90000);
+window.addEventListener('orchard-score-synced',({detail:row})=>{
+  const status=$('score-status');
+  if(status?.dataset.run===row.id)status.textContent=row.name+' · 戰績已自動登錄公開榜。';
+  if($('rank-box').open && $('rank-source').value==='公開')drawRanks();
+});
 rollNames();$('reroll').addEventListener('click',rollNames);
 let rankRequest=0;
 async function drawRanks(){
@@ -225,6 +230,7 @@ function summaryPanel(view,self,content,actions) {
   const rows=saveResult(view),mine=rows[view.players.findIndex(player=>player.id===self.id)];
   if(valid(mine)){
     const message=element('p','loadout',mine.name+' · 本機已記錄，正在同步公開榜…');
+    message.id='score-status';message.dataset.run=mine.id;message.setAttribute('role','status');
     content.append(message);
     submitResult(mine).then(()=>{message.textContent=mine.name+' · 戰績已自動登錄公開榜。';})
       .catch(()=>{message.textContent=mine.name+' · 本機已記錄，公開榜連線後自動補登。';});
@@ -272,7 +278,8 @@ function gearDifference(own,self,item) {
 }
 function marketPanel(view,self,content,actions){
   const grid=element('div','market-grid');
-  for(const [key,item] of Object.entries(MARKET)){
+  for(const key of Object.keys(MARKET)){
+    const item=marketItem(key,self.job);
     const row=element('div','market-item');
     row.append(element('strong','',item.name),element('small','',item.description));
     if(item.perks)row.append(element('small','gear-comparison','換上後　'+gearDifference(view.own,self,item)));

@@ -1,5 +1,5 @@
 
-export const BUILD = '0.7.1';
+export const BUILD = '0.7.2';
 export const SKILL_CAP = 10;
 export const PASSIVE_CAP = 10;
 export const ATTRIBUTES = Object.freeze({str:'力量',agi:'敏捷',vit:'體質',int:'智慧',dex:'靈巧',luk:'幸運'});
@@ -23,7 +23,8 @@ export const CLASS_KITS = {
   mage:['fire','spark','frost','hive','comet','stormwell'],
   scout:['seed','peel','pop','drop','fan','snare']
 };
-export const CLASS_RELICS = {staff:'gauntlet',mage:'grimoire',scout:'quiver'};
+const relicOwner = {gauntlet:'staff',bracers:'staff',grimoire:'mage',emberglass:'mage',quiver:'scout',broadhead:'scout'};
+export const allowsPassive = (job,key) => Object.hasOwn(PASSIVES,key) && (!Object.hasOwn(relicOwner,key) || relicOwner[key]===job);
 export const SKILLS = {
   fault:['裂地棍','朝目標連續敲出三段地裂',24,178,2.1,'#efbc69','fissure'],
   wheel:['旋身護棍','三處旋擊環繞近身',22,112,.86,'#e7ae57','orbit'],
@@ -45,6 +46,9 @@ export const SKILLS = {
   echo: ['穿陣突刺','朝最近敵人直線刺擊，命中沿線怪物',29,178,1.25,'#efc46c','thrust']
 };
 export const PASSIVES = {
+  bracers:['反震護腕','成功反打時，每級多回復 1 點生命'],
+  emberglass:['聚焰琉璃','每級增加火球爆炸半徑 6 像素'],
+  broadhead:['穿林箭鏃','獲得時及每升兩級，果籽箭與扇羽箭可再穿透一隻敵人'],
   gauntlet:['破陣腕甲','每級增加 5% 傷害與 4% 攻擊範圍'],
   grimoire:['星紋法典','每級增加 6% 傷害並縮短 2% 冷卻'],
   quiver:['翠羽箭袋','每級增加 3% 暴擊率並縮短 3% 冷卻'],
@@ -92,10 +96,18 @@ export const MARKET = Object.freeze({
   juice: {name:'蜜桃果汁', cost:5, description:'立即回復最大生命的 35%'},
   boots: {name:'輕羽短靴', cost:12, description:'精良鞋子，跑速 +8%、拾取距離 +12'},
   amethyst: {name:'紫晶戰甲',cost:72,slot:2,rarity:3,perks:[['guard',.11],['heart',36]],description:'史詩護甲 · 減傷 +11%、生命 +36'},
-  amber: {name:'曜金兵裝',cost:165,slot:0,rarity:4,perks:[['power',.32],['haste',.085]],description:'傳說武器 · 傷害 +32%、冷卻縮短 8.5%'},
+  amber: {cost:165,slot:0,rarity:4},
   scarlet: {name:'赤曜王印',cost:340,slot:5,rarity:5,perks:[['power',.4],['crit',.13],['heart',45]],description:'神話項鍊 · 傷害 +40%、暴擊 +13%、生命 +45'},
   point: {name:'見習筆記殘頁', cost:8, description:'取得 1 點素質；每局限購 8 次，每次加價 8 果核'}
 });
+const legendaryWeapons = {
+  staff:{name:'曜金盤龍棍',perks:[['power',.32],['reach',.12]],description:'傳說長棍 · 傷害 +32%、範圍 +12%'},
+  mage:{name:'曜金聚星杖',perks:[['power',.32],['haste',.085]],description:'傳說法杖 · 傷害 +32%、冷卻縮短 8.5%'},
+  scout:{name:'曜金穿雲弓',perks:[['power',.26],['crit',.12]],description:'傳說長弓 · 傷害 +26%、暴擊率 +12%'}
+};
+export function marketItem(key,job){
+  return key==='amber'?{...MARKET.amber,...legendaryWeapons[job]}:MARKET[key];
+}
 export function skillNumbers(key, rank, stats, evolved=false) {
   const skill=SKILLS[key];
   return {

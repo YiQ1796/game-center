@@ -1,4 +1,4 @@
-import { HeroSprite } from './actors.mjs?v=071';
+import { HeroSprite } from './actors.mjs?v=072';
 
 export class FittingStage {
   constructor(stage){
@@ -21,6 +21,6 @@ export class FittingStage {
     const zoom=Math.min(this.stage.clientWidth/630,this.stage.clientHeight/355);
     this.unit.el.style.transform='scale('+(2.42*zoom)+')';
     this.unit.update({job:this.job,master:this.master,promotion:this.promotion,face:1,walk:phase>.5&&phase<2.45,
-      gait:Math.floor((t*1.64%1)*255),look:{level:1,slots:[],swing}},true,true);
+      gait:Math.floor((t*1.64%1)*255),look:{level:1,slots:[],swing,ready:phase>=2.70&&phase<2.83}},true,true);
   }
 }

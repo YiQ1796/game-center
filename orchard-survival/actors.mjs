@@ -26,7 +26,9 @@ export function gearIcon(slot,job,promotion,master=false){
 const gaitFrames=[0,1,1,0,0,2,2,0];
 export function heroFrame(p){
   const swing=p.down?0:p.look?.swing||0;
-  if(swing>0)return swing<18||swing>85?0:3;
+  if(!p.down&&p.look?.ready)return 4;
+  if(swing>48)return 3;
+  if(swing>0)return 5;
   if(!p.walk||p.down)return 0;
   return gaitFrames[Math.floor((p.gait||0)*8/256)%8];
 }
@@ -41,11 +43,11 @@ export class HeroSprite{
     const look=p.look||{},route=routeFor(p.job,p.promotion);
     const frame=heroFrame(p),swing=look.swing||0;
     const tier=route===p.job?1:p.master?3:2;
-    const sheet=tier===1?p.job:route+'-t'+tier;
-    imageStrip(this.art,sheet,frame,4);
+    const sheet=route+'-poses'+tier;
+    imageStrip(this.art,sheet,frame,6);
     this.el.dataset.tier=tier;
     const face=p.face<0?-1:1;
-    const angle=p.down?-65:swing>85?-7:swing>0&&swing<18?3:0;
+    const angle=p.down?-65:look.ready?-5:swing>0&&swing<18?3:0;
     const tilt=p.walk&&p.travelY?Math.sign(p.travelY)*1.5:0;
     const phase=(p.gait||0)*Math.PI/128;
     const step=p.walk&&!p.down?Math.sin(phase):0;
