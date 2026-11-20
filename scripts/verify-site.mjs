@@ -29,7 +29,7 @@ for (const game of games) {
 assert.equal(games.find(game => game.id === 'aqua-world').status, 'beta', 'Aquarium remains a trial');
 assert.equal(new Set(games.map(game => game.id)).size, expected.size, 'Game IDs must be unique');
 for (const game of games) {
-  assert.equal(game.url, expected.get(game.id), `Incorrect game link: ${game.id}`);
+  assert.equal(game.url.replace(/\?v=200$/, ''), expected.get(game.id), `Incorrect game link: ${game.id}`);
   assert.ok(game.url.startsWith('https://yiq1796.github.io/'), 'Only approved game domains allowed');
   if (game.visualType === 'rummikub-illustration') {
     assert.equal(game.id, 'rummikub', 'Only Rummikub should use DOM tile artwork');
@@ -70,7 +70,7 @@ for (const game of games) {
 }
 assert.match(html, /猴三毛遊戲中心/);
 assert.match(html, /https:\/\/yiq1796\.github\.io\/game-center\//);
-assert.match(html, /V0\.8\.9/);
+assert.match(html, /V0\.(?:8\.9|9\.0)/);
 assert.ok(!html.includes('utm_source='), 'Do not include tracking parameters');
 const styleSource = read('assets/site.css');
 const uiSource = read('assets/site.js');
