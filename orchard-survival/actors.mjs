@@ -17,11 +17,9 @@ function imageStrip(el,name,frame,count){
     el.style.backgroundPosition=(frame*100/(count-1))+'% center';
   }
 }
-const masterWeapons={king:'jade-pole',guardian:'king-rod',storm:'sun-wand',archmage:'storm-wand',ranger:'longbow',shadow:'longbow'};
-function weaponFor(route,master){return master&&masterWeapons[route]||weapons[route];}
-export function gearIcon(slot,job,promotion,master=false){
+export function gearIcon(slot,job,promotion){
   const el=document.createElement('img');el.className='gear-art';
-  el.src=url(slot===0?weaponFor(routeFor(job,promotion),master):gearArt[slot]);el.alt='';el.draggable=false;return el;
+  el.src=url(slot===0?weapons[routeFor(job,promotion)]:gearArt[slot]);el.alt='';el.draggable=false;return el;
 }
 const gaitFrames=[0,1,1,0,0,2,2,0];
 export function heroFrame(p){
@@ -43,7 +41,7 @@ export class HeroSprite{
     const look=p.look||{},route=routeFor(p.job,p.promotion);
     const frame=heroFrame(p),swing=look.swing||0;
     const tier=route===p.job?1:p.master?3:2;
-    const sheet=route+'-poses'+tier;
+    const sheet=tier===1?route+'-poses1':route+'-regalia'+tier;
     imageStrip(this.art,sheet,frame,6);
     this.el.dataset.tier=tier;
     const face=p.face<0?-1:1;

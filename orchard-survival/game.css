@@ -347,9 +347,8 @@ body.playing #top {display:none}
 
 
 #field-items,#field-effects {position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0;pointer-events:none}
-.battle-illustration,.area-indicator,.warning,.damage-number {position:absolute;display:block;top:0;left:0;pointer-events:none}
+.battle-illustration,.warning,.damage-number {position:absolute;display:block;top:0;left:0;pointer-events:none}
 .battle-illustration {background-repeat:no-repeat;background-position:center}
-.area-indicator {border:1.5px dashed var(--area-color,#d3d59d);border-radius:50%;background:color-mix(in srgb,var(--area-color) 18%,transparent)}
 .warning {z-index:1;border:2px dashed #c44a37;background:#f0563b36}
 .warning.circle,.warning.timer {border-radius:50%}.warning.timer {border:1.5px solid #ffe1b6;background:none}
 .damage-number {z-index:3;font:800 15px/24px system-ui;color:#fff6dc;text-align:center;white-space:nowrap;text-shadow:-1px -1px #382832,1px -1px #382832,-1px 1px #382832,1px 1px #382832,0 2px 2px #382832}
@@ -369,14 +368,10 @@ body.playing #top {display:none}
 .scenery-img{filter:saturate(.72) brightness(var(--scenery-light,1))}
 .enemy-body .sprite-art{filter:drop-shadow(0 1px 1px #302a1e)}
 .warning.charge{border:0;clip-path:polygon(0 32%,78% 32%,78% 3%,100% 50%,78% 97%,78% 68%,0 68%);background:linear-gradient(90deg,#b15a3155,#de7639ca 60%,#fff0ab);box-shadow:inset 0 0 10px #71311a}
-.warning.circle,.area-indicator{border-style:solid}
+.warning.circle{border-style:solid}
 
 
-.cast-fragment,.cast-wave,.contact-spark,.hail-target,.hail-fill{position:absolute;top:0;left:0;display:block;pointer-events:none}
-.cast-fragment,.contact-spark{background:linear-gradient(90deg,transparent,var(--light),#fffee3);border-radius:100% 20% 90% 18%}
-.cast-fragment.blade{border:0;background:transparent;border-top:3px solid var(--light);border-radius:85% 80% 0 0;box-shadow:inset 0 2px 1px #fff4bcaa}
-.cast-fragment.crystal,.cast-fragment.feather{clip-path:polygon(0 50%,76% 0,100% 50%,76% 100%)}
-.cast-wave{border:2px solid var(--light);border-radius:50%}
+.hail-target,.hail-fill{position:absolute;top:0;left:0;display:block;pointer-events:none}
 .hail-target,.hail-fill{border-radius:50%}
 .hail-target{border:3px solid #cf5426;background:#a92b1933}
 .hail-fill{border:2px solid #ffe09c;background:#f1944544}
@@ -385,14 +380,12 @@ body.playing #top {display:none}
 .name-pick select,.rank-controls select{color:#433825;background:#fff9e8;border:1px solid #b69660;border-radius:7px;padding:.55em;font:inherit}
 .rank-table{width:100%;text-align:left;font-variant-numeric:tabular-nums}.rank-table td,.rank-table th{padding:.4em;border-bottom:1px solid #cbb68f}
 
-.cast-glint,.shot-wake{position:absolute;top:0;left:0;pointer-events:none;background:linear-gradient(90deg,transparent,var(--light),#fffde1);border-radius:100% 5% 95% 15%}
-.cast-glint{box-shadow:0 0 3px var(--light)}
 
-.arc-stroke,.soul-mote,.snare-cord,.snare-stake,.rush-dust,.charge-fill,.flame-core{position:absolute;top:0;left:0;display:block;pointer-events:none}
-.arc-stroke{border-radius:50%;background:#fff8da;box-shadow:0 0 3px var(--light)}
-.soul-mote{border-radius:80% 15% 80% 15%;background:linear-gradient(90deg,transparent,var(--light),#fae1fc)}
-.snare-cord{box-sizing:border-box;border-bottom:2px solid #8b562c;border-radius:50%;box-shadow:0 1px 0 #f2cf80}
-.snare-stake{border-radius:50% 50% 0 0;background:linear-gradient(90deg,#614023,#edcd86,#794e2b)}
+.rush-dust,.charge-fill{position:absolute;top:0;left:0;display:block;pointer-events:none}
 .rush-dust{border-radius:50%;background:radial-gradient(ellipse,#d5b37dcc 8%,#ad835489 42%,transparent 73%)}
 .charge-fill{clip-path:polygon(0 35%,83% 35%,83% 5%,100% 50%,83% 95%,83% 65%,0 65%);background:linear-gradient(90deg,#cc743c,#ffe29e)}
-.flame-core{border-radius:50%;background:radial-gradient(ellipse,#fff9d6,var(--light) 36%,#c3502870 65%,transparent 76%)}
+
+.preview-effects {position:absolute;top:0;left:0;transform-origin:0 0;pointer-events:none}
+#stage-unit .world-unit[hidden] {display:none}
+#try-burst {position:absolute;top:12px;right:12px;z-index:2;background:#283f30;color:#fff5d9;border:1px solid #e7c17b;border-radius:20px;padding:7px 14px;font:700 .89rem system-ui;cursor:pointer}
+#try-burst:focus-visible {outline:3px solid #ffda77;outline-offset:2px}

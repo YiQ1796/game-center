@@ -18,8 +18,8 @@ async function exercise() {
     throw Error(hint);
   };
   await until(()=>el('jobs')?.children.length===3,'class selection never loaded');
-  const {HeroSprite,EnemySprite,gearIcon}=await import('./actors.mjs?v=073');
-  const {FieldEffects}=await import('./spells.mjs?v=073');
+  const {HeroSprite,EnemySprite,gearIcon}=await import('./actors.mjs?v=080');
+  const {FieldEffects}=await import('./spells.mjs?v=080');
   expect(document.querySelectorAll('canvas').length===0,'unexpected Canvas renderer in the game');
   const target=document.createElement('canvas');target.width=290;target.height=240;
   const ink=target.getContext('2d',{willReadFrequently:true});
@@ -39,7 +39,11 @@ async function exercise() {
     expect(el('stage-name').textContent===routeName&&stage.getAttribute('aria-label').includes(routeName),'fitting route mismatch');
     expect(el('jobs').children[index].getAttribute('aria-pressed')==='true','audition changed starting class');
   }
-  const {Garden,fieldLight,LANDMARKS}=await import('./garden.mjs?v=073');
+  el('route-options').lastElementChild.click();
+  await until(()=>!!el('stage-unit').querySelector('[data-sheet="ranger-regalia3"]'),'third-tier fitting not mounted');
+  el('try-burst').click();
+  await until(()=>!!el('stage-unit').querySelector('[data-art="ink-falcon"]'),'fitting did not cast the ranger burst');
+  const {Garden,fieldLight,LANDMARKS}=await import('./garden.mjs?v=080');
   const garden=new Garden(),day=fieldLight(0),night=fieldLight(168);
   const fieldImage=new Image();fieldImage.src=new URL('./art/orchard-meadow.webp',location.href);await fieldImage.decode();
   expect(fieldImage.naturalWidth>=1200,'illustrated field missing');
@@ -76,12 +80,16 @@ async function exercise() {
       hero.update(player,true,true);
       const img=await loadStrip(hero.art,6);
       const base=job===route;
-      expect(hero.art.dataset.sheet===(base?job+'-poses1':route+'-poses2'),'incorrect baked outfit');
+      expect(hero.art.dataset.sheet===(base?job+'-poses1':route+'-regalia2'),'incorrect baked outfit');
       expect(!hero.body.querySelector('img,.worn-details'),'equipment icon rendered on body');
       if(!base){
         hero.update({...player,master:true},true,true);
         const master=await loadStrip(hero.art,6);
-        expect(hero.art.dataset.sheet===route+'-poses3' && difference(posePixels(img,6,0),posePixels(master,6,0))>100,'third tier outfit missing');
+        expect(hero.art.dataset.sheet===route+'-regalia3' && difference(posePixels(img,6,0),posePixels(master,6,0))>100,'third tier outfit missing');
+        const second=posePixels(img,6,0),third=posePixels(master,6,0);
+        let boundaryChanges=0;
+        for(let i=3;i<second.length;i+=4)if((second[i]>160)!==(third[i]>160))boundaryChanges++;
+        expect(boundaryChanges>260,route+' has the same body outline in both tiers');
         hero.update(player,true,true);
       }
       ready.set(job,posePixels(img,6,0));
@@ -130,26 +138,34 @@ async function exercise() {
   expect(under.childElementCount===48&&fieldState.gems.length===48,'nearby loot no longer matches pickup positions');
   const fxState={t:.5,gems:[],shots:[],zones:[],enemies:[],hits:[],fx:[]};
   const projected=(key,x,y)=>[x,y],visible=()=>true;
-  for(const [job,art] of [['staff','leaf-cyclone'],['mage','fx-magic'],['scout','fx-wind']]){
-    fxState.fx=[[130,128,70,'#ffc285',58,'cast-'+job,0,0,'',1]];
+  const motifs={staff:'dragon',mage:'meteor',scout:'volley',king:'dragon',guardian:'bastion',storm:'thunder',archmage:'sun',ranger:'falcon',shadow:'owl'};
+  for(const [route,art] of Object.entries(motifs)){
+    const job=['staff','king','guardian'].includes(route)?'staff':['mage','storm','archmage'].includes(route)?'mage':'scout';
+    fxState.fx=[[130,128,110,'#ffc285',58,'cast-'+job,0,0,'',1,route]];
     effects.draw(fxState,projected,false,visible);
-    const spell=over.querySelector('[data-spell="cast-'+job+'"]');
-    expect(spell,'ultimate illustration missing for '+job);
+    const spell=over.querySelector('[data-spell="cast-'+route+'"]');
+    expect(spell?.dataset.art==='ink-'+art,'wrong ultimate for '+route);
+    const frame=spell.dataset.frame;
     const before=spell.style.transform;fxState.fx[0][4]=29;effects.draw(fxState,projected,false,visible);
-    expect(spell.style.transform!==before,'cast did not travel across frames');
+    expect(spell.dataset.frame!==frame&&spell.style.transform!==before,'cast motion stalled');
+  }
+  for(const art of new Set([...Object.values(motifs),'flame','ice','cleave','stone','roots','soul','crystal','arrow'])){
+    const img=new Image();img.src=new URL('./art/ink-'+art+'.webp',location.href);await img.decode();
+    expect(img.width===1024&&img.height===208,'invalid effect atlas '+art);
+    for(let i=1;i<4;i++)expect(difference(posePixels(img,4,i-1),posePixels(img,4,i))>200,'missing effect stage '+art);
   }
   fxState.fx=[[50,90,0,'#f2da91',50,'arc',150,110,'',4],[150,110,0,'#ad79ce',55,'siphon',50,90,'',5]];
   effects.draw(fxState,projected,false,visible);
-  expect(over.querySelectorAll('.arc-stroke').length>2&&over.querySelectorAll('.soul-mote').length>1,'lightning or drain particles missing');
+  expect(over.querySelector('[data-art="ink-thunder"]')&&over.querySelector('[data-art="ink-soul"]'),'lightning or drain particles missing');
   fxState.fx=[];fxState.shots=[[3,0,0,0,'#fff','starArrow',6]];
   fxState.hits=[[17,0,0,14,23,false,55,1,false,'wind']];
   effects.draw(fxState,projected,true,visible);
-  expect(over.querySelector('.damage-number')?.textContent==='23'&&over.querySelector('[data-art="star-arrow"]'),'hit or projectile disappeared in reduced motion');
+  expect(over.querySelector('.damage-number')?.textContent==='23'&&over.querySelector('[data-art="ink-arrow"]'),'hit or projectile disappeared in reduced motion');
   fxState.shots=[];fxState.hits=[];effects.draw(fxState,projected,true,visible);
   expect(over.childElementCount===0,'expired effects leaked into the next frame');
   // 檢查等級門檻、雙轉職選項、不可重複選擇與多人檢視資料。
-  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=073');
-  const {THRESHOLD}=await import('./content.mjs?v=073');
+  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=080');
+  const {THRESHOLD}=await import('./content.mjs?v=080');
   const progression=newGame([{id:'promotion-test',job:'staff',name:'猴三毛'}],1234);
   const adventurerState=progression.players[0];
   progression.level=7;
@@ -277,18 +293,18 @@ try {
   let current=false;
   for(let i=0;i<(publicPage?15:1);i++){
     try{
-      const response=await fetch(address+'?ci=073-'+Date.now(),{signal:AbortSignal.timeout(7000)});
-      if(response.ok&&(await response.text()).includes('data-build="0.7.3"')){current=true;break;}
+      const response=await fetch(address+'?ci=080-'+Date.now(),{signal:AbortSignal.timeout(7000)});
+      if(response.ok&&(await response.text()).includes('data-build="0.8.0"')){current=true;break;}
     }catch(error){console.log('Waiting for Pages:',error.message);}
     if(publicPage)await delay(3000);
   }
-  assert.ok(current,'Orchard v0.7.3 entry not available at '+address);
+  assert.ok(current,'Orchard v0.8.0 entry not available at '+address);
   for(const [width,height] of [[1440,860],[390,844]]){
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
-    await call('Page.navigate',{url:address+'?ci=073-'+width+'-'+Date.now()});
+    await call('Page.navigate',{url:address+'?ci=080-'+width+'-'+Date.now()});
     let loaded=false;
     for(let i=0;i<180;i++){
-      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.7.3' && !!document.getElementById('jobs')?.firstElementChild"});
+      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.8.0' && !!document.getElementById('jobs')?.firstElementChild"});
       if(state.result.value===true){loaded=true;break;}await delay(100);
     }
     assert.ok(loaded,'Game modules failed to initialise: '+JSON.stringify(exceptions));
@@ -300,6 +316,8 @@ try {
     if(process.env.ORCHARD_SCREENSHOTS){
       await call('Runtime.evaluate',{expression:"Promise.all(['orchard-stage','staff-poses1','mage-poses1','scout-poses1'].map(name=>{const img=new Image();img.src=new URL('./art/'+name+'.webp',location.href);return img.decode()}))",awaitPromise:true});
       await captureScene('selection');
+      await call('Runtime.evaluate',{expression:"document.getElementById('route-options').children[1].click();document.getElementById('route-options').lastElementChild.click();document.getElementById('try-burst').click()"});
+      await delay(320);await captureScene('promotion');
     }
     const checked=await call('Runtime.evaluate',{expression:'('+exercise.toString()+')()',awaitPromise:true,returnByValue:true});
     assert.equal(checked.result.value,'PASS',checked.exceptionDetails?.exception?.description||JSON.stringify(exceptions));
@@ -320,7 +338,7 @@ try {
       assert.ok(hit,'normal opening attack did not generate visible damage');
       await captureScene('battle');
     }
-    console.log('Orchard Chrome '+width+'x'+height+' PASS: 3 jobs, 12 advancement outfits, six poses, 8 equipment slots, 8 monsters, 3 ultimates, radar, solo entry and end-of-run score sync');
+    console.log('Orchard Chrome '+width+'x'+height+' PASS: 3 jobs, 12 advancement outfits, six poses, 8 equipment slots, 8 monsters, 9 ultimate routes, radar, solo entry and end-of-run score sync');
   }
   assert.deepEqual(exceptions,[]);
 } finally {

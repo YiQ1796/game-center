@@ -27,6 +27,14 @@ class SpriteLayer {
     if(frame!==null)style(el,'backgroundPosition',(clamp(frame,0,2)*50)+'% center');
     return el;
   }
+  paint(key,motif,x,y,width,progress,angle=0,alpha=1,height=width*208/256){
+    const el=this.art(key,'ink-'+motif,x,y,width,height,angle,alpha);
+    const frame=clamp(Math.floor(progress*4),0,3);
+    style(el,'backgroundSize','400% 100%');
+    style(el,'backgroundPosition',(frame*100/3)+'% center');
+    el.dataset.frame=String(frame);
+    return el;
+  }
   label(key,content,x,y,critical,opacity){
     const el=this.place(key,critical?'damage-number critical':'damage-number',x,y,84,24,0,opacity);
     if(el.textContent!==String(content))el.textContent=String(content);
@@ -34,64 +42,63 @@ class SpriteLayer {
   finish(){for(const [key,el] of this.nodes)if(!this.seen.has(key)){el.remove();this.nodes.delete(key);}}
   clear(){this.root.replaceChildren();this.nodes.clear();this.seen.clear();}
 }
-function castMotion(layer,key,kind,x,y,r,color,t,aim,id,quiet){
-  const sweep=['sweep','cyclone','gale','cast-staff'].includes(kind);
-  const arrows=kind==='cast-scout',ice=kind==='ice';
-  const radius=Math.min(320,Math.max(18,r)),out=1-(1-t)*(1-t);
-  const count=quiet?1:sweep?4:arrows?5:kind==='pop'?3:6;
-  for(let i=0;i<count;i++){
-    const lag=i/(count+2)*.28,age=clamp((t-lag)/(1-lag),0,1);
-    if(t<lag)continue;
-    const angle=sweep?aim-1.55+age*3.5-i*.32:arrows?aim+(i-2)*.26:id*2.4+i*2*Math.PI/count;
-    const dist=radius*(sweep ? .18+.72*age : .06+.83*(1-(1-age)**2));
-    const px=x+Math.cos(angle)*dist,py=y+Math.sin(angle)*dist*(sweep?.65:.77)-10;
-    const length=sweep?radius*(.24+.47*Math.sin(age*Math.PI)):arrows?22:ice?17:5+radius*.09;
-    const node=layer.place(key+'/'+i,'cast-fragment '+(sweep?'blade':arrows?'feather':ice?'crystal':'ember'),px,py,
-      length,sweep?Math.max(5,radius*.12):ice?7:arrows?5:Math.max(3,length*.32),angle+(sweep?Math.PI/2:0),Math.min(1,(1-age)*2));
-    node.style.setProperty('--light',color);node.dataset.spell=kind;
-    if(!quiet && (sweep||ice||kind==='cast-mage') && i<3){
-      const curl=angle+(sweep?-.32:.18),drift=dist*(.72+.22*age);
-      const spark=layer.place(key+'/glint'+i,'cast-glint',x+Math.cos(curl)*drift,
-        y+Math.sin(curl)*drift*.7-12-13*Math.sin(age*Math.PI),4+5*(1-age),3+3*(1-age),curl,Math.sin(age*Math.PI));
-      spark.style.setProperty('--light',color);
+// The four painted stages share one origin. The world trajectory is continuous
+// between stages and is derived from the simulation's impact or aim.
+const ultimateArt={
+  staff:'dragon', king:'dragon', guardian:'bastion',
+  mage:'meteor', storm:'thunder', archmage:'sun',
+  scout:'volley', ranger:'falcon', shadow:'owl'
+};
+function cast(layer,key,route,x,y,r,aim,t,alpha){
+  const motif=ultimateArt[route],pulse=Math.sin(Math.PI*t);
+  if(!motif)return;
+  const reach=1-(1-t)**2;
+  let cx=x,cy=y-18,angle=0,w=r*(.8+.86*reach);
+  switch(motif){
+    case 'falcon':case 'owl':{
+      const distance=24+155*t,side=motif==='owl'?-1:1;
+      cx+=Math.cos(aim)*distance;cy+=Math.sin(aim)*distance-36*pulse;
+      angle=Math.sin(aim)*.5+side*.14*(1-t);w=70+96*pulse;break;
     }
+    case 'dragon':cx+=Math.cos(aim)*15*pulse;cy-=18*pulse;angle=(reach-.4)*.72;break;
+    case 'thunder':cy-=54+12*pulse;w*=.87;break;
+    case 'meteor':cx+=48*(t-.5);cy-=64*(1-t);w*=.83;break;
+    case 'volley':cy-=62*(1-t);break;
+    case 'sun':cy-=42*pulse;angle=t*.32;break;
+    case 'bastion':cy-=w*.21;break;
   }
-  if(!sweep&&!arrows&&kind!=='pop'){
-    const dia=Math.max(4,radius*out*1.75);
-    const ring=layer.place(key+'/wave','cast-wave',x,y,dia,dia*.61,0,(1-t)*.8);
-    ring.style.setProperty('--light',color);
+  const el=layer.paint(key,motif,cx,cy,w,t,angle,alpha);
+  if((motif==='falcon'||motif==='owl')&&Math.cos(aim)<0)el.style.transform+=' scaleX(-1)';
+  el.dataset.spell='cast-'+route;
+}
+function linked(layer,key,kind,x,y,ex,ey,t,alpha){
+  const travel=1-(1-t)**2,dx=ex-x,dy=ey-y;
+  const cx=x+dx*travel, cy=y+dy*travel-16;
+  if(kind==='arc'||kind==='bolt'){
+    if(kind==='arc')layer.paint(key+'/jump','crystal',cx,cy-22*Math.sin(t*Math.PI),30,t,0,alpha);
+    layer.paint(key,'thunder',ex,ey-42,kind==='bolt'?128:77,t,0,alpha*Math.min(1,t*8));
+  }else if(kind==='siphon'){
+    layer.paint(key,'soul',cx,cy-Math.sin(t*Math.PI)*37,48,t,-.18,alpha);
+  }else if(kind==='trail'){
+    const el=layer.paint(key,'owl',cx,cy-10,101,t,0,alpha);
+    if(dx<0)el.style.transform+=' scaleX(-1)';
+  }else{
+    layer.paint(key,'cleave',cx,cy,91,t,Math.atan2(dy,dx),alpha,39);
   }
 }
-function lightning(layer,key,x,y,dx,dy,age,color,quiet){
-  const distance=Math.hypot(dx,dy);
-  if(distance<1)return;
-  const nx=-dy/distance,ny=dx/distance,count=quiet?3:6;
-  const reach=clamp(age*5.5,0,1),fade=Math.min(1,(1-age)*2.6);
-  let lastX=x,lastY=y-21;
-  for(let i=1;i<=count;i++){
-    const t=Math.min(reach,i/count);
-    const offset=Math.sin(t*Math.PI)*Math.sin(i*8.7+Math.floor(age*7))*Math.min(14,distance*.10);
-    const px=x+dx*t+nx*offset,py=y-21+dy*t+ny*offset;
-    const segment=layer.place(key+'/'+i,'arc-stroke',(lastX+px)/2,(lastY+py)/2,
-      Math.hypot(px-lastX,py-lastY)+1,quiet?2:3,Math.atan2(py-lastY,px-lastX),fade);
-    segment.style.setProperty('--light',color);
-    lastX=px;lastY=py;
-    if(t===reach)break;
-  }
+const impactArt={counter:'bastion',sweep:'cleave',gale:'stone',orbit:'cleave',rockburst:'stone',arrowfall:'volley',
+  flame:'flame',ice:'ice',entangle:'roots',nova:'meteor',ward:'bastion',impact:'crystal',
+  'enemy-impact':'stone',ring:'sun',upgrade:'sun',cyclone:'cleave'};
+function impact(layer,key,kind,x,y,r,aim,t,alpha,route){
+  const motif=kind==='pop'?({scout:'arrow',mage:'crystal',staff:'stone'}[route]||'stone'):impactArt[kind];
+  if(!motif)return;
+  const turns=kind==='sweep'||kind==='cyclone'||kind==='orbit';
+  const radius=clamp(r,17,210),rotation=aim+(t-.5)*(kind==='cyclone'?5.6:2.3);
+  const reach=turns?radius*(.36+.21*t):0;
+  const width=turns?radius*(.85+.42*t):radius*(1.05+.68*t);
+  const lift=kind==='ward'?21:kind==='ice'||kind==='rockburst'?width*.21:10;
+  layer.paint(key,motif,x+Math.cos(rotation)*reach,y+Math.sin(rotation)*reach*.66-lift,width,t,turns?rotation:0,alpha);
 }
-function siphon(layer,key,x,y,dx,dy,t,color,quiet){
-  const count=quiet?2:5,length=Math.max(1,Math.hypot(dx,dy));
-  for(let i=0;i<count;i++){
-    const a=clamp(t*1.5-i*.095,0,1),curl=Math.sin(a*Math.PI)*Math.sin(a*6+i*.8)*13;
-    const bead=layer.place(key+'/mote'+i,'soul-mote',x+dx*a-dy/length*curl,
-      y-21+dy*a+dx/length*curl,9-i*.65,5,Math.atan2(dy,dx),Math.sin(Math.PI*a));
-    bead.style.setProperty('--light',color);
-  }
-}
-const sceneArt={ward:'leaf-ward',trail:'wind-trail',line:'wind-trail',bolt:'lightning',ice:'frost-bloom',upgrade:'pollen',pop:'pollen',
-  cyclone:'leaf-cyclone',gale:'leaf-cyclone',sweep:'fx-slash','cast-staff':'leaf-cyclone','cast-mage':'fx-magic','cast-scout':'fx-wind',
-  nova:'meteor',impact:'fx-magic'};
-const shotArt={blast:'fireball',return:'boomerang',starArrow:'star-arrow',pierce:'seed-arrow'};
 function displayDrops(gems,players,visible){
   const nearby=gems.filter(([x,y])=>visible(x,y,20));
   if(nearby.length<40)return nearby;
@@ -124,34 +131,30 @@ export class FieldEffects {
     for(const [x,y,r,kind,color,remaining,id] of view.zones){
       if(!visible(x,y,r+200))continue;
       const life=remaining/100;
+      const t=clamp(1-life,0,1),key='zone'+id;
       if(kind==='arrowfall'){
-        for(let i=0;i<3;i++)front.art('rain'+id+'/'+i,'seed-arrow',x+(i-1)*17-22*life,y-125*life-8,38,9,1.36);
-        continue;
-      }
-      if(kind==='mine'){
-        const span=32+8*Math.min(1,(1-life)*15);
-        ground.place('trap/'+id,'snare-cord',x,y-2,span,10,-.18,.84);
-        for(const side of [-1,1])ground.place('stake/'+id+'/'+side,'snare-stake',x+side*span*.47,y-3-side*3,3,9,side*.24);
-        continue;
-      }
-      const zone=ground.place('zone'+id,'area-indicator '+kind,x,y,r*2,r*1.4);
-      zone.style.setProperty('--area-color',color);
-      if(kind==='field'||kind==='frostfield'){
-        ground.art('seal'+id,kind==='frostfield'?'frost-bloom':'spell-circle',x,y,r*(1.3+.22*Math.sin(life*6)),r*(1+.12*Math.sin(life*6)),(1-life)*.6,Math.min(.6,life*3));
-      }else if(kind==='meteor'||kind==='drop'){
-        const meteor=kind==='meteor',size=meteor?100:41;
-        front.art('drop'+id,meteor?'meteor':'supply-crate',x-114*life,y-192*life-6,size,size);
+        front.paint(key,'volley',x-24*life,y-85*life-14,82,t*.71,-.1,1);
+      }else if(kind==='meteor'){
+        front.paint(key,'meteor',x-99*life,y-185*life-15,62+30*t,t*.6,0,1);
+      }else if(kind==='drop'){
+        front.art(key,'supply-crate',x-80*life,y-165*life-10,46,46);
+      }else if(kind==='mine'){
+        ground.paint(key,'roots',x,y-4,56,Math.min(.49,t*4),0,.86);
+      }else if(kind==='field'||kind==='frostfield'){
+        ground.paint(key,kind==='field'?'crystal':'ice',x,y-13,r*(1.28+.12*Math.sin(t*12)),t,0,.8);
+      }else if(kind==='quake'){
+        ground.paint(key,'stone',x,y,r*(.45+.32*t),t*.46,0,.68);
       }
     }
     for(const [id,x,y,angle,,kind,tier=1] of view.shots){
-      if(!visible(x,y,110))continue;
-      const [px,py]=smooth('s'+id,x,y);
-      const size=kind==='starArrow'?82:kind==='return'?34:kind==='blast'?54:40+tier*2;
-      if(!quiet && (kind==='blast'||kind==='starArrow')){
-        const length=kind==='blast'?26:42,glow=front.place('wake'+id,'shot-wake',px-Math.cos(angle)*length*.6,py-15-Math.sin(angle)*length*.6,length,kind==='blast'?9:4,angle,.75);
-        glow.style.setProperty('--light',kind==='blast'?'#ffb76d':'#abf3ce');
+      if(!visible(x,y,100))continue;
+      const [px,py]=smooth('s'+id,x,y),key='shot'+id;
+      if(kind==='return'){
+        front.art(key,'boomerang',px,py-15,36,36,view.t*12);
+      }else{
+        const fire=kind==='blast',size=kind==='starArrow'?76:fire?61:46+tier*1.4;
+        front.paint(key,fire?'flame':'arrow',px,py-18,size,fire?.32:.08,angle,1,size*(fire?.67:.46));
       }
-      front.art('shot'+id,shotArt[kind]||'seed-arrow',px,py-15,size,kind==='return'?size:['pierce','pin','ricochet'].includes(kind)?size*.26:size*.54,kind==='return'?view.t*12:angle);
     }
     for(const [id,x,y,left] of view.hail||[]){
       if(!visible(x,y,240))continue;
@@ -188,36 +191,17 @@ export class FieldEffects {
         });
       }
     }
-    for(const [x,y,r,color,strength,kind,x2,y2,label,id] of view.fx){
+    for(const [x,y,r,,strength,kind,x2,y2,label,id,route] of view.fx){
       if(!visible(x,y,650)||strength<=0)continue;
-      const stage=1-strength/100,alpha=Math.min(1,(1-stage)*3)*(quiet?.72:1);
-      const art=sceneArt[kind]||'pollen',key='fx'+id;
-      if(kind==='number'){if(!quiet)front.label(key,label,x,y-30-stage*18,true,alpha);continue;}
-      if(kind==='bolt'||kind==='arc'){
-        lightning(front,key,x,y,x2-x,y2-y,stage,color,quiet);continue;
+      const t=clamp(1-strength/100,0,1),alpha=Math.min(1,(1-t)*3)*(quiet?.76:1),key='fx'+id;
+      if(kind==='number'){if(!quiet)front.label(key,label,x,y-30-t*18,true,alpha);continue;}
+      if(kind.startsWith('cast-')){
+        cast(front,key,route||kind.slice(5),x,y,r,x2,t,alpha);
+      }else if(['arc','bolt','siphon','trail','line','thrust'].includes(kind)){
+        linked(front,key,kind,x,y,x2,y2,t,alpha);
+      }else{
+        impact(kind==='rockburst'||kind==='entangle'?ground:front,key,kind,x,y,r,x2,t,alpha,route);
       }
-      if(kind==='siphon'){
-        siphon(front,key,x,y,x2-x,y2-y,stage,color,quiet);continue;
-      }
-      if(kind==='flame'){
-        const core=front.place(key+'/core','flame-core',x,y-15-13*stage,
-          9+32*Math.sin(stage*Math.PI),8+22*Math.sin(stage*Math.PI),0,alpha*(1-stage));
-        core.style.setProperty('--light',color);
-      }
-      if(kind==='trail'||kind==='line'){
-        const dx=x2-x,dy=y2-y;
-        const reach=clamp(stage*5,0,1),tail=clamp((stage-.34)*1.5,0,reach),mid=(reach+tail)*.5;
-        front.art(key,art,x+dx*mid,y+dy*mid-12,Math.max(2,Math.hypot(dx,dy)*(reach-tail)),kind==='bolt'?17:12,Math.atan2(dy,dx),alpha);
-        continue;
-      }
-      if(kind!=='ward'){
-        castMotion(front,key,kind,x,y,r,color,stage,x2||0,id,quiet);
-        if(label)front.label(key+'/name',label,x,y-63-stage*14,true,alpha);
-        continue;
-      }
-      const size=kind==='ward'?86:clamp(r*(1.12+.6*stage),26,340);
-      front.art(key,art,x,y-14,size,size,kind==='cyclone'?stage*2.6:0,alpha,art.startsWith('fx-')?Math.min(2,Math.floor(stage*3)):null);
-      if(label)front.label(key+'/name',label,x,y-81-stage*12,true,alpha);
     }
     for(const [id,x,y,r,amount,critical,age,dir,,family] of view.hits||[]){
       if(!visible(x,y,100))continue;
@@ -225,8 +209,9 @@ export class FieldEffects {
       if(age<320){
         const size=Math.min(92,30+r*(critical?2.1:1.35));
         const t=clamp(age/320,0,1);
-        const spark=front.place('hit'+id,'contact-spark',x+dir*t*10,y-r*.9-t*5,size*(.12+.45*t),Math.max(2,5*(1-t)),dir*.55,(1-t)*(quiet?.55:1));
-        spark.style.setProperty('--light',family==='slash'?'#ffc467':family==='wind'?'#8ce8cf':'#d8aaff');
+        const motif=family==='slash'?'cleave':family==='wind'?'arrow':'crystal';
+        front.paint('hit'+id,motif,x+dir*t*6,y-r*.8-2*t,size*.78,.55+.44*t,0,(1-t)*(quiet?.54:.88));
+
       }
       front.label('damage'+id,amount,x+dir*(quiet?0:phase*8)+(id%3-1)*4,y-r*1.95-(quiet?3:phase*22),critical,opacity);
     }

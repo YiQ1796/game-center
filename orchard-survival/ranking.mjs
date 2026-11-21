@@ -1,4 +1,4 @@
-import {signRow,sendEvent,fetchBoard} from './board-relay.mjs?v=073';
+import {signRow,sendEvent,fetchBoard} from './board-relay.mjs?v=080';
 const adjectives=['晨霧','琥珀','晚霞','玉露','銀月','赤楓','春雷','星河','青竹','霜花','金穗','翠羽'];
 const roles=['巡山客','採桃手','守林人','踏風客','追星猴','摘月客','尋泉人','聽雨猴','斥候','果園長','鈴弓手','搗藥師'];
 const validName=name=>adjectives.some(a=>roles.some(b=>name===a+b));

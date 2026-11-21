@@ -1,6 +1,6 @@
 
-import { attributeCost,salePrice, marketPrice, CLASS_KITS, allowsPassive, marketItem, CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=073';
-import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=073';
+import { attributeCost,salePrice, marketPrice, CLASS_KITS, allowsPassive, marketItem, CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=080';
+import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=080';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -306,9 +306,9 @@ export function gearAction(game, player, action, id) {
   return true;
 }
 
-function effect(game, x, y, radius, color, life=.35, kind='ring', x2=0, y2=0, label='') {
+function effect(game, x, y, radius, color, life=.35, kind='ring', x2=0, y2=0, label='', route='') {
   if (game.fx.length >= 130) game.fx.shift();
-  game.fx.push({ id:++game.serial,x,y,radius,color,life,max:life,kind,x2,y2,label });
+  game.fx.push({ id:++game.serial,x,y,radius,color,life,max:life,kind,x2,y2,label,route });
 }
 
 function dropGem(game, target) {
@@ -352,7 +352,7 @@ function hurt(game, player, enemy, amount, color, crit, knock=0, art=null) {
     else player.crumbs+=salePrice(item);
   }
   if(!boss&&!elite&&random(game)<.15)player.crumbs++;
-  effect(game,enemy.x,enemy.y,enemy.radius*(boss ? 4 : 1.85),color,.42,'pop');
+  effect(game,enemy.x,enemy.y,enemy.radius*(boss ? 4 : 1.85),color,.42,'pop',0,0,'',player.job);
   if (boss || elite) {
     for (const ally of game.players) {
       const item = rollGear(game,boss,ally.job);
@@ -453,7 +453,7 @@ function useSkill(game, player, key, level, config) {
     if(!player.counterReady||!nearestBody(game,x,y,range*scale))return;
     player.counterReady=false;
     player.hp=Math.min(player.maxHp,player.hp+(player.passive.bracers||0));
-    blast(game,player,x,y,range*scale,amount,color,config.crit,38,0,'sweep');
+    blast(game,player,x,y,range*scale,amount,color,config.crit,38,0,'counter');
   }else if(kind==='thrust'){
     const length=range*scale,dx=Math.cos(angle),dy=Math.sin(angle);
     touching(game,x,y,length,enemy=>{
@@ -461,7 +461,7 @@ function useSkill(game, player, key, level, config) {
       if(along>=0&&along<=length+enemy.radius&&Math.abs(ex*dy-ey*dx)<=enemy.radius+10)
         hurt(game,player,enemy,amount,color,config.crit,12,'slash');
     });
-    effect(game,x,y,0,color,.23,'trail',x+dx*length,y+dy*length);
+    effect(game,x,y,0,color,.34,'thrust',x+dx*length,y+dy*length);
   }else if(kind==='volley'||kind==='fissure'){
     for(let i=0;i<3;i++){
       const volley=kind==='volley',d=volley?(i-1)*30:(i+1)*range*scale/3;
@@ -479,14 +479,14 @@ function useSkill(game, player, key, level, config) {
       const phase=game.elapsed*5+player.id.length;
       for (let i=0;i<3;i++) {
         const direction=phase+i*TAU/3;
-        blast(game,player,x+Math.cos(direction)*65*scale,y+Math.sin(direction)*65*scale,41*scale,amount,color,config.crit,15);
+        blast(game,player,x+Math.cos(direction)*65*scale,y+Math.sin(direction)*65*scale,41*scale,amount,color,config.crit,15,0,'orbit');
       }
     } else blast(game,player,x,y,range*scale,amount,color,config.crit,kind==='push' ? 52 : 12,0,kind==='push'?'gale':'sweep');
   } else if (kind === 'chain') {
     let head=target, previous=player;
     const hitIds=new Set();
     for (let i=0;i<3+Math.floor(level/3)+(evolved?2:0)&&head;i++) {
-      effect(game,previous.x,previous.y,0,color,.26,'arc',head.x,head.y);
+      effect(game,previous.x,previous.y,0,color,.42,'arc',head.x,head.y);
       hurt(game,player,head,amount*Math.max(.35,1-i*.11),color,config.crit);
       hitIds.add(head.id);
       previous=head;
@@ -528,7 +528,7 @@ function burst(game, player, config) {
   player.aim=target?Math.atan2(target.y-y,target.x-x):(player.face===1?0:Math.PI);
   player.strikeAt=game.elapsed;
   if(Math.abs(Math.cos(player.aim))>.18)player.face=Math.cos(player.aim)>0?1:-1;
-  effect(game,x,y,promotion ? 150 : 110,promotion?.color||type.color,.72,'cast-'+player.job,player.aim,0,promotion ? promotion.burst : type.burst);
+  effect(game,x,y,promotion ? 150 : 110,promotion?.color||type.color,.72,'cast-'+player.job,player.aim,0,promotion ? promotion.burst : type.burst,promotion?.id||player.job);
   if (promotion) {
     const power=config.power, color=promotion.color, reach=config.reach;
     if (promotion.id==='king') {
@@ -610,7 +610,10 @@ function updateShots(game, owners) {
       if(shot.kind==='blast')blast(game,owner,x+dx*entry,y+dy*entry,74+6*(owner.passive.emberglass||0),shot.amount,shot.color,shot.crit,0,0,'flame');
       else {
         hurt(game,owner,enemy,shot.amount,shot.color,shot.crit,0,'wind');
-        if(shot.kind==='pin')enemy.root=Math.max(enemy.root||0,.65+shot.tier*.09);
+        if(shot.kind==='pin'){
+          enemy.root=Math.max(enemy.root||0,.65+shot.tier*.09);
+          effect(game,enemy.x,enemy.y,enemy.radius*1.8,shot.color,.57,'entangle');
+        }
         if(shot.kind==='ricochet'&&shot.pierce>0){
           let next=null,best=175;
           nearby(game,enemy.x,enemy.y,best,(e,d)=>{if(!shot.hit.has(e.id)&&d<best){next=e;best=d;}});
@@ -633,11 +636,11 @@ function updateZones(game, owners) {
     const { x,y,radius,amount,color,crit,kind }=item;
     if ((kind==='drop'||kind==='meteor') && item.life<=0 || kind==='mine' && nearest(game,x,y,47)) {
       if(kind==='mine')touching(game,x,y,radius,e=>{e.root=Math.max(e.root||0,1.4);});
-      blast(game,owner,x,y,radius,amount,color,crit,kind==='mine'?0:19,0,kind==='meteor'?'nova':'impact');
+      blast(game,owner,x,y,radius,amount,color,crit,kind==='mine'?0:19,0,kind==='meteor'?'nova':kind==='mine'?'entangle':'impact');
       item.life=0;
     }
-    if(kind==='arrowfall'&&item.life<=0)blast(game,owner,x,y,radius,amount,color,crit,0,0,'cast-scout');
-    if(kind==='quake' && item.life<=0) blast(game,owner,x,y,radius,amount,color,crit,16,0,'sweep');
+    if(kind==='arrowfall'&&item.life<=0)blast(game,owner,x,y,radius,amount,color,crit,0,0,'arrowfall');
+    if(kind==='quake' && item.life<=0) blast(game,owner,x,y,radius,amount,color,crit,16,0,'rockburst');
     if ((kind==='field'||kind==='frostfield') && item.life>0) {
       item.tick-=STEP;
       if (item.tick<=0) {
@@ -719,7 +722,7 @@ function attack(game, enemy, alive, configs) {
   const radius=mode===1 ? 107 : 75;
   const points = mode===2 ? [[tx,ty],[tx-116,ty+66],[tx+116,ty-66]] : [[tx,ty]];
   for (const [x,y] of points) {
-    effect(game,x,y,radius,'#f47154',.44,'pop');
+    effect(game,x,y,radius,'#f47154',.44,'enemy-impact');
     for (const player of alive) if (Math.hypot(player.x-x,player.y-y)<radius) hitPlayer(player,enemy.damage,configs.get(player.id));
   }
 }
@@ -918,6 +921,6 @@ export function buildView(game, focusId) {
     gems:game.gems.filter(see).map(g=>[n(g.x),n(g.y),g.value,g.id]),
     shots:game.shots.filter(see).map(s=>[s.id,n(s.x),n(s.y),n(s.angle*100)/100,s.color,s.kind,s.tier]),
     zones:game.zones.filter(see).map(z=>[n(z.x),n(z.y),n(z.radius),z.kind,z.color,n(100*z.life/z.max),z.id]),
-    fx:game.fx.filter(see).slice(-44).map(f=>[n(f.x),n(f.y),n(f.radius),f.color,n(f.life/f.max*100),f.kind,Math.round(f.x2*100)/100,n(f.y2),f.label,f.id])
+    fx:game.fx.filter(see).slice(-44).map(f=>[n(f.x),n(f.y),n(f.radius),f.color,n(f.life/f.max*100),f.kind,Math.round(f.x2*100)/100,n(f.y2),f.label,f.id,f.route])
   };
 }
