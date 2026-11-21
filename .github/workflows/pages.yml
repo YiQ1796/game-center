@@ -30,6 +30,13 @@ jobs:
           npm install --prefix "$lib" --no-fund --no-audit --ignore-scripts nostr-tools@2.10.4 esbuild@0.25.12
           echo "export {generateSecretKey,finalizeEvent,verifyEvent} from 'nostr-tools/pure';" > "$lib/entry.mjs"
           "$lib/node_modules/.bin/esbuild" "$lib/entry.mjs" --bundle --format=esm --minify --outfile=orchard-survival/rank-sign.mjs
+      - name: Prepare Traditional Chinese fonts for browser screenshots
+        shell: bash
+        run: |
+          if [ -z "$(fc-list :lang=zh-tw family)" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          fi
       - name: Validate site
         shell: bash
         run: |

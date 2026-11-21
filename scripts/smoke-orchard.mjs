@@ -18,8 +18,8 @@ async function exercise() {
     throw Error(hint);
   };
   await until(()=>el('jobs')?.children.length===3,'class selection never loaded');
-  const {HeroSprite,EnemySprite,gearIcon}=await import('./actors.mjs?v=081');
-  const {FieldEffects}=await import('./spells.mjs?v=081');
+  const {HeroSprite,EnemySprite,gearIcon}=await import('./actors.mjs?v=082');
+  const {FieldEffects}=await import('./spells.mjs?v=082');
   expect(document.querySelectorAll('canvas').length===0,'unexpected Canvas renderer in the game');
   const target=document.createElement('canvas');target.width=290;target.height=240;
   const ink=target.getContext('2d',{willReadFrequently:true});
@@ -43,7 +43,7 @@ async function exercise() {
   await until(()=>!!el('stage-unit').querySelector('[data-sheet="ranger-regalia3"]'),'third-tier fitting not mounted');
   el('try-burst').click();
   await until(()=>!!el('stage-unit').querySelector('[data-art="ink-falcon"]'),'fitting did not cast the ranger burst');
-  const {Garden,fieldLight,LANDMARKS}=await import('./garden.mjs?v=081');
+  const {Garden,fieldLight,LANDMARKS}=await import('./garden.mjs?v=082');
   const garden=new Garden(),day=fieldLight(0),night=fieldLight(168);
   const fieldImage=new Image();fieldImage.src=new URL('./art/orchard-meadow.webp',location.href);await fieldImage.decode();
   expect(fieldImage.naturalWidth>=1200,'illustrated field missing');
@@ -143,7 +143,8 @@ async function exercise() {
     const job=['staff','king','guardian'].includes(route)?'staff':['mage','storm','archmage'].includes(route)?'mage':'scout';
     fxState.fx=[[130,128,110,'#ffc285',58,'cast-'+job,0,0,'',1,route]];
     effects.draw(fxState,projected,false,visible);
-    const spell=over.querySelector('[data-spell="cast-'+route+'"]');
+    const castLayer=['staff','king','guardian','archmage'].includes(route)?under:over;
+    const spell=castLayer.querySelector('[data-spell="cast-'+route+'"]');
     expect(spell?.dataset.art==='ink-'+art,'wrong ultimate for '+route);
     const frame=spell.dataset.frame;
     const before=spell.style.transform;fxState.fx[0][4]=29;effects.draw(fxState,projected,false,visible);
@@ -164,8 +165,8 @@ async function exercise() {
   fxState.shots=[];fxState.hits=[];effects.draw(fxState,projected,true,visible);
   expect(over.childElementCount===0,'expired effects leaked into the next frame');
   // 檢查等級門檻、雙轉職選項、不可重複選擇與多人檢視資料。
-  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=081');
-  const {THRESHOLD}=await import('./content.mjs?v=081');
+  const {newGame,advance,choose,buildView}=await import('./arena.mjs?v=082');
+  const {THRESHOLD}=await import('./content.mjs?v=082');
   const progression=newGame([{id:'promotion-test',job:'staff',name:'猴三毛'}],1234);
   const adventurerState=progression.players[0];
   progression.level=7;
@@ -293,18 +294,18 @@ try {
   let current=false;
   for(let i=0;i<(publicPage?15:1);i++){
     try{
-      const response=await fetch(address+'?ci=081-'+Date.now(),{signal:AbortSignal.timeout(7000)});
-      if(response.ok&&(await response.text()).includes('data-build="0.8.1"')){current=true;break;}
+      const response=await fetch(address+'?ci=082-'+Date.now(),{signal:AbortSignal.timeout(7000)});
+      if(response.ok&&(await response.text()).includes('data-build="0.8.2"')){current=true;break;}
     }catch(error){console.log('Waiting for Pages:',error.message);}
     if(publicPage)await delay(3000);
   }
-  assert.ok(current,'Orchard v0.8.1 entry not available at '+address);
+  assert.ok(current,'Orchard v0.8.2 entry not available at '+address);
   for(const [width,height] of [[1440,860],[390,844]]){
     await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<500});
-    await call('Page.navigate',{url:address+'?ci=081-'+width+'-'+Date.now()});
+    await call('Page.navigate',{url:address+'?ci=082-'+width+'-'+Date.now()});
     let loaded=false;
     for(let i=0;i<180;i++){
-      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.8.1' && !!document.getElementById('jobs')?.firstElementChild"});
+      const state=await call('Runtime.evaluate',{expression:"document.documentElement.dataset.build==='0.8.2' && !!document.getElementById('jobs')?.firstElementChild"});
       if(state.result.value===true){loaded=true;break;}await delay(100);
     }
     assert.ok(loaded,'Game modules failed to initialise: '+JSON.stringify(exceptions));

@@ -206,11 +206,13 @@ export class FieldEffects {
       const t=clamp(1-strength/100,0,1),alpha=Math.min(1,(1-t)*3)*(quiet?.76:1),key='fx'+id;
       if(kind==='number'){if(!quiet)front.label(key,label,x,y-30-t*18,true,alpha);continue;}
       if(kind.startsWith('cast-')){
-        cast(front,key,route||kind.slice(5),x,y,r,x2,t,alpha);
+        const track=route||kind.slice(5);
+        const surround=['staff','king','guardian','archmage'].includes(track);
+        cast(surround?ground:front,key,track,x,y,r,x2,t,alpha);
       }else if(['arc','bolt','siphon','trail','line','thrust'].includes(kind)){
         linked(front,key,kind,x,y,x2,y2,t,alpha);
       }else{
-        impact(kind==='rockburst'||kind==='entangle'?ground:front,key,kind,x,y,r,x2,t,alpha,route);
+        impact(['rockburst','entangle','ward','cyclone','counter','gale'].includes(kind)?ground:front,key,kind,x,y,r,x2,t,alpha,route);
       }
     }
     for(const [id,x,y,r,amount,critical,age,dir,,family] of view.hits||[]){

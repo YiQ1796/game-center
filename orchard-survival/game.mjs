@@ -1,12 +1,12 @@
-import { nameChoices,history,publicResults,saveResult,sorted,submitResult,retryPending,valid } from './ranking.mjs?v=081';
+import { nameChoices,history,publicResults,saveResult,sorted,submitResult,retryPending,valid } from './ranking.mjs?v=082';
 
-import { stats, banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=081';
-import { salePrice,marketPrice,attributeCost, marketItem, MARKET, skillNumbers, ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=081';
-import { outfitSprite, gearIcon } from './actors.mjs?v=081';
-import { FittingStage } from './fitting-stage.mjs?v=081';
-import { Scene } from './scene.mjs?v=081';
-import { Squad } from './squad.mjs?v=081';
-import { ADVANCEMENTS, getAdvancement } from './advancement.mjs?v=081';
+import { stats, banish, purchase, allocateAttribute, advance, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=082';
+import { salePrice,marketPrice,attributeCost, marketItem, MARKET, skillNumbers, ATTRIBUTES, CLASSES, EVOLUTIONS, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, TAUNTS, isClass } from './content.mjs?v=082';
+import { outfitSprite, gearIcon } from './actors.mjs?v=082';
+import { FittingStage } from './fitting-stage.mjs?v=082';
+import { Scene } from './scene.mjs?v=082';
+import { Squad } from './squad.mjs?v=082';
+import { ADVANCEMENTS, getAdvancement } from './advancement.mjs?v=082';
 
 const $ = id => document.getElementById(id);
 const ui = Object.fromEntries([
