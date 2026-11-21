@@ -18,13 +18,12 @@ class SpriteLayer {
     style(el,'opacity',clamp(opacity,0,1).toFixed(2));
     return el;
   }
-  art(key,asset,x,y,width,height,angle=0,opacity=1,frame=null){
+  art(key,asset,x,y,width,height,angle=0,opacity=1){
     const el=this.place(key,'battle-illustration',x,y,width,height,angle,opacity);
     if(el.dataset.art!==asset){
       el.dataset.art=asset;el.style.backgroundImage='url("'+new URL(asset+'.webp',assets).href+'")';
-      el.style.backgroundSize=frame===null?'100% 100%':'300% 100%';
+      el.style.backgroundSize='100% 100%';
     }
-    if(frame!==null)style(el,'backgroundPosition',(clamp(frame,0,2)*50)+'% center');
     return el;
   }
   paint(key,motif,x,y,width,progress,angle=0,alpha=1,height=width*208/256){
@@ -49,6 +48,17 @@ const ultimateArt={
   mage:'meteor', storm:'thunder', archmage:'sun',
   scout:'volley', ranger:'falcon', shadow:'owl'
 };
+const warmed=new Set();
+const openingArt={staff:['cleave','stone'],mage:['flame','crystal'],scout:['arrow','roots']};
+export function warmBattleArt(job,route){
+  for(const motif of [...openingArt[job],ultimateArt[route||job]]){
+    if(!motif||warmed.has(motif))continue;
+    warmed.add(motif);
+    const image=new Image();
+    image.onerror=()=>warmed.delete(motif);
+    image.src=new URL('ink-'+motif+'.webp',assets).href;
+  }
+}
 function cast(layer,key,route,x,y,r,aim,t,alpha){
   const motif=ultimateArt[route],pulse=Math.sin(Math.PI*t);
   if(!motif)return;
@@ -161,7 +171,7 @@ export class FieldEffects {
       const t=clamp(1-left/1.45,0,1);
       ground.place('hail/'+id,'hail-target',x,y,136,136,0,.75);
       ground.place('hail-fill/'+id,'hail-fill',x,y,136*t,136*t);
-      if(t>.36)front.art('hail-stone/'+id,'meteor',x-80*(1-t),y-330*(1-t),42,60,-.25,1);
+      if(t>.36)front.paint('hail-stone/'+id,'meteor',x-80*(1-t),y-330*(1-t),62,t*.57,-.25,1);
     }
     for(const enemy of view.enemies){
       if(!(enemy[8]||enemy[13])||!visible(enemy[2],enemy[3],700))continue;

@@ -1,5 +1,5 @@
 
-export const BUILD = '0.8.0';
+export const BUILD = '0.8.1';
 export const SKILL_CAP = 10;
 export const PASSIVE_CAP = 10;
 export const ATTRIBUTES = Object.freeze({str:'力量',agi:'敏捷',vit:'體質',int:'智慧',dex:'靈巧',luk:'幸運'});
@@ -40,7 +40,7 @@ export const SKILLS = {
   frost: ['冰果風暴','在目標附近造成傷害並減速',15,415,1.72,'#96ecff','slow'],
   pop: ['絆索陷阱','腳下設索，觸發時傷害並纏住近敵',32,0,2.30,'#ffce8d','mine'],
   nut: ['護身反打','挨打後震開近敵並反擊',34,115,0.7,'#e7b878','counter'],
-  hive: ['汲魂術','從目標汲取生命，回復施法者',18,365,2.48,'#ad79ce','drain'],
+  hive: ['汲魂術','吸收實際傷害的 12%，每次最多回復自身生命上限的 2.5%',18,365,2.48,'#ad79ce','drain'],
   puff: ['震退棍','揮棒把身邊的怪往外推開',12,164,1.94,'#bdf8d0','push'],
   drop: ['定點箭雨','在敵群落下三波箭雨',18,520,2.40,'#c8df94','volley'],
   echo: ['穿陣突刺','朝最近敵人直線刺擊，命中沿線怪物',29,178,1.25,'#efc46c','thrust']

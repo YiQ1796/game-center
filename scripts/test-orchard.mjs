@@ -456,3 +456,14 @@ test('the bow reaches release on the same tick as the arrow',()=>{
   }
   assert.fail('second shot did not fire');
 });
+
+test('soul drain caps healing from late-game targets and cannot heal from overkill',()=>{
+  for(const [hp,expected] of [[100000,2.4],[3,.36]]){
+    const {game,player,target}=combatFixture();
+    player.job='mage';player.skills={hive:10};player.maxHp=96;player.hp=23;
+    player.attributes.int=99;
+    target(45,45,0,hp);
+    advance(game);
+    assert.ok(Math.abs(player.hp-23-expected)<.00001);
+  }
+});

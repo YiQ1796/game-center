@@ -1,6 +1,6 @@
 
-import { attributeCost,salePrice, marketPrice, CLASS_KITS, allowsPassive, marketItem, CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=080';
-import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=080';
+import { attributeCost,salePrice, marketPrice, CLASS_KITS, allowsPassive, marketItem, CLASSES, ENEMIES, EVOLUTIONS, FIELD, PASSIVES, PERKS, RARITIES, SKILLS, SLOTS, STEP, THRESHOLD, MARKET, skillNumbers, ATTRIBUTES, SKILL_CAP, PASSIVE_CAP, isClass } from './content.mjs?v=081';
+import { ADVANCEMENTS, ADVANCEMENT_LEVEL, getAdvancement } from './advancement.mjs?v=081';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -471,7 +471,10 @@ function useSkill(game, player, key, level, config) {
   }else if(kind==='drain'){
     const remaining=target.hp;
     hurt(game,player,target,amount,color,config.crit,0,'magic');
-    player.hp=Math.min(player.maxHp,player.hp+Math.min(remaining,remaining-target.hp)*.12);
+    const healthTaken=Math.min(remaining,remaining-target.hp);
+    // Rising monster health and late-game damage must not scale healing indefinitely.
+    const restored=Math.min(healthTaken*.12,player.maxHp*.025);
+    player.hp=Math.min(player.maxHp,player.hp+restored);
     effect(game,target.x,target.y,0,color,.44,'siphon',x,y);
   }else if (kind === 'ring' || kind === 'orbit' || kind === 'push') {
     if (!nearestBody(game,x,y,range*scale)) return;

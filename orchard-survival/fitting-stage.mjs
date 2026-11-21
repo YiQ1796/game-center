@@ -1,7 +1,7 @@
-import { advance,buildView,newGame } from './arena.mjs?v=080';
-import { STEP } from './content.mjs?v=080';
-import { FieldEffects } from './spells.mjs?v=080';
-import { EnemySprite, HeroSprite } from './actors.mjs?v=080';
+import { advance,buildView,newGame } from './arena.mjs?v=081';
+import { STEP } from './content.mjs?v=081';
+import { FieldEffects, warmBattleArt } from './spells.mjs?v=081';
+import { EnemySprite, HeroSprite } from './actors.mjs?v=081';
 
 export class FittingStage {
   constructor(stage){
@@ -18,7 +18,7 @@ export class FittingStage {
     this.observer.observe(stage);
   }
   select(job,promotion,master=false){
-    this.resetPreview();this.master=master;this.job=job;this.promotion=promotion;this.last=-Infinity;
+    this.resetPreview();warmBattleArt(job,promotion);this.master=master;this.job=job;this.promotion=promotion;this.last=-Infinity;
   }
   preview(){
     const game=newGame([{id:'preview',job:this.job,name:'猴三毛'}],42),p=game.players[0];
