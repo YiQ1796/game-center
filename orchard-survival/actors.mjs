@@ -1,6 +1,7 @@
 // Actors are illustrated transparent image strips. The browser composites their
 // frames as DOM sprites in the field, the inventory and the fitting room.
-const url=name=>new URL('./art/'+name+'.webp',import.meta.url).href;
+const assetRevision=new URL(import.meta.url).search;
+const url=name=>new URL('./art/'+name+'.webp'+assetRevision,import.meta.url).href;
 const routes={staff:['staff','king','guardian'],mage:['mage','storm','archmage'],scout:['scout','ranger','shadow']};
 const gearArt=['staff-rod','leaf-cap','guard-coat','bracer','boots','pendant','ruby-ring','jade-ring'];
 const weapons={staff:'staff-rod',king:'king-rod',guardian:'jade-pole',mage:'moon-wand',storm:'storm-wand',archmage:'sun-wand',scout:'shortbow',ranger:'longbow',shadow:'longbow'};

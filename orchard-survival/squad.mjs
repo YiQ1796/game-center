@@ -1,7 +1,7 @@
 
 import { PeerRoom } from '../one-a-two-b/peer-room.mjs?v=stack-100';
-import { banish, purchase, allocateAttribute, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=082';
-import { isClass } from './content.mjs?v=082';
+import { banish, purchase, allocateAttribute, buildView, choose, finish, gearAction, newGame, setMove } from './arena.mjs?v=083';
+import { isClass } from './content.mjs?v=083';
 
 const CODE = /^\d{6}$/;
 const TOKEN = /^[a-f0-9-]{36}$/;

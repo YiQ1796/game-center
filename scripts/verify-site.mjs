@@ -58,7 +58,7 @@ for (const game of games) {
     assert.equal(game.status, 'beta');
     assert.equal(game.image, 'orchard-survival/art/orchard-cover.webp');
     assert.ok(existsSync(resolve(root, game.image)), 'Orchard mascot is missing');
-    assert.match(read('orchard-survival/index.html'), /data-build="0\.8\.2"/);
+    assert.match(read('orchard-survival/index.html'), /data-build="0\.8\.3"/);
   } else if (game.id === 'stack-battle') {
     assert.equal(game.status, 'beta');
     assert.equal(game.name, '方塊派對');

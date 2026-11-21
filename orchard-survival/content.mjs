@@ -1,5 +1,5 @@
 
-export const BUILD = '0.8.2';
+export const BUILD = '0.8.3';
 export const SKILL_CAP = 10;
 export const PASSIVE_CAP = 10;
 export const ATTRIBUTES = Object.freeze({str:'力量',agi:'敏捷',vit:'體質',int:'智慧',dex:'靈巧',luk:'幸運'});

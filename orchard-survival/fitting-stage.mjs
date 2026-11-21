@@ -1,7 +1,7 @@
-import { advance,buildView,newGame } from './arena.mjs?v=082';
-import { STEP } from './content.mjs?v=082';
-import { FieldEffects, warmBattleArt } from './spells.mjs?v=082';
-import { EnemySprite, HeroSprite } from './actors.mjs?v=082';
+import { advance,buildView,newGame } from './arena.mjs?v=083';
+import { STEP } from './content.mjs?v=083';
+import { FieldEffects, warmBattleArt } from './spells.mjs?v=083';
+import { EnemySprite, HeroSprite } from './actors.mjs?v=083';
 
 export class FittingStage {
   constructor(stage){
