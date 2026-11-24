@@ -417,3 +417,73 @@ test('Asynchronously sent host snapshots do not mutate after later actions', asy
   assert.equal(first.inputAcknowledged, ack);
   assert.equal(host.state.match.players[1].piece.x, firstX + 1);
 });
+
+test('Realtime relay queue remains bounded under ten minutes of simulated snapshot bursts', async () => {
+  const { createRealtimeQueue } = await import('../one-a-two-b/relay-transport.mjs');
+  let release;
+  const queue = createRealtimeQueue(error => assert.fail(error.message));
+  const delivered = [];
+  queue.push(() => new Promise(resolve => { release = resolve; }));
+  for (let frame = 1; frame <= 4800; frame++) {
+    queue.push(() => { delivered.push(frame); }, true);
+    assert.ok(queue.size <= 2);
+  }
+  queue.push(() => { delivered.push('final'); });
+  release();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(delivered, [4800, 'final']);
+  assert.equal(queue.size, 0);
+  let overflow = 0;
+  const blocked = createRealtimeQueue(() => overflow++, 4);
+  let unblock;
+  blocked.push(() => new Promise(resolve => { unblock = resolve; }));
+  for (let i = 0; i < 4; i++) assert.equal(blocked.push(() => {}), true);
+  assert.equal(blocked.push(() => {}), false);
+  assert.equal(overflow, 1);
+  unblock();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(blocked.size, 0);
+});
+
+test('Guest batches input, deduplicates replay, and recovers instead of accumulating stale commands', async () => {
+  const { BattleRoom } = await import('../stack-battle/room.mjs');
+  const host = Object.create(BattleRoom.prototype);
+  const guest = Object.create(BattleRoom.prototype);
+  const seat = { open: true };
+  const upstream = [];
+  host.state = { role:'host', mode:ENDLESS_MODE, name:'房主', guest:null, match:null };
+  host.onView = () => {};
+  host.status = () => {};
+  host.save = () => {};
+  host.transport = { sendHost(_seat, msg) { guest.receiveGuest(structuredClone(msg)); return true; } };
+  guest.state = { role:'guest', mode:ENDLESS_MODE, name:'好友' };
+  guest.onStatus = () => {};
+  guest.onView = () => {};
+  guest.resetGuestPrediction();
+  let reconnects = 0;
+  guest.transport = { confirmJoined() {}, sendGuest(msg) { upstream.push(msg); return true; }, reconnect() { reconnects++; } };
+  const hello = { type:'hello', token:crypto.randomUUID(), name:'好友', supportsEndless:true, supportsPrediction:true, supportsInputBatch:true };
+  host.receiveHost(hello, seat);
+  host.start();
+  const initialX = host.state.match.players[1].piece.x;
+  guest.input('r'); guest.input('r'); guest.input('l');
+  assert.equal(upstream.length, 0);
+  assert.equal(guest.predictedMatch.players[1].piece.x, initialX + 1);
+  guest.flushGuestInputs();
+  assert.equal(upstream.length, 1);
+  assert.deepEqual(upstream[0].actions, ['r','r','l']);
+  host.receiveHost(upstream[0], seat);
+  host.receiveHost(hello, seat);
+  host.receiveHost(upstream[0], seat);
+  host.sendView();
+  assert.equal(host.state.match.players[1].piece.x, initialX + 1);
+  assert.equal(guest.pendingGuestActions.length, 0);
+  for (let i = 0; i < 5000; i++) guest.input('l');
+  assert.equal(guest.pendingGuestActions.length, 96);
+  guest.flushGuestInputs();
+  assert.equal(upstream.at(-1).actions.length, 16);
+  assert.equal(guest.checkGuestHealth(guest.pendingGuestActions[0].sentAt + 2600), false);
+  assert.equal(reconnects, 1);
+  assert.equal(guest.pendingGuestActions.length, 0);
+  assert.equal(guest.remoteReady, false);
+});

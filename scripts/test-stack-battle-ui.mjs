@@ -61,7 +61,7 @@ test('Public history is shared via direct URL and rendered from server rather th
 });
 
 test('Multiplayer loads the same new endless gravity engine without stale cache', () => {
-  assert.match(game, /room.mjs\?v=140/);
+  assert.match(game, /room.mjs\?v=150/);
   assert.match(room, /engine.mjs\?v=132/);
 });
 
@@ -79,7 +79,7 @@ test('Active gameplay blocks Safari long-press text selection outside control bu
   assert.match(game, /selection\?\.rangeCount/);
   assert.match(game, /gameplaySurface\(selection\.anchorNode\)/);
   assert.match(game, /\$\('help-dialog'\)\.open/);
-  assert.match(html, /V1\.4\.3/);
+  assert.match(html, /V1\.5\.0/);
 });
 
 test('Guest input prediction and snapshot throttling are present', () => {
@@ -93,15 +93,16 @@ test('Guest input prediction and snapshot throttling are present', () => {
 });
 test('WSS relay coalesces Stack Battle snapshots without changing other games', () => {
   const relay = readFileSync(new URL('../one-a-two-b/relay-transport.mjs', import.meta.url), 'utf8');
-  assert.match(relay, /namespace === 'sanmao-blocks-v1' && payload\?\.type === 'state'/);
-  assert.match(relay, /entry\.latestState = payload/);
-  assert.match(relay, /sendEncrypted\(latest, 0\)/);
+  assert.match(relay, /namespace === 'sanmao-blocks-v1'/);
+  assert.match(relay, /createRealtimeQueue/);
+  assert.match(relay, /inbound.push\(processPacket, data.frame === 'snapshot'\)/);
+  assert.match(relay, /payload\?\.type === 'state' && Boolean\(payload.match && !payload.match.finished\)/);
 });
 
 test('Updated room and shared peer loader bust old relay caches', () => {
-  assert.match(room, /peer-room.mjs\?v=stack-140/);
+  assert.match(room, /peer-room.mjs\?v=stack-150/);
   const peer = readFileSync(new URL('../one-a-two-b/peer-room.mjs', import.meta.url), 'utf8');
-  assert.match(peer, /relay-transport.mjs\?v=5/);
+  assert.match(peer, /relay-transport.mjs\?v=6/);
 });
 
 test('Mobile touch input remains responsive when Safari skips pointerdown or capture throws', () => {
@@ -115,4 +116,13 @@ test('Mobile touch input remains responsive when Safari skips pointerdown or cap
   assert.match(game, /event\.detail === 0/);
   assert.match(game, /const repeating = 'lrd'/);
   assert.doesNotMatch(game, /const repeating = 'lrds'/);
+});
+
+test('Long-session input cleanup and rendering are bounded', () => {
+  assert.match(game, /stopInput\('pointer:' \+ event.pointerId\), true/);
+  assert.match(game, /stopInput\('touch:' \+ touch.identifier\)/);
+  assert.match(game, /roomRenderPending = true/);
+  assert.match(room, /this.flushGuestInputs\(\)/);
+  assert.match(room, /this.checkGuestHealth\(\)/);
+  assert.match(html, /id="network-stat"/);
 });

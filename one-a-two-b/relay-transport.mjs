@@ -137,6 +137,57 @@ function openClient(mqtt, url, subscription, signal) {
     client.on('error', error => { if (!settled) fail(error); });
   });
 }
+// Keep one running task and a bounded waiting queue. Replace only adjacent
+// transient snapshots, never reliable commands or final results.
+export function createRealtimeQueue(onFailure, limit = 32) {
+  const waiting = [];
+  let running = false, closed = false;
+  async function drain() {
+    if (running || closed) return;
+    running = true;
+    try {
+      while (!closed && waiting.length) await waiting.shift().task();
+    } catch (error) {
+      close();
+      onFailure(error);
+    } finally { running = false; }
+  }
+  function close() { closed = true; waiting.length = 0; }
+  return {
+    push(task, transient = false) {
+      if (closed) return false;
+      if (transient && waiting.at(-1)?.transient) waiting[waiting.length - 1] = { task, transient };
+      else {
+        if (waiting.length >= limit) {
+          close();
+          onFailure(new Error('即時連線佇列已滿'));
+          return false;
+        }
+        waiting.push({ task, transient });
+      }
+      void drain();
+      return true;
+    },
+    close,
+    get size() { return waiting.length + Number(running); }
+  };
+}
+
+// MQTT publish callback provides backpressure from the actual transport,
+// including QoS 1 acknowledgements. Never enqueue into MQTT indefinitely.
+function publishRealtime(client, path, message, qos) {
+  return new Promise((resolve, reject) => {
+    if (!client?.connected) { reject(new Error('中繼已中斷')); return; }
+    const timer = setTimeout(() => reject(new Error('中繼傳送逾時')), 2500);
+    try {
+      client.publish(path, JSON.stringify(message), { qos, retain:false }, error => {
+        clearTimeout(timer);
+        if (error) reject(error); else resolve();
+      });
+    } catch (error) { clearTimeout(timer); reject(error); }
+  });
+}
+
 function makeEmitter() {
   const listeners = new Map();
   return {
@@ -177,6 +228,11 @@ export async function createRelayHost(code, onConnection, onStatus = () => {}, n
           session = { session:data.session, secret, publicPart, conn, lastSeen:Date.now(),
             sendQueue:Promise.resolve(), receiveQueue:Promise.resolve() };
           const entry = session;
+          const realtime = namespace === 'sanmao-blocks-v1';
+          if (realtime) conn.transportKind = 'WSS';
+          const outbound = realtime ? createRealtimeQueue(() => conn.close()) : null;
+          const inbound = realtime ? createRealtimeQueue(() => conn.close()) : null;
+          entry.inbound = inbound;
           const staleTimer = setInterval(() => {
             if (Date.now() - entry.lastSeen > DISCONNECTED_TIMEOUT_MS) conn.close();
             else if (conn.open && client.connected) {
@@ -184,30 +240,20 @@ export async function createRelayHost(code, onConnection, onStatus = () => {}, n
             }
           }, HEARTBEAT_INTERVAL_MS);
           const relayPath = topic(code, namespace) + '/to/' + id;
-          async function sendEncrypted(payload, qos = 1) {
+          async function sendEncrypted(payload, qos = 1, transient = false) {
             const packet = await encrypt(secret, payload);
             if (stopped || !conn.open || !client.connected) return;
-            // Drop stale transient states under socket backpressure; the next wins.
-            if (qos === 0 && (client.stream?.writableLength || 0) > 32000) return;
-            emitMessage(client, relayPath, { ...packet, session:entry.session }, qos);
+            const envelope = { ...packet, session:entry.session };
+            if (transient) envelope.frame = 'snapshot';
+            if (realtime) await publishRealtime(client, relayPath, envelope, qos);
+            else emitMessage(client, relayPath, envelope, qos);
           }
           conn.send = payload => {
             if (!conn.open || !client.connected) throw new Error('中繼通道未連接');
-            if (namespace === 'sanmao-blocks-v1' && payload?.type === 'state') {
-              // Coalesce only Stack Battle state snapshots, not other games' messages.
-              entry.latestState = payload;
-              if (entry.stateQueued) return;
-              entry.stateQueued = true;
-              entry.sendQueue = entry.sendQueue.then(async () => {
-                const latest = entry.latestState;
-                entry.latestState = null;
-                if (latest) await sendEncrypted(latest, 0);
-              }).catch(() => { conn.close(); }).finally(() => {
-                entry.stateQueued = false;
-                if (entry.latestState && conn.open && client.connected)
-                  conn.send(entry.latestState);
-              });
-              return;
+            if (outbound) {
+              // Only active snapshots are replaceable; lobby/final state stays reliable.
+              const transient = payload?.type === 'state' && Boolean(payload.match && !payload.match.finished);
+              return outbound.push(() => sendEncrypted(payload, transient ? 0 : 1, transient), transient);
             }
             entry.sendQueue = entry.sendQueue.then(() => sendEncrypted(payload))
               .catch(() => { conn.close(); });
@@ -216,6 +262,7 @@ export async function createRelayHost(code, onConnection, onStatus = () => {}, n
             if (!conn.open) return;
             conn.open = false;
             clearInterval(staleTimer);
+            outbound?.close(); inbound?.close();
             if (sessions.get(sessionKey) === entry) sessions.delete(sessionKey);
             conn.emit('close');
           };
@@ -234,13 +281,15 @@ export async function createRelayHost(code, onConnection, onStatus = () => {}, n
     const entry = sessions.get(sessionKey);
     if (!entry || !entry.conn.open || data.type !== 'secure' ||
         data.session !== entry.session) return;
-    entry.receiveQueue = entry.receiveQueue.then(async () => {
+    const processPacket = async () => {
       const decoded = await decrypt(entry.secret, data);
-      if (!decoded || typeof decoded !== 'object') return;
+      if (!entry.conn.open || !decoded || typeof decoded !== 'object') return;
       entry.lastSeen = Date.now();
       if (decoded.type === 'bye') entry.conn.close();
       else if (decoded.type !== 'heartbeat') entry.conn.emit('data', decoded);
-    }).catch(() => { /* bad ciphertext is ignored */ });
+    };
+    if (entry.inbound) entry.inbound.push(processPacket);
+    else entry.receiveQueue = entry.receiveQueue.then(processPacket).catch(() => {});
   }
   const attempts = RELAY_BROKERS.map(async url => {
     const client = await openClient(mqtt, url, topic(code, namespace)+'/from/+');
@@ -272,10 +321,15 @@ async function guestBroker(mqtt, broker, code, handlers, signal, namespace) {
   let sending = Promise.resolve(), receiving = Promise.resolve(), pulse = null, heartbeat = null;
   let timeout;
   const conn = makeEmitter();
+  const realtime = namespace === 'sanmao-blocks-v1';
+  if (realtime) conn.transportKind = 'WSS';
+  const outbound = realtime ? createRealtimeQueue(() => terminate(true)) : null;
+  const inbound = realtime ? createRealtimeQueue(() => terminate(true)) : null;
   function terminate(notify = false) {
     if (stopped) return;
     stopped = true;
     conn.open = false;
+    outbound?.close(); inbound?.close();
     clearInterval(pulse);
     clearInterval(heartbeat);
     clearTimeout(timeout);
@@ -308,10 +362,14 @@ async function guestBroker(mqtt, broker, code, handlers, signal, namespace) {
     };
     conn.send = payload => {
       if (stopped || !secret || !client?.connected) throw new Error('中繼未連接');
-      sending = sending.then(async () => {
+      const send = async () => {
         const packet = await encrypt(secret, payload);
-        if (!stopped) emitMessage(client, outgoing, { ...packet, session });
-      }).catch(() => { terminate(true); });
+        if (stopped) return;
+        if (realtime) await publishRealtime(client, outgoing, { ...packet, session }, 1);
+        else emitMessage(client, outgoing, { ...packet, session });
+      };
+      if (outbound) return outbound.push(send);
+      sending = sending.then(send).catch(() => { terminate(true); });
     };
     try {
       client = await openClient(mqtt, broker, incoming, signal);
@@ -346,13 +404,17 @@ async function guestBroker(mqtt, broker, code, handlers, signal, namespace) {
           return;
         }
         if (!secret || data.type !== 'secure') return;
-        receiving = receiving.then(async () => {
+        const processPacket = async () => {
           const message = await decrypt(secret, data);
-          if (!message || typeof message !== 'object') return;
+          if (stopped || !message || typeof message !== 'object') return;
           lastHostSeen = Date.now();
           if (message.type === 'bye') { terminate(true); return; }
           if (message.type !== 'relay-heartbeat') handlers.onMessage?.(message);
-        }).catch(() => {});
+        };
+        // New hosts mark replaceable active snapshots outside the ciphertext.
+        // Old hosts remain compatible; their unmarked messages are never coalesced.
+        if (inbound) inbound.push(processPacket, data.frame === 'snapshot');
+        else receiving = receiving.then(processPacket).catch(() => {});
       });
       client.on('offline', () => { if (connected) terminate(true); });
       client.on('close', () => { if (connected) terminate(true); });

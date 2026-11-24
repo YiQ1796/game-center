@@ -1,6 +1,6 @@
 import { advance, applyAction, createMatch, ENDLESS_MODE, finishMatch, playMatch, PLAYER_ACTIONS } from './engine.mjs?v=132';
 import { isRoomTaunt, isTauntIndex, TAUNT_COOLDOWN } from './banter.mjs?v=130';
-import { PeerRoom } from '../one-a-two-b/peer-room.mjs?v=stack-140';
+import { PeerRoom } from '../one-a-two-b/peer-room.mjs?v=stack-150';
 
 const STORAGE = 'sanmao-blocks-room-v1';
 const SNAPSHOT_INTERVAL_MS = 125;
@@ -8,6 +8,8 @@ const GUEST_CLOCK_REFRESH_MS = 250;
 const ROOM_SAVE_INTERVAL_MS = 1000;
 const MAX_PENDING_GUEST_ACTIONS = 96;
 const PENDING_GUEST_TIMEOUT_MS = 2500;
+const MAX_INPUT_BATCH = 16;
+const STALE_SNAPSHOT_MS = 4500;
 const ROOM = /^\d{6}$/;
 const TOKEN = /^[a-f0-9-]{36}$/;
 const nameFor = (value, fallback) => typeof value === 'string' ? value.trim().slice(0, 16) || fallback : fallback;
@@ -22,7 +24,7 @@ export class BattleRoom {
       onHostMessage: (message, source) => this.receiveHost(message, source),
       onGuestMessage: message => this.receiveGuest(message),
       onGuestOpen: () => this.transport.sendGuest({
-        type: 'hello', name: this.state.name, token: this.state.token, supportsEndless: true, supportsTaunts: true, supportsPrediction: true
+        type: 'hello', name: this.state.name, token: this.state.token, supportsEndless: true, supportsTaunts: true, supportsPrediction: true, supportsInputBatch: true
       }),
       onConnectionClosed: source => this.disconnectGuest(source),
       onStatus: (state, detail) => {
@@ -59,6 +61,8 @@ export class BattleRoom {
     this.predictedMatch = null;
     this.nextGuestInputSequence = 0;
     this.lastSnapshotNumberSeen = 0;
+    this.lastSnapshotAt = 0;
+    this.lastGuestAckMs = null;
   }
 
   status(detail) {
@@ -150,13 +154,16 @@ export class BattleRoom {
         this.guest = null;
         previous.close();
       }
+      if (this.guest !== source || !this.actionWindow) {
+        this.actionWindow = { second: 0, count: 0 };
+        this.lastGuestInputSequence = 0;
+      }
       this.guest = source;
-      this.actionWindow = { second: 0, count: 0 };
-      this.lastGuestInputSequence = 0;
       this.state.guest = {
         token: message.token, name: nameFor(message.name, '好友'), supportsEndless: message.supportsEndless === true,
         supportsTaunts: message.supportsTaunts === true,
-        supportsPrediction: message.supportsPrediction === true
+        supportsPrediction: message.supportsPrediction === true,
+        supportsInputBatch: message.supportsPrediction === true && message.supportsInputBatch === true
       };
       this.sendView();
       this.status('好友已入座。');
@@ -168,18 +175,36 @@ export class BattleRoom {
       this.publishTaunt(1, message.index);
       return;
     }
+
+    if (message.type === 'inputs' && this.state.guest?.supportsInputBatch) {
+      if (!Array.isArray(message.actions) || message.actions.length < 1 ||
+          message.actions.length > MAX_INPUT_BATCH ||
+          !Number.isSafeInteger(message.firstSequence) || message.firstSequence < 1 ||
+          !message.actions.every(action => typeof action === 'string' &&
+            action.length === 1 && PLAYER_ACTIONS.includes(action))) return;
+      for (let i = 0; i < message.actions.length; i++) {
+        this.acceptGuestAction(message.actions[i], message.firstSequence + i, message.round);
+      }
+      return;
+    }
     if (message.type !== 'input' || typeof message.action !== 'string' ||
         message.action.length !== 1 || !PLAYER_ACTIONS.includes(message.action)) return;
+    this.acceptGuestAction(message.action, message.sequence);
+  }
+
+  acceptGuestAction(action, sequence, round) {
     if (this.state.guest?.supportsPrediction) {
       const previous = this.lastGuestInputSequence || 0;
-      if (!Number.isSafeInteger(message.sequence) || message.sequence <= previous ||
-          message.sequence > previous + MAX_PENDING_GUEST_ACTIONS) return;
+      if (!Number.isSafeInteger(sequence) || sequence <= previous ||
+          sequence > previous + MAX_PENDING_GUEST_ACTIONS) return;
       // Acknowledge even rate-limited commands: otherwise local prediction persists indefinitely.
-      this.lastGuestInputSequence = message.sequence;
+      this.lastGuestInputSequence = sequence;
     }
     const second = Math.floor(Date.now() / 1000);
     if (this.actionWindow.second !== second) this.actionWindow = { second, count: 0 };
-    if (++this.actionWindow.count <= 60) this.play(1, message.action);
+    // Batches may arrive together after a network stall. Keep a bounded burst allowance.
+    const limit = this.state.guest?.supportsInputBatch ? 120 : 60;
+    if (++this.actionWindow.count <= limit && (round === undefined || round === this.state.match?.starts)) this.play(1, action);
   }
 
   receiveGuest(message) {
@@ -202,6 +227,7 @@ export class BattleRoom {
     this.transport.confirmJoined();
     const newRound = this.remote?.match?.starts !== message.match?.starts;
     this.remote = message;
+    this.lastSnapshotAt = Date.now();
     this.state.mode = roomMode(message.mode);
     this.remoteReady = true;
     this.clockOffset = message.now - Date.now();
@@ -212,8 +238,11 @@ export class BattleRoom {
     const ack = message.inputAcknowledged;
     if (Number.isSafeInteger(ack) && ack >= 0 && message.match && !message.match.finished) {
       this.nextGuestInputSequence = Math.max(this.nextGuestInputSequence || 0, ack);
-      this.pendingGuestActions = (this.pendingGuestActions || []).filter(p =>
-        p.sequence > ack && Date.now() - p.sentAt < PENDING_GUEST_TIMEOUT_MS);
+
+      const pending = this.pendingGuestActions || [];
+      const confirmed = pending.filter(p => p.sequence <= ack).at(-1);
+      if (confirmed) this.lastGuestAckMs = Math.max(0, Date.now() - confirmed.sentAt);
+      this.pendingGuestActions = pending.filter(p => p.sequence > ack);
       // Reconcile against authoritative state: replay only unacknowledged inputs.
       this.predictedMatch = this.pendingGuestActions.length ? structuredClone(message.match) : null;
       for (const pending of this.pendingGuestActions) {
@@ -243,6 +272,7 @@ export class BattleRoom {
       supportsTaunts: true, now: Date.now(), snapshotNumber
     };
     if (guest?.supportsPrediction) message.inputAcknowledged = this.lastGuestInputSequence || 0;
+    if (guest?.supportsInputBatch) message.supportsInputBatch = true;
     if (this.transport.sendHost(this.guest, message) !== false) {
       this.snapshotNumber = snapshotNumber;
       this.lastSnapshotSentAt = now;
@@ -284,16 +314,43 @@ export class BattleRoom {
       this.transport.sendGuest({ type: 'input', action });
       return;
     }
-    const sequence = (this.nextGuestInputSequence || 0) + 1;
-    if (!this.transport.sendGuest({ type: 'input', action, sequence })) return;
-    this.nextGuestInputSequence = sequence;
+
     this.pendingGuestActions ??= [];
-    this.pendingGuestActions.push({ sequence, action, sentAt: Date.now() });
-    if (this.pendingGuestActions.length > MAX_PENDING_GUEST_ACTIONS)
-      this.pendingGuestActions.splice(0, this.pendingGuestActions.length - MAX_PENDING_GUEST_ACTIONS);
+    // Never allow unconfirmed commands to grow indefinitely. A stalled connection
+    // is recovered by tick(), not by replaying seconds of obsolete button presses.
+    if (this.pendingGuestActions.length >= MAX_PENDING_GUEST_ACTIONS) return;
+    const sequence = (this.nextGuestInputSequence || 0) + 1;
+    const batch = this.remote.supportsInputBatch === true;
+    if (!batch && !this.transport.sendGuest({ type: 'input', action, sequence })) return;
+    this.nextGuestInputSequence = sequence;
+    this.pendingGuestActions.push({ sequence, action, sentAt: Date.now(), sent: !batch });
     this.predictedMatch ??= structuredClone(this.remote.match);
     if (!this.predictedMatch.players[1].dead) applyAction(this.predictedMatch.players[1], action);
     this.emit();
+  }
+
+  flushGuestInputs() {
+    if (!this.remoteReady || !this.remote?.supportsInputBatch || !this.remote.match || this.remote.match.finished) return;
+    const batch = (this.pendingGuestActions || []).filter(item => !item.sent).slice(0, MAX_INPUT_BATCH);
+    if (!batch.length) return;
+    const message = { type: 'inputs', firstSequence: batch[0].sequence,
+      round: this.remote.match.starts, actions: batch.map(item => item.action) };
+    for (const item of batch) item.sent = true;
+    if (!this.transport.sendGuest(message)) for (const item of batch) item.sent = false;
+  }
+
+  checkGuestHealth(now = Date.now()) {
+    if (!this.remoteReady || !this.remote?.match || this.remote.match.finished) return true;
+    const oldest = this.pendingGuestActions?.[0];
+    if ((oldest && now - oldest.sentAt > PENDING_GUEST_TIMEOUT_MS) ||
+        (this.lastSnapshotAt && now - this.lastSnapshotAt > STALE_SNAPSHOT_MS)) {
+      this.remoteReady = false;
+      this.resetGuestPrediction();
+      this.status('同步延遲過高，正在重新連線；舊操作不再排隊。');
+      this.transport.reconnect?.();
+      return false;
+    }
+    return true;
   }
 
   sendTaunt(index) {
@@ -341,6 +398,11 @@ export class BattleRoom {
       match: host ? state.match : this.predictedMatch ?? this.remote?.match,
       taunt: isRoomTaunt(taunt) ? taunt : null,
       supportsTaunts: (host ? state.guest : this.remote)?.supportsTaunts === true,
+      network: {
+        kind: (host ? this.guest : this.transport.connection)?.transportKind || ((host ? this.guest : this.transport.connection) ? 'P2P' : ''),
+        ackMs: host ? null : this.lastGuestAckMs,
+        pending: host ? 0 : this.pendingGuestActions?.length || 0
+      },
       now: Date.now() + (host ? 0 : this.clockOffset || 0)
     });
   }
@@ -351,6 +413,8 @@ export class BattleRoom {
     this.lastUpdate = now;
     if (!this.state) return;
     if (this.state.role === 'guest') {
+      if (!this.checkGuestHealth()) return;
+      this.flushGuestInputs();
       // Network snapshots and local input already draw the board.
       if (this.remote?.match && !this.remote.match.finished &&
           now - (this.lastGuestUiTick || 0) >= GUEST_CLOCK_REFRESH_MS) {

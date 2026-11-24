@@ -1,6 +1,6 @@
 /** Small PeerJS/WebRTC signaling wrapper. Game rules stay outside the transport. */
 import { validRoomCode } from './duel-core.mjs?v=3';
-import { createRelayHost, connectRelayGuest } from './relay-transport.mjs?v=5';
+import { createRelayHost, connectRelayGuest } from './relay-transport.mjs?v=6';
 
 const PREFIX = 'sanmao-1a2b-v2-';
 const RETRY_DELAYS = [800, 1500, 3000, 5000, 8000, 12000];
@@ -309,10 +309,15 @@ export class PeerRoom {
   }
   sendHost(conn, msg) {
     if (!conn?.open || !checkMessage(msg)) return false;
-    try { conn.send(msg); return true; } catch { return false; }
+    if (this.namespace === 'sanmao-blocks-v1' && msg.type === 'state' &&
+        msg.match && !msg.match.finished &&
+        ((conn.dataChannel?.bufferedAmount || 0) > 24000 || (conn.bufferSize || 0) > 6)) return false;
+    try { return conn.send(msg) !== false; } catch { return false; }
   }
   sendGuest(msg) {
     if (!this.connection?.open || !checkMessage(msg)) return false;
-    try { this.connection.send(msg); return true; } catch { return false; }
+    if (this.namespace === 'sanmao-blocks-v1' &&
+        ((this.connection.dataChannel?.bufferedAmount || 0) > 24000 || (this.connection.bufferSize || 0) > 12)) return false;
+    try { return this.connection.send(msg) !== false; } catch { return false; }
   }
 }

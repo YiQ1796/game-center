@@ -1,7 +1,7 @@
 import { advance, applyAction, cellsOf, createPlayer, ENDLESS_MODE, HEIGHT, HIDDEN, levelOf, MATCH_TIME, PIECES, projected, WIDTH } from './engine.mjs?v=132';
 import { eventBanter, FRIEND_TAUNTS, MONKEY_LINES, TAUNT_COOLDOWN, TAUNT_DURATION } from './banter.mjs?v=130';
 import { LineBurst } from './effects.mjs?v=110';
-import { BattleRoom } from './room.mjs?v=140';
+import { BattleRoom } from './room.mjs?v=150';
 import { getRanking, submitScore } from './ranking.mjs?v=131';
 import { isNickname, nicknameChoices } from './names.mjs?v=100';
 
@@ -56,12 +56,19 @@ const chatter = {
 };
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
+let roomRenderPending = false;
 const room = new BattleRoom(value => {
   view = value;
   if (!view) chatter.sendAt = 0;
   if (!isMultiplayer(mode)) return;
   if (view && view.mode !== mode) showMode(view.mode);
-  else render();
+  else if (!roomRenderPending) {
+    roomRenderPending = true;
+    requestAnimationFrame(() => {
+      roomRenderPending = false;
+      if (isMultiplayer(mode)) render();
+    });
+  }
 }, message => { $('room-status').textContent = message; });
 
 function setMode(target) {
@@ -404,6 +411,10 @@ function renderRoomPlay(match, player, other, seat) {
     const score = endless ? scoreAndLines(other) : 'KO ' + other.ko + ' ・ 送出 ' + other.sent + ' 列';
     const status = other.dead ? ' ・ 已堆到頂' : !view.online && !match.finished ? ' ・ 離線' : '';
     setText('friend-stat', score + status);
+    const net = view.network;
+    const label = net?.kind ? net.kind + (net.ackMs == null ? '' : '・' + net.ackMs + 'ms') + (net.pending ? '・待 ' + net.pending : '') : '';
+    setText('network-stat', label);
+    $('network-stat').hidden = !label;
     drawBoard('opponent', other);
   }
   if (!match) {
@@ -539,13 +550,14 @@ function gameInput(action) {
 const held = new Map();
 function startInput(key, action) {
   if (held.has(key)) return;
-  gameInput(action);
-  if (!repeating.includes(action)) return;
+  if (!repeating.includes(action)) { gameInput(action); return; }
   const timer = setTimeout(() => {
+    if (!held.has(key)) return;
     gameInput(action);
     if (held.has(key)) held.set(key, setInterval(() => gameInput(action), action === 'd' ? 45 : 42));
   }, 150);
   held.set(key, timer);
+  gameInput(action);
 }
 
 function stopInput(key) {
@@ -570,7 +582,9 @@ document.addEventListener('keydown', event => {
 document.addEventListener('keyup', event => stopInput(event.code));
 window.addEventListener('blur', cancelInputs);
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && mode === 'solo' && soloStatus === 'playing') togglePause();
+  if (!document.hidden) return;
+  cancelInputs();
+  if (mode === 'solo' && soloStatus === 'playing') togglePause();
 });
 /*
  * Safari may omit pointerdown during rapid/multi-touch play and can throw from
@@ -664,8 +678,15 @@ $('controls').addEventListener('touchstart', event => {
     event.preventDefault();
   clearGameplaySelection();
 }, { passive: false });
-window.addEventListener('pointerup', event => stopInput(event.pointerId));
-window.addEventListener('pointercancel', event => stopInput(event.pointerId));
+for (const eventName of ['pointerup', 'pointercancel']) {
+  window.addEventListener(eventName, event => stopInput('pointer:' + event.pointerId), true);
+}
+for (const eventName of ['touchend', 'touchcancel']) {
+  window.addEventListener(eventName, event => {
+    for (const touch of event.changedTouches) stopInput('touch:' + touch.identifier);
+  }, { capture: true, passive: true });
+}
+window.addEventListener('pagehide', cancelInputs);
 
 async function copy(value, field) {
   try {
