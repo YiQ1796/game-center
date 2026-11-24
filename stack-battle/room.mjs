@@ -8,7 +8,7 @@ const GUEST_CLOCK_REFRESH_MS = 250;
 const ROOM_SAVE_INTERVAL_MS = 1000;
 const MAX_PENDING_GUEST_ACTIONS = 96;
 const PENDING_GUEST_TIMEOUT_MS = 2500;
-const MAX_INPUT_BATCH = 16;
+const MAX_INPUT_BATCH = 24;
 const STALE_SNAPSHOT_MS = 4500;
 const ROOM = /^\d{6}$/;
 const TOKEN = /^[a-f0-9-]{36}$/;
@@ -331,7 +331,11 @@ export class BattleRoom {
 
   flushGuestInputs() {
     if (!this.remoteReady || !this.remote?.supportsInputBatch || !this.remote.match || this.remote.match.finished) return;
-    const batch = (this.pendingGuestActions || []).filter(item => !item.sent).slice(0, MAX_INPUT_BATCH);
+    const pending = this.pendingGuestActions || [];
+    // One unacknowledged batch at a time: broker ACKs alone do not prove the
+    // host has processed inputs. This prevents a second backlog in MQTT/SCTP.
+    if (pending.some(item => item.sent)) return;
+    const batch = pending.slice(0, MAX_INPUT_BATCH);
     if (!batch.length) return;
     const message = { type: 'inputs', firstSequence: batch[0].sequence,
       round: this.remote.match.starts, actions: batch.map(item => item.action) };

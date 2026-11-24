@@ -481,7 +481,10 @@ test('Guest batches input, deduplicates replay, and recovers instead of accumula
   for (let i = 0; i < 5000; i++) guest.input('l');
   assert.equal(guest.pendingGuestActions.length, 96);
   guest.flushGuestInputs();
-  assert.equal(upstream.at(-1).actions.length, 16);
+  assert.equal(upstream.at(-1).actions.length, 24);
+  const sentCount = upstream.length;
+  for (let tick = 0; tick < 100; tick++) guest.flushGuestInputs();
+  assert.equal(upstream.length, sentCount, 'Unacknowledged batch must not create a transport backlog');
   assert.equal(guest.checkGuestHealth(guest.pendingGuestActions[0].sentAt + 2600), false);
   assert.equal(reconnects, 1);
   assert.equal(guest.pendingGuestActions.length, 0);
